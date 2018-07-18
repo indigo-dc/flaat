@@ -1,0 +1,11 @@
+--- pyve/lib/python3.6/site-packages/flask_oidc/__init__.py	2018-07-18 16:09:46.743810911 +0200
++++ __init__.py	2018-07-18 16:09:37.899775873 +0200
+@@ -882,7 +882,7 @@
+         if (auth_method == 'client_secret_basic'):
+             basic_auth_string = '%s:%s' % (self.client_secrets['client_id'], self.client_secrets['client_secret'])
+             basic_auth_bytes = bytearray(basic_auth_string, 'utf-8')
+-            headers['Authorization'] = 'Basic %s' % b64encode(basic_auth_bytes)
++            headers['Authorization'] = 'Basic %s' % b64encode(basic_auth_bytes).decode('utf-8')
+         elif (auth_method == 'bearer'):
+             headers['Authorization'] = 'Bearer %s' % token
+         elif (auth_method == 'client_secret_post'):
