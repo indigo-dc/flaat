@@ -11,3 +11,11 @@ commandline you might want to use
 
 For this to work, you need to register a client with the IAM of your
 choice and enter these in the client_secrets.json file
+
+# Installation
+
+Just *source* install.sh. If you merely execute it, you're not using the
+PYVE and you need to adjust your $PATH:
+
+`  . install.sh`
+
