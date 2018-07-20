@@ -23,6 +23,11 @@ import json
 from flask import Flask, request, g
 from flask_oidc import OpenIDConnect
 
+import logging
+logging.basicConfig(level=logging.DEBUG,
+        format="[%(asctime)s] {%(filename)s:%(funcName)s:%(lineno)d} %(levelname)s - %(message)s")
+logging.info('\n NEW START')
+
 ##########
 # Basic config
 app=Flask(__name__)# {{{
@@ -59,9 +64,12 @@ def hello_api():
     response =  ''
 
     # here we have to use flask.g to get hold of our info:
-    for field in g.oidc_token_info.keys():
-        response +='\n%s: %s' % (field, g.oidc_token_info.get(field))
-    response += '\n'
+    try:
+        for field in g.oidc_token_info.keys():
+            response +='\n%s: %s' % (field, g.oidc_token_info.get(field))
+        response += '\n'
+    except AttributeError:
+        response += 'Cannot obtain g.oidc_token_info. This is probably due to an internal error in obtaining a token'
 
     # but again, we can get hold of the access token and then get the data from _retrieve_userinfo
     access_token  = get_access_token_from_request(request)
