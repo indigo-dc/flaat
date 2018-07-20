@@ -64,23 +64,30 @@ def hello_api():
     response =  ''
 
     # here we have to use flask.g to get hold of our info:
-    try:
+    try: # if g.oidc_token_info exists... If not, we either have no client-secret or no valid access_token
         for field in g.oidc_token_info.keys():
             response +='\n%s: %s' % (field, g.oidc_token_info.get(field))
         response += '\n'
     except AttributeError:
-        response += 'Cannot obtain g.oidc_token_info. This is probably due to an internal error in obtaining a token, or due to an expired access_token\n\n'
-        response += 'Also, if you have no client-id + client-secret, this will fail.'
+        response += 'Cannot obtain g.oidc_token_info. This is probably due to an internal error in obtaining a token, or due to an expired access_token\n'
+        response += 'Also, if you have no client-id + client-secret, this will fail.\n\n'
 
     # we can get hold of the access token and then get the data from _retrieve_userinfo
     # Nice thing is that we don't even have to register a client, to obtain the userinfo just by
     # using the access_token
     access_token  = get_access_token_from_request(request)
-    if access_token is not None:
-        response += 'AccessToken: %s<br/>\n' % access_token
-        userinfo =  oidc._retrieve_userinfo(access_token)
-        response += 'userinfo: '+ str(json.dumps(userinfo, sort_keys=True, indent='    ', separators=(',', ': ')))
-    response += '\ndone\n'
+    if access_token is None:
+        response += 'Could not find access token in request'
+        return (response)
+
+    # response += 'AccessToken: %s\n' % access_token
+    userinfo = oidc._retrieve_userinfo(access_token)
+    if userinfo.get('error') is not None:
+        response += '\nThere was an error using the access token, probably it expired:\n'
+        response += userinfo.get('error')
+        return (response)
+
+    response += '\nuserinfo: '+ str(json.dumps(userinfo, sort_keys=True, indent='    ', separators=(',', ': ')))
     return (response)
 # }}}
 
