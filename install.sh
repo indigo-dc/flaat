@@ -7,7 +7,7 @@ test -d pyve || {
     }
 }
 
-#. pyve/bin/activate
+. pyve/bin/activate
 
 pip install flask_oidc
 
