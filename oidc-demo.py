@@ -69,9 +69,12 @@ def hello_api():
             response +='\n%s: %s' % (field, g.oidc_token_info.get(field))
         response += '\n'
     except AttributeError:
-        response += 'Cannot obtain g.oidc_token_info. This is probably due to an internal error in obtaining a token'
+        response += 'Cannot obtain g.oidc_token_info. This is probably due to an internal error in obtaining a token, or due to an expired access_token\n\n'
+        response += 'Also, if you have no client-id + client-secret, this will fail.'
 
-    # but again, we can get hold of the access token and then get the data from _retrieve_userinfo
+    # we can get hold of the access token and then get the data from _retrieve_userinfo
+    # Nice thing is that we don't even have to register a client, to obtain the userinfo just by
+    # using the access_token
     access_token  = get_access_token_from_request(request)
     if access_token is not None:
         response += 'AccessToken: %s<br/>\n' % access_token
