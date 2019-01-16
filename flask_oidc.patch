@@ -1,4 +1,4 @@
---- pyve/lib/python3.6/site-packages/flask_oidc/__init__.py	2018-07-18 16:09:46.743810911 +0200
+--- pyve/lib/python3.7/site-packages/flask_oidc/__init__.py	2018-07-18 16:09:46.743810911 +0200
 +++ __init__.py	2018-07-18 16:09:37.899775873 +0200
 @@ -882,7 +882,7 @@
          if (auth_method == 'client_secret_basic'):
