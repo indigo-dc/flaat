@@ -64,7 +64,6 @@ def is_url(string):# {{{
 def get_iss_config_from_endpoint(issuer_url):# {{{
     '''Get issuer_wellknown/configuration from url; return json if true, None otherwise'''
     headers = {'Content-type': 'application/x-www-form-urlencoded'}
-    # config_url = issuer_url+'/.well-known/openid-configuration'
     config_url = issuer_url
     # remove slashes:
     config_url = re.sub('^https?://', '', config_url)
@@ -80,6 +79,7 @@ def get_iss_config_from_endpoint(issuer_url):# {{{
     try:
         return resp.json()
     except:
+        print(str(resp.text))
         return None
 # }}}
 def get_issuer_from_accesstoken_info(access_token):# {{{
@@ -97,9 +97,9 @@ def find_issuer_configs(access_token):# {{{
         print ('got iss from access_token: %s' % str(at_iss))
     if at_iss is not None:
         if is_url(at_iss):
-            # print ('it is an url')
-            iss_config = get_iss_config_from_endpoint(at_iss)
-            if iss_config:
+            config_url = at_iss+'/.well-known/openid-configuration'
+            iss_config = get_iss_config_from_endpoint(config_url)
+            if iss_config is not None:
                 return [iss_config]
 
     # 2: use a parameter in the commandline
