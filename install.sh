@@ -9,12 +9,13 @@ test -d pyve || {
 
 . pyve/bin/activate
 
-pip install flask_oidc
+#pip install flask_oidc PyYAML requests configargparse
+pip install PyYAML requests configargparse
 
-echo -e "Patching flask_oidc"
-cat flask_oidc.patch | patch  -p0 || {
-    echo "Error when patching......."
-}
+#echo -e "Patching flask_oidc"
+#cat flask_oidc.patch | patch  -p0 || {
+#    echo "Error when patching......."
+#}
 
 
 export PATH=`pwd`/pyve/bin:$PATH
