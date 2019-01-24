@@ -15,7 +15,6 @@ import fileinput
 from functools import wraps
 import json
 import requests
-import configargparse
 from flask import request
 
 
@@ -428,7 +427,7 @@ class Floidau():# {{{
             def decorated(*args, **kwargs):
                 all_info = self._get_all_info(request)
                 if all_info is not None:
-                    if self.verbose:
+                    if self.verbose>1:
                         print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
                     return view_func(*args, **kwargs)
                 if on_failure:
@@ -447,7 +446,7 @@ class Floidau():# {{{
                         return on_failure
                     return ('No valid authentication found.')
                 if all_info is not None:
-                    if self.verbose:
+                    if self.verbose>1:
                         print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
                     # actual check for group membership:
                     group_entries = []
@@ -477,7 +476,7 @@ class Floidau():# {{{
                         return on_failure
                     return ('No valid authentication found.')
                 if all_info is not None:
-                    if self.verbose:
+                    if self.verbose>0:
                         print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
                     # actual check for group membership:
                     group_entries = []
@@ -498,104 +497,3 @@ class Floidau():# {{{
 # }}}
 # }}}
 
-
-########################## MAIN ########################
-if __name__ == '__main__':# {{{
-    def parseOptions():# {{{
-        '''Parse the commandline options'''
-
-        path_of_executable = os.path.realpath(sys.argv[0])
-        folder_of_executable = os.path.split(path_of_executable)[0]
-        full_name_of_executable = os.path.split(path_of_executable)[1]
-        name_of_executable = full_name_of_executable.rstrip('.py')
-
-        config_files = [os.environ['HOME']+'/.config/%sconf' % name_of_executable,
-                        folder_of_executable +'/%s.conf'     % name_of_executable,
-                        '/root/configs/%s.conf'              % name_of_executable]
-        parser = configargparse.ArgumentParser(
-                default_config_files = config_files,
-                description=name_of_executable, ignore_unknown_config_file_keys=True)
-
-        parser.add('-c', '--my-config',  is_config_file=True, help='config file path')
-        parser.add_argument('--verbose', '-v', action="count", default=0, help='Verbosity')
-        parser.add_argument('--client_id',               default="")
-        parser.add_argument('--client_secret',           default="")
-        parser.add_argument('--verify_tls'             , default=True  , action="store_false" , help='disable verify')
-        parser.add_argument('--accesstoken',   '--at'  , default=False , action="store_true", help='show content of access token')
-        parser.add_argument('--userinfo',      '--ui'  , default=False , action="store_true", help='show userinfo')
-        parser.add_argument('--introspection', '--in'  , default=False , action="store_true", help='show output of token introspection')
-        parser.add_argument('--all',           '-a'    , default=False , action="store_true", help='show output of all')
-        parser.add_argument('--issuersconf'            , default='/etc/oidc-agent/issuer.config',
-                                                         help='issuer.config, e.g. from oidc-agent')
-        parser.add_argument('--issuer', '--iss', '-i',   help='Specify issuer (OIDC Provider)')
-        parser.add_argument('--access-token', dest='access_token', help='access token')
-
-        args = parser.parse_args()
-        # parser.print_values()
-        return args
-    # }}}
-    import time
-
-    args = parseOptions()
-    floidau = Floidau()
-
-    # find issuer configs{{{
-    issuer_configs = floidau._find_issuer_config_everywhere(args.access_token)
-    if args.verbose:
-        print ('found %d issuer_config endpoints for your search "%s"' % (len(issuer_configs), args.issuer))
-    for issuer_config in issuer_configs:
-        if issuer_config is None:
-            print ('Error: cannot find issuer config. ')
-        if args.verbose > 1:
-            print ("issuer config:")
-            print (json.dumps(issuer_config, sort_keys=True, indent=4, separators=(',', ': ')))
-        if args.verbose > 2:
-            print ('userinfo: %s' % issuer_config['userinfo_endpoint'])
-    # }}}
-
-    # get info from Access Token:{{{
-    accesstoken_info = get_accesstoken_info(args.access_token)
-    at_head={}
-    at_body={}
-    timeleft=None
-    if accesstoken_info is not None:
-        at_head = accesstoken_info['header']
-        at_body = accesstoken_info['body']
-        now = time.time()
-        timeleft = accesstoken_info['body']['exp'] - now
-        if args.accesstoken or args.all:
-            if args.verbose:
-                print("\nInfo from ACCESS TOKEN:")
-            print (json.dumps(accesstoken_info['header'], sort_keys=True, indent=4, separators=(',', ': ')))
-            print (json.dumps(accesstoken_info['body'], sort_keys=True, indent=4, separators=(',', ': ')))
-    # }}}
-    # get userinfo{{{
-    for issuer_config in issuer_configs:
-        user_info = get_user_info(args.access_token, issuer_config)
-        if user_info is not None:
-            if args.userinfo or args.all:
-                if args.verbose:
-                    print("\nInfo from USERINFO:")
-                print(json.dumps(user_info, sort_keys=True, indent=4, separators=(',', ': ')))
-    # }}}
-    # get introspection_token{{{
-
-    for issuer_config in issuer_configs:
-        # introspection_info = get_introspected_token_info(args.access_token, issuer_config, client_id, client_secret)
-        introspection_info = get_introspected_token_info(args.access_token, issuer_config)
-        if introspection_info is not None:
-            if args.introspection or args.all:
-                print("\nInfo from TOKEN INTROSPECTION:")
-                print(json.dumps(introspection_info, sort_keys=True, indent=4, separators=(',', ': ')))
-    # }}}
-
-    supertoken = merge_tokens ([at_head, at_body, user_info, introspection_info])
-
-    if args.verbose:
-        print("\nSupertoken:")
-    print(json.dumps(supertoken, sort_keys=True, indent=4, separators=(',', ': ')))
-
-
-    if timeleft:
-        print ('Token valid for: %.1f s' % timeleft)
-# }}}
