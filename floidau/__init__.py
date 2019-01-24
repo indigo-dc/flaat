@@ -251,6 +251,70 @@ def merge_tokens(tokenlist):# {{{
     return supertoken
 # }}}
 
+def aarc_g002_split(groupspec):# {{{
+    '''return namespace, group, authority'''
+    (namespace, tmp) = groupspec.split(':group:')
+    try:
+        (group_hierarchy, authority) = tmp.split('#')
+    except ValueError:
+        authority=None
+        group_hierarchy = tmp
+    return(namespace, group_hierarchy, authority)
+# }}}
+def aarc_g002_split_roles(groupspec):# {{{
+    '''return group and roles'''
+    group = None
+    role  = None
+    try:
+        (group, role) = groupspec.split(':role=')
+    except ValueError: # no roles found
+        group = groupspec
+    return (group, role)
+# }}}
+def aarc_g002_matcher(required_group, actual_group):# {{{
+    ''' match if user is in subgroup, but not in supergroup
+    match if Authority is different'''
+
+    (act_namespace, act_group_role, act_authority) = aarc_g002_split(actual_group)
+    (req_namespace, req_group_role, req_authority) = aarc_g002_split(required_group)
+
+    # Finish the two easy cases
+
+    if act_namespace != req_namespace:
+        return False
+
+    if act_group_role == req_group_role:
+        return True
+
+    # Interesting cases:
+    (act_group, act_role) = aarc_g002_split_roles(act_group_role)
+    (req_group, req_role) = aarc_g002_split_roles(req_group_role)
+
+    if act_group == req_group:
+        if req_role is None:
+            return True
+        if act_role is None:
+            return False
+        if act_role == req_role:
+            return True
+        if act_role != req_role:
+            return False
+        return 'Error, unreachable code'
+
+    act_group_tree = act_group.split(':')
+    req_group_tree = req_group.split(':')
+
+    # print (json.dumps(locals(), sort_keys=True, indent=4, separators=(',', ': ')))
+    try:
+        for i in range(0,len(req_group_tree)):
+            if act_group_tree[i] != req_group_tree[i]: # wrong group name
+                return False
+    except IndexError: # user not in subgroup:
+        return False
+
+    return True
+# }}}
+
 class Floidau():# {{{
     def __init__(self):# {{{
         self.op_list       = None
@@ -358,23 +422,82 @@ class Floidau():# {{{
         return supertoken
     # }}}
 
-    def decorator(self, whatever=None):# {{{
+    def login_required(self, on_failure=None):# {{{
         def wrapper(view_func):
             @wraps(view_func)
             def decorated(*args, **kwargs):
-                print ("Whatefer: " + str(whatever))
-                print ('before')
-                print ('verbosity: %d' % self.verbose)
                 all_info = self._get_all_info(request)
-                print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
-
-                # if (validity is True) or (not require_token):
-                view_func_retval = view_func(*args, **kwargs)
-                print ('after')
-                return view_func_retval
+                if all_info is not None:
+                    if self.verbose:
+                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+                    return view_func(*args, **kwargs)
+                if on_failure:
+                    return on_failure
+                return ('No valid authentication found.')
             return decorated
         return wrapper
-# }}}}}}
+# }}}
+    def group_required(self, group=None, claim=None, on_failure=None):# {{{
+        def wrapper(view_func):
+            @wraps(view_func)
+            def decorated(*args, **kwargs):
+                all_info = self._get_all_info(request)
+                if all_info is None:
+                    if on_failure:
+                        return on_failure
+                    return ('No valid authentication found.')
+                if all_info is not None:
+                    if self.verbose:
+                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+                    # actual check for group membership:
+                    group_entries = []
+                    try:
+                        group_entries = all_info[claim]
+                    except KeyError:
+                        print ('Claim does not exist.')
+                    for entry in group_entries:
+                        if entry == group: 
+                            return view_func(*args, **kwargs)
+                    # Either we returned above or there was no matching group
+
+                if on_failure:
+                    return on_failure
+                return ('Required group membership not found.')
+            return decorated
+        return wrapper
+# }}}
+    def g002_group_required(self, group=None, claim=None, on_failure=None):# {{{
+        '''Groups according to AARC-G027'''
+        def wrapper(view_func):
+            @wraps(view_func)
+            def decorated(*args, **kwargs):
+                all_info = self._get_all_info(request)
+                if all_info is None:
+                    if on_failure:
+                        return on_failure
+                    return ('No valid authentication found.')
+                if all_info is not None:
+                    if self.verbose:
+                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+                    # actual check for group membership:
+                    group_entries = []
+                    try:
+                        group_entries = all_info[claim]
+                    except KeyError:
+                        print ('Claim does not exist.')
+                    for entry in group_entries:
+                        if aarc_g002_matcher(required_group=group, actual_group=entry):
+                            return view_func(*args, **kwargs)
+                    # Either we returned above or there was no matching group
+
+                if on_failure:
+                    return on_failure
+                return ('Required group membership not found.')
+            return decorated
+        return wrapper
+# }}}
+# }}}
+
 
 ########################## MAIN ########################
 if __name__ == '__main__':# {{{
