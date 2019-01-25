@@ -1,3 +1,10 @@
 client_secrets_deep.json
 *swp
 pyve
+__pycache__
+*.conf
+delme
+iam-deep-public.json
+oidc-test-2.py
+oidc-test-3.py
+oidc-test.py
