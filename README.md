@@ -52,6 +52,8 @@ http localhost:8080/group_test_hdf "Authorization: Bearer `oidc-token unity`"
 ```
 or
 
+Please find details for usage in example.py and in the respective
+docstrings.
 
 Your Bearer token can be any OIDC Access Token.
 
