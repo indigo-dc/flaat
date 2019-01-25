@@ -1,9 +1,10 @@
 # Example for using flask with OIDC.
 
-Supported OIDC Providers are
+Tested OIDC Providers are
 - IAM of the [Deep Hybrid Datacloud](https://deep-hybrid-datacloud.eu) project.
 - Unity / B2Access as used in the Helmholtz-Data-Federation
-- KIT's Keycloak installation
+- KIT's Shibboleth installation
+- Google
 
 
 For using the API you will need a valid OIDC access token. For the
