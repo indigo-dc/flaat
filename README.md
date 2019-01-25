@@ -32,16 +32,23 @@ with `floidau` (FLask OIDc AUthentication and authorisation).
 ```
 @floidau.login_required()
 ```
+`floidau` also supports complex group membership checking. To match two of
+the given groups, use:
+```
+@floidau.group_required(group=['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
+        claim='eduperson_scoped_affiliation', match=2)
+The claim parameter allows selecting the claim
 
 Once started you can test calls to the example like this:
 
 ```
-http localhost:8080/group_test_iam "Authorization: Bearer `oidc-token deep`"
+curl http://localhost:8080/valid_user -H "Authorization: Bearer `oidc-token deep`"
 ```
 or
 ```
-curl http://localhost:8080/valid_user -H "Authorization: Bearer `oidc-token deep`"
+http localhost:8080/group_test_hdf "Authorization: Bearer `oidc-token unity`"
 ```
+or
 
 
 Your Bearer token can be any OIDC Access Token.
