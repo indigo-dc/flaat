@@ -30,6 +30,7 @@ floidau.set_OP_list([
 ])
 # floidau.set_OP_file('/etc/oidc-agent/issuer.config')
 floidau.set_OP_hint("helmholtz")
+# floidau.set_OP_hint("google")
 
 # verbosity:
 #     0: No output
