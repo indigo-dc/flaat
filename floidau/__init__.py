@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
+'''FLask OIDc AUthentication and authorisation -- FLOIDAU. A set of decorators for authorising
+access to OIDC authenticated REST APIs.'''
 # pylint # {{{
 # vim: tw=100 foldmethod=marker
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace, mixed-indentation
 # pylint: disable=redefined-outer-name, logging-not-lazy, logging-format-interpolation
-# pylint: disable=missing-docstring, trailing-whitespace, trailing-newlines, too-few-public-methods
 # }}}
 
 import os
@@ -18,16 +19,15 @@ import requests
 from flask import request
 
 
-# FIXME: REMOVE or move to tools package
+# FIXME: consider moving non-class functions to a tools package
 
 #defaults; May be overwritten per initialisation of Floidau
 verbose = 0
 verify_tls = True
 
-
 def get_access_token_from_request(request):# {{{
+    '''Helper function to obtain the OIDC AT from the flask request variable'''
     token = None
-    '''Helper function to obtain the OIDC AT from the request'''
     if 'Authorization' in request.headers and request.headers['Authorization'].startswith('Bearer '):
         token = request.headers['Authorization'].split(None,1)[1].strip()
     if 'access_token' in request.form:
@@ -37,12 +37,14 @@ def get_access_token_from_request(request):# {{{
     return token
 # }}}
 def base64url_encode(data):# {{{
+    '''Decode base64 encode data'''
     if not isinstance(data, bytes):
         data = data.encode('utf-8')
     encode = base64.urlsafe_b64encode(data)
     return encode.decode('utf-8').rstrip('=')
 # }}}
 def base64url_decode(data):# {{{
+    '''Encode base64 encode data'''
     size = len(data) % 4
     if size == 2:
         data += '=='
@@ -53,7 +55,7 @@ def base64url_decode(data):# {{{
     return base64.urlsafe_b64decode(data.encode('utf-8'))
 # }}}
 def is_url(string):# {{{
-    import re
+    '''Return True if parameter is a URL, otherwise False'''
     regex = re.compile(
             r'^(?:http|ftp)s?://' # http:// or https://
             r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
@@ -64,7 +66,7 @@ def is_url(string):# {{{
     return re.match(regex, string)
 # }}}
 def get_accesstoken_info(access_token):# {{{
-    ''' if there is information in the access token, we return it, else None'''
+    '''Return information contained in the access token. Maybe None'''
     try:
         (header_enc, body_enc, signature_enc) = access_token.split('.')
         if verbose >5 :
@@ -84,6 +86,7 @@ def get_accesstoken_info(access_token):# {{{
         return None
 # }}}
 def get_issuer_from_accesstoken_info(access_token):# {{{
+    '''Return the issuer of the AT, if it can be found, otherwise None'''
     try:
         return get_accesstoken_info(access_token)['body']['iss']
     except ValueError:
@@ -93,6 +96,7 @@ def get_issuer_from_accesstoken_info(access_token):# {{{
     # }}}
 
 def find_issuer_config_in_at(access_token):# {{{
+    '''If there is an issuer in the AT, we fetch the ISS config and return it'''
     iss_config = None
     at_iss = get_issuer_from_accesstoken_info(access_token)
     if verbose > 2:
@@ -104,6 +108,8 @@ def find_issuer_config_in_at(access_token):# {{{
     return iss_config
 # }}}
 def find_issuer_config_in_string(string):# {{{
+    '''If the string provided is a URL: try several well known endpoints until the ISS config is
+    found'''
     iss_config = None
     if string is not None:
         if is_url(string):
@@ -120,25 +126,37 @@ def find_issuer_config_in_string(string):# {{{
     return iss_config
 # }}}
 def find_issuer_config_in_list(op_list, op_hint = None):# {{{
+    '''find the hinted issuer in configured op_list'''
     iss_config = None
     if op_list:
         iss_config=[]
         for issuer in op_list:
-            if re.search(op_hint, issuer):
+            if op_hint is None:
                 issuer_wellknown=issuer.rstrip('/') + '/.well-known/openid-configuration'
                 iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))
+            else:
+                if re.search(op_hint, issuer):
+                    issuer_wellknown=issuer.rstrip('/') + '/.well-known/openid-configuration'
+                    iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))
     return iss_config
 # }}}
 def find_issuer_config_in_file(op_file, op_hint = None):# {{{
+    '''find the hinted issuer in a configured, oidc-agent compatible issuers.conf file
+    we only use the first (space separated) entry of that file.'''
     iss_config = None
     if op_file:
         iss_config=[]
-        for line in fileinput.input(op_file):
-            issuer_from_conf=line.split(' ')[0]
-            if re.search(op_hint, line):
+        for issuer in fileinput.input(op_file):
+            issuer_from_conf=issuer.rstrip('\n').split(' ')[0]
+            if issuer_from_conf == '':
+                continue
+            if op_hint is None:
                 issuer_wellknown=issuer_from_conf.rstrip('/') + '/.well-known/openid-configuration'
                 iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))
-
+            else:
+                if re.search(op_hint, issuer):
+                    issuer_wellknown=issuer_from_conf.rstrip('/') + '/.well-known/openid-configuration'
+                    iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))
     return iss_config
 # }}}
 
@@ -156,7 +174,7 @@ def get_iss_config_from_endpoint(issuer_url):# {{{
         print('Getting config from: %s' % config_url)
     resp = requests.get (config_url, verify=verify_tls, headers=headers)
     if verbose > 2:
-        print("Getconfig: resp: %s" % resp.status_code)
+        print('Getconfig: resp: %s' % resp.status_code)
     try:
         return resp.json()
     except:
@@ -164,6 +182,7 @@ def get_iss_config_from_endpoint(issuer_url):# {{{
         return None
 # }}}
 def get_user_info(access_token, issuer_config):# {{{
+    '''Query the userinfo endpoint, using the AT as authentication'''
     headers = {}
     headers = {'Content-type': 'application/x-www-form-urlencoded'}
     headers['Authorization'] = 'Bearer {0}'.format(access_token)
@@ -174,9 +193,9 @@ def get_user_info(access_token, issuer_config):# {{{
     resp = requests.get (issuer_config['userinfo_endpoint'], verify=verify_tls, headers=headers)
     if resp.status_code != 200:
         if verbose > 2:
-            print("userinfo: Error: %s" % resp.status_code)
-            print("userinfo: Error: %s" % resp.text)
-            print("userinfo: Error: %s" % str(resp.reason))
+            print('userinfo: Error: %s' % resp.status_code)
+            print('userinfo: Error: %s' % resp.text)
+            print('userinfo: Error: %s' % str(resp.reason))
         return None
         # return ({'error': '{}: {}'.format(resp.status_code, resp.reason)})
 
@@ -186,24 +205,25 @@ def get_user_info(access_token, issuer_config):# {{{
     if verbose>1:
         print(json.dumps(resp_json, sort_keys=True, indent=4, separators=(',', ': ')))
     if verbose > 2:
-        print("userinfo: resp: %s" % resp.status_code)
+        print('userinfo: resp: %s' % resp.status_code)
     return resp_json
 # }}}
 def get_introspected_token_info(access_token, issuer_config, client_id=None, client_secret=None):# {{{
+    '''Query te token introspection endpoint, if there is a client_id and client_secret set'''
     headers = {}
     headers = {'Content-type': 'application/x-www-form-urlencoded'}
 
     post_data = {'token': access_token}
 
     if client_id is None or client_secret is None:
-        if verbose:
-            print ('You need to provide --client_id and --client_secret' % client_id)
+        if verbose > 1:
+            print ('You need to specify client_id and client_secret to query the introspection endpoint')
         return None
 
-    if client_secret is not '':
-        basic_auth_string = '%s:%s' % (client_id, client_secret)
-    else:
+    if client_secret in ['', None]:
         basic_auth_string = '%s' % (client_id)
+    else:
+        basic_auth_string = '%s:%s' % (client_id, client_secret)
     basic_auth_bytes = bytearray(basic_auth_string, 'utf-8')
 
     headers['Authorization'] = 'Basic %s' % base64.b64encode(basic_auth_bytes).decode('utf-8')
@@ -217,7 +237,7 @@ def get_introspected_token_info(access_token, issuer_config, client_id=None, cli
         return None
 
     if verbose>2:
-        print("introspect: resp: %s" % resp.status_code)
+        print('introspect: resp: %s' % resp.status_code)
     if resp.status_code != 200:
         try:
             # lets try to find an error in a returned json:
@@ -228,16 +248,17 @@ def get_introspected_token_info(access_token, issuer_config, client_id=None, cli
             # return ({'error': 'unknown error: {}'.format(resp.status_code)})
             return None
         except:
-            print("Introspect: Error: %s" % resp.status_code)
-            print("Introspect: Error: %s" % resp.text)
-            print("Introspect: Error: %s" % str(resp.text))
-            print("Introspect: Error: %s" % str(resp.reason))
+            print('Introspect: Error: %s' % resp.status_code)
+            print('Introspect: Error: %s' % resp.text)
+            print('Introspect: Error: %s' % str(resp.text))
+            print('Introspect: Error: %s' % str(resp.reason))
             # return ({'error': '{}: {}'.format(resp.status_code, resp.reason)})
             return None
 
     return(resp.json())
 # }}}
 def merge_tokens(tokenlist):# {{{
+    '''put all provided none None tokens into one token.'''
     supertoken={}
     for entry in tokenlist:
         try:
@@ -272,7 +293,9 @@ def aarc_g002_split_roles(groupspec):# {{{
 # }}}
 def aarc_g002_matcher(required_group, actual_group):# {{{
     ''' match if user is in subgroup, but not in supergroup
-    match if Authority is different'''
+    match if Authority is different.
+    This should comply to https://aarc-project.eu/guidelines/aarc-g002/'''
+    #pylint: disable=too-many-return-statements,consider-using-enumerate
 
     (act_namespace, act_group_role, act_authority) = aarc_g002_split(actual_group)
     (req_namespace, req_group_role, req_authority) = aarc_g002_split(required_group)
@@ -315,36 +338,55 @@ def aarc_g002_matcher(required_group, actual_group):# {{{
 # }}}
 
 class Floidau():# {{{
+    '''FLask OIDc AUthentication and Authorisation.
+    Provide decorators and configuration for OIDC'''
+    # pylint: disable=too-many-instance-attributes
     def __init__(self):# {{{
         self.op_list       = None
         self.iss           = None
         self.op_hint       = None
         self.op_file       = None
         self.verbose       = 0
-        verbose = 0
         self.verify_tls    = True
-        verify_tls = True
         self.client_id     = None
         self.client_secret = None
 
     def set_OP(self, iss):
+        '''Define OIDC Provider. Must be a valid URL. E.g. 'https://aai.egi.eu/oidc/'
+        This should not be required for OPs that put their address into the AT (e.g. keycloak, mitre,
+        shibboleth)'''
         self.iss = iss
     def set_OP_list(self, op_list):
+        '''Define a list of OIDC provider URLs.
+            E.g. ['https://iam.deep-hybrid-datacloud.eu/', 'https://login.helmholtz-data-federation.de/oauth2/', 'https://aai.egi.eu/oidc/'] '''
         self.op_list = op_list
-    def set_OP_file(self, filename, hint=None):
+    def set_OP_file(self, filename='/etc/oidc-agent/issuer.config', hint=None):
+        '''Set filename of oidc-agent's issuer.config. Requires oidc-agent to be installed.'''
         self.op_file = filename
         self.op_hint = hint
     def set_OP_hint(self, hint):
+        '''String to specify the hint. This is used for regex searching in lists of providers for
+        possible matching ones.'''
         self.op_hint = hint
     def set_verbosity(self, level):
+        '''Verbosity level of floidau:
+           0: No output
+           1: Errors
+           2: More info, including token info
+           3: Max'''
         self.verbose=level
-        verbose = level
-    def set_verify_tls(self, verify_tls):
+    def set_verify_tls(self, verify_tls=True):
+        '''Whether to verify tls connections. Only use for development and debugging'''
         self.verify_tls = verify_tls
     def set_client_id(self, client_id):
+        '''Client id. At the moment this one is sent to all matching providers. This is only
+        required if you need to access the token introspection endpoint. I don't have a use case for
+        that right now.'''
+        # FIXME: client_id/client_secret per OP.
         self.client_id = client_id
     def set_client_secret(self, client_secret):
-        self.client_secret = self.client_secret
+        '''Client Secret. At the moment this one is sent to all matching providers.'''
+        self.client_secret = client_secret
 
 # }}}
     def _find_issuer_config_everywhere(self, access_token):# {{{
@@ -422,6 +464,9 @@ class Floidau():# {{{
     # }}}
 
     def login_required(self, on_failure=None):# {{{
+        '''Decorator to enforce a valid login.
+        Optional on_failure is a function that will be invoked if there was no valid user detected.
+        Useful for redirecting to some login page'''
         def wrapper(view_func):
             @wraps(view_func)
             def decorated(*args, **kwargs):
@@ -436,64 +481,138 @@ class Floidau():# {{{
             return decorated
         return wrapper
 # }}}
-    def group_required(self, group=None, claim=None, on_failure=None):# {{{
+    def group_required(self, group=None, claim=None, on_failure=None, match='all'):# {{{
+        '''Decorator to enforce membership in a given group.
+        group is the name (or list) of the group to match
+        match specifies how many of the given groups must be matched. Valid values for match are
+            'all', 'one', or an integer
+        on_failure is a function that will be invoked if there was no valid user detected.
+        Useful for redirecting to some login page'''
         def wrapper(view_func):
             @wraps(view_func)
             def decorated(*args, **kwargs):
+                user_message = 'Not enough required group memberships found.'
                 all_info = self._get_all_info(request)
                 if all_info is None:
                     if on_failure:
                         return on_failure
                     return ('No valid authentication found.')
-                if all_info is not None:
-                    if self.verbose>1:
-                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
-                    # actual check for group membership:
-                    group_entries = []
-                    try:
-                        group_entries = all_info[claim]
-                    except KeyError:
-                        print ('Claim does not exist.')
-                    for entry in group_entries:
-                        if entry == group: 
-                            return view_func(*args, **kwargs)
-                    # Either we returned above or there was no matching group
 
+                # Make sure we have a list:
+                if isinstance(group, str):
+                    req_group_list = [group]
+                else:
+                    req_group_list = group
+
+                # How many matches do we need?
+                if match == 'all':
+                    required_matches = len(req_group_list)
+                if match == 'one':
+                    required_matches = 1
+                if isinstance (match, int):
+                    required_matches = match
+                if required_matches > len(req_group_list):
+                    required_matches = len(req_group_list)
+
+                if not required_matches:
+                    print('Error interpreting the "match" parameter')
+                    return('Error interpreting the "match" parameter')
+
+                if self.verbose>1:
+                    print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+                # copy entries from incoming claim
+                avail_group_entries = []
+                try:
+                    avail_group_entries = all_info[claim]
+                except KeyError:
+                    user_message = 'Claim does not exist: "%s".' % claim
+                    if self.verbose:
+                        print ('Claim does not exist: "%s".' % claim)
+                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+
+                # now we do the actual checking
+                matches_found = 0
+                for entry in avail_group_entries:
+                    for g in req_group_list:
+                        if entry == g:
+                            matches_found += 1
+                if self.verbose > 0:
+                    print('found %d of %d matches' % (matches_found, required_matches))
+                if matches_found >= required_matches:
+                    return view_func(*args, **kwargs)
+
+                # Either we returned above or there was no matching group
                 if on_failure:
                     return on_failure
-                return ('Required group membership not found.')
+                return (user_message)
             return decorated
         return wrapper
 # }}}
-    def g002_group_required(self, group=None, claim=None, on_failure=None):# {{{
-        '''Groups according to AARC-G027'''
+    def aarc_g002_group_required(self, group=None, claim=None, on_failure=None, match='all'):# {{{
+        '''Decorator to enforce membership in a given group defined according to AARC-G002.
+        group is the name (or list) of the group to match
+        match specifies how many of the given groups must be matched. Valid values for match are
+            'all', 'one', or an integer
+        on_failure is a function that will be invoked if there was no valid user detected.
+        Useful for redirecting to some login page'''
         def wrapper(view_func):
             @wraps(view_func)
             def decorated(*args, **kwargs):
+                user_message = 'Not enough required group memberships found.'
                 all_info = self._get_all_info(request)
                 if all_info is None:
                     if on_failure:
                         return on_failure
                     return ('No valid authentication found.')
-                if all_info is not None:
-                    if self.verbose>0:
-                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
-                    # actual check for group membership:
-                    group_entries = []
-                    try:
-                        group_entries = all_info[claim]
-                    except KeyError:
-                        print ('Claim does not exist.')
-                    for entry in group_entries:
-                        if aarc_g002_matcher(required_group=group, actual_group=entry):
-                            return view_func(*args, **kwargs)
-                    # Either we returned above or there was no matching group
 
+                # Make sure we have a list:
+                if isinstance(group, str):
+                    req_group_list = [group]
+                else:
+                    req_group_list = group
+
+                # How many matches do we need?
+                if match == 'all':
+                    required_matches = len(req_group_list)
+                if match == 'one':
+                    required_matches = 1
+                if isinstance (match, int):
+                    required_matches = match
+                if required_matches > len(req_group_list):
+                    required_matches = len(req_group_list)
+
+                if not required_matches:
+                    print('Error interpreting the "match" parameter')
+                    return('Error interpreting the "match" parameter')
+
+                if self.verbose>1:
+                    print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+                # actual check for group membership:
+                avail_group_entries = []
+                try:
+                    avail_group_entries = all_info[claim]
+                except KeyError:
+                    user_message = 'Claim does not exist: "%s".' % claim
+                    if self.verbose:
+                        print ('Claim does not exist: "%s".' % claim)
+                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+
+                # now we do the actual checking
+                matches_found = 0
+                for entry in avail_group_entries:
+                    for g in req_group_list:
+                        if aarc_g002_matcher(required_group=g, actual_group=entry):
+                            matches_found += 1
+                if self.verbose > 0:
+                    print('found %d of %d matches' % (matches_found, required_matches))
+                if matches_found >= required_matches:
+                    return view_func(*args, **kwargs)
+
+                # Either we returned above or there was no matching group
                 if on_failure:
                     return on_failure
-                return ('Required group membership not found.')
+                return (user_message)
             return decorated
         return wrapper
 # }}}
 # }}}
-
