@@ -530,6 +530,11 @@ class Floidau():# {{{
                     if self.verbose:
                         print ('Claim does not exist: "%s".' % claim)
                         print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+                if not isinstance(avail_group_entries, list):
+                    user_message = 'Claim does not point to a list: "%s".' % avail_group_entries
+                    if self.verbose:
+                        print ('Claim does not exist: "%s".' % avail_group_entries)
+                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
 
                 # now we do the actual checking
                 matches_found = 0
@@ -596,6 +601,11 @@ class Floidau():# {{{
                     user_message = 'Claim does not exist: "%s".' % claim
                     if self.verbose:
                         print ('Claim does not exist: "%s".' % claim)
+                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+                if not isinstance(avail_group_entries, list):
+                    user_message = 'Claim does not point to a list: "%s".' % avail_group_entries
+                    if self.verbose:
+                        print ('Claim does not exist: "%s".' % avail_group_entries)
                         print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
 
                 # now we do the actual checking
