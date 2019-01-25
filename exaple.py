@@ -2,7 +2,7 @@
 # pylint # {{{
 # vim: tw=100 foldmethod=marker
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
-# pylint: disable=bad-whitespace
+# pylint: disable=bad-whitespace, missing-docstring
 # }}}
 from flask import Flask
 from floidau import Floidau
@@ -16,26 +16,27 @@ floidau = Floidau()
 
 # floidau.
 #TODO: Caching
-#TODO: Cleanup code
 # floidau.set_OP('https://unity.helmholtz-data-federation.de/oauth2/')
-# floidau.set_OP_list([
-# 'https://iam-test.indigo-datacloud.eu/',
-# 'https://iam.deep-hybrid-datacloud.eu/',
-# 'https://iam.extreme-datacloud.eu/',
-# 'https://b2access.eudat.eu/oauth2/',
-# 'https://b2access-integration.fz-juelich.de/oauth2',
-# 'https://unity.helmholtz-data-federation.de/oauth2/',
-# 'https://unity.eudat-aai.fz-juelich.de/oauth2/',
-# 'https://services.humanbrainproject.eu/oidc/',
-# 'https://accounts.google.com/',
-# 'https://aai.egi.eu/oidc/',
-# 'https://aai-dev.egi.eu/oidc',
-# 'https://login.elixir-czech.org/oidc/'
-# ])
-floidau.set_OP_file('/etc/oidc-agent/issuer.config')
+floidau.set_OP_list([
+'https://b2access.eudat.eu/oauth2/',
+'https://b2access-integration.fz-juelich.de/oauth2',
+'https://unity.helmholtz-data-federation.de/oauth2/',
+'https://unity.eudat-aai.fz-juelich.de/oauth2/',
+'https://services.humanbrainproject.eu/oidc/',
+'https://accounts.google.com/',
+'https://aai.egi.eu/oidc/',
+'https://aai-dev.egi.eu/oidc',
+'https://login.elixir-czech.org/oidc/'
+])
+# floidau.set_OP_file('/etc/oidc-agent/issuer.config')
 floidau.set_OP_hint("helmholtz")
 
-floidau.set_verbosity(1)
+# verbosity:
+#     0: No output
+#     1: Errors
+#     2: More info, including token info
+#     3: Max
+floidau.set_verbosity(2)
 # floidau.set_verify_tls(True)
 # # Required for using token introspection endpoint
 
@@ -52,7 +53,8 @@ def demo_login():
     return('This worked: there was a valid login')
 
 @app.route('/group_test_kit')
-@floidau.group_required(group='employee@kit.edu', claim='eduperson_scoped_affiliation')
+@floidau.group_required(group=['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
+        claim='eduperson_scoped_affiliation', match=2)
 def demo_groups_kit():
     return('This worked: user is member of the requested group')
 
@@ -62,7 +64,9 @@ def demo_groups_iam():
     return('This worked: user is member of the requested group')
 
 @app.route('/group_test_hdf')
-@floidau.g002_group_required(group='urn:geant:h-df.de:group:aai-admin', claim='eduperson_entitlement')
+@floidau.aarc_g002_group_required(group=['urn:geant:h-df.de:group:aai-admin',
+        'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
+        claim='eduperson_entitlement', match='all')
 def demo_groups_hdf():
     return('This worked: user is member of the requested group')
 
