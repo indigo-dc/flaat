@@ -38,7 +38,8 @@ the given groups, use:
 @floidau.group_required(group=['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
         claim='eduperson_scoped_affiliation', match=2)
 ```
-The claim parameter allows selecting the claim
+The claim parameter allows selecting the OIDC claim in which to look for
+group membership.
 
 Once started you can test calls to the example like this:
 
@@ -54,10 +55,8 @@ or
 
 Your Bearer token can be any OIDC Access Token.
 
-I'm probably colliding with the OIDC spec, but it worked quite neatly with
-all OPs tried.
 
-Tested OPs:
+# Tested OPs:
 - https://iam.deep-hybrid-datacloud.eu/
 - https://unity.helmholtz-data-federation.de/oauth2/
 - https://accounts.google.com/
