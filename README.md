@@ -1,4 +1,4 @@
-# Example for using flask with OIDC.
+# FLask OIDc AUthentication and authorisation -- FLOIDAU
 
 Tested OIDC Providers are
 - IAM of the [Deep Hybrid Datacloud](https://deep-hybrid-datacloud.eu) project.
