@@ -37,6 +37,7 @@ the given groups, use:
 ```
 @floidau.group_required(group=['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
         claim='eduperson_scoped_affiliation', match=2)
+```
 The claim parameter allows selecting the claim
 
 Once started you can test calls to the example like this:
