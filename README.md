@@ -64,4 +64,8 @@ Your Bearer token can be any OIDC Access Token.
 - https://accounts.google.com/
 - https://oidc.scc.kit.edu/auth/realms/kit/
 
+# Open Issues / Roadmap:
+- Caching: Don't send the same token twice for verification to the same OP
+- Offline verification: Check the signature, in case token is a jwt
+- Fix aarc-g002 handling
 
