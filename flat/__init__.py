@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-'''FLask OIDc AUthentication and authorisation -- FLOIDAU. A set of decorators for authorising
+'''FLask support for OIDC Access Tokens -- FLAT. A set of decorators for authorising
 access to OIDC authenticated REST APIs.'''
 # pylint # {{{
 # vim: tw=100 foldmethod=marker
@@ -21,7 +21,7 @@ from flask import request
 
 # FIXME: consider moving non-class functions to a tools package
 
-#defaults; May be overwritten per initialisation of Floidau
+#defaults; May be overwritten per initialisation of FLAT
 verbose = 0
 verify_tls = True
 
@@ -338,7 +338,7 @@ def aarc_g002_matcher(required_group, actual_group):# {{{
     return True
 # }}}
 
-class Floidau():# {{{
+class Flat():# {{{
     '''FLask OIDc AUthentication and Authorisation.
     Provide decorators and configuration for OIDC'''
     # pylint: disable=too-many-instance-attributes
@@ -370,7 +370,7 @@ class Floidau():# {{{
         possible matching ones.'''
         self.op_hint = hint
     def set_verbosity(self, level):
-        '''Verbosity level of floidau:
+        '''Verbosity level of FLAT:
            0: No output
            1: Errors
            2: More info, including token info
