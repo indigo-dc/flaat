@@ -11,7 +11,6 @@ from flat import Flat
 ##########
 # Basic config
 app=Flask(__name__)
-app.config.SWAGGER_UI_DOC_EXPANSION = 'list'
 
 flat = Flat()
 
