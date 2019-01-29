@@ -1,7 +1,8 @@
 client_secrets_deep.json
 *swp
 pyve
-__pycache__
+flat/__pycache__
+flat/*pyc
 *.conf
 delme
 iam-deep-public.json
