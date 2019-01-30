@@ -1,4 +1,4 @@
-# FLask support for handling Access Tokens - FLAT
+# FLAsk support for handling Access Tokens - FLAAT
 
 Tested OIDC Providers are
 - IAM of the [Deep Hybrid Datacloud](https://deep-hybrid-datacloud.eu) project.
@@ -26,16 +26,16 @@ Just *source* install.sh to get a pyve with the dependencies installed:
 
 First off there's a pretty neat example.py that you can find all the
 examples inside. example.py provides an API via flask that is protected
-with `flat` (FLask support for Access Tokens).
+with `flaat` (FLAsk support for Access Tokens).
 
-`flat` allows protecting REST interfaces with simple decorators like:
+`flaat` allows protecting REST interfaces with simple decorators like:
 ```
-@flat.login_required()
+@flaat.login_required()
 ```
-`flat` also supports complex group membership checking. To match two of
+`flaat` also supports complex group membership checking. To match two of
 the given groups, use:
 ```
-@flat.group_required(group=['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
+@flaat.group_required(group=['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
         claim='eduperson_scoped_affiliation', match=2)
 ```
 The claim parameter allows selecting the OIDC claim in which to look for
