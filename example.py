@@ -28,7 +28,7 @@ flat.set_OP_list([
 'https://login.elixir-czech.org/oidc/'
 ])
 # flat.set_OP_file('/etc/oidc-agent/issuer.config')
-flat.set_OP_hint("helmholtz")
+# flat.set_OP_hint("helmholtz")
 # flat.set_OP_hint("google")
 
 # verbosity:
@@ -36,7 +36,7 @@ flat.set_OP_hint("helmholtz")
 #     1: Errors
 #     2: More info, including token info
 #     3: Max
-flat.set_verbosity(2)
+flat.set_verbosity(1)
 # flat.set_verify_tls(True)
 # # Required for using token introspection endpoint
 
