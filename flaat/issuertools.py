@@ -31,12 +31,15 @@ import fileinput
 from base64 import b64encode
 import json
 import requests
+import requests_cache
 
 from . import tokentools
 
+# This file config:
+requests_cache.install_cache(include_get_headers=True)
+
 verbose = 0
 verify_tls = True
-
 
 def find_issuer_config_in_at(access_token):# {{{
     '''If there is an issuer in the AT, we fetch the ISS config and return it'''
