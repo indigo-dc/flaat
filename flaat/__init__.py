@@ -1,5 +1,26 @@
 '''FLAsk support for OIDC Access Tokens -- FLAAT. A set of decorators for authorising
 access to OIDC authenticated REST APIs.'''
+# MIT License{{{
+#
+# Copyright (c) 2017 - 2019 Karlsruhe Institute of Technology - Steinbuch Centre for Computing
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.}}}
 # pylint # {{{
 # vim: tw=100 foldmethod=marker
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
@@ -13,6 +34,7 @@ from functools import wraps
 import json
 from flask import request
 
+from aarc_g002_matcher import *
 from . import tokentools
 from . import issuertools
 
@@ -21,73 +43,6 @@ name = "flaat"
 #defaults; May be overwritten per initialisation of flaat
 verbose = 0
 verify_tls = True
-
-
-def aarc_g002_split(groupspec):# {{{
-    '''return namespace, group, authority'''
-    (namespace, tmp) = groupspec.split(':group:')
-    try:
-        (group_hierarchy, authority) = tmp.split('#')
-    except ValueError:
-        authority=None
-        group_hierarchy = tmp
-    return(namespace, group_hierarchy, authority)
-# }}}
-def aarc_g002_split_roles(groupspec):# {{{
-    '''return group and roles'''
-    group = None
-    role  = None
-    try:
-        (group, role) = groupspec.split(':role=')
-    except ValueError: # no roles found
-        group = groupspec
-    return (group, role)
-# }}}
-def aarc_g002_matcher(required_group, actual_group):# {{{
-    ''' match if user is in subgroup, but not in supergroup
-    match if Authority is different.
-    This should comply to https://aarc-project.eu/guidelines/aarc-g002/'''
-    #pylint: disable=too-many-return-statements,consider-using-enumerate
-
-    (act_namespace, act_group_role, act_authority) = aarc_g002_split(actual_group)
-    (req_namespace, req_group_role, req_authority) = aarc_g002_split(required_group)
-
-    # Finish the two easy cases
-
-    if act_namespace != req_namespace:
-        return False
-
-    if act_group_role == req_group_role:
-        return True
-
-    # Interesting cases:
-    (act_group, act_role) = aarc_g002_split_roles(act_group_role)
-    (req_group, req_role) = aarc_g002_split_roles(req_group_role)
-
-    if act_group == req_group:
-        if req_role is None:
-            return True
-        if act_role is None:
-            return False
-        if act_role == req_role:
-            return True
-        if act_role != req_role:
-            return False
-        return 'Error, unreachable code'
-
-    act_group_tree = act_group.split(':')
-    req_group_tree = req_group.split(':')
-
-    # print (json.dumps(locals(), sort_keys=True, indent=4, separators=(',', ': ')))
-    try:
-        for i in range(0,len(req_group_tree)):
-            if act_group_tree[i] != req_group_tree[i]: # wrong group name
-                return False
-    except IndexError: # user not in subgroup:
-        return False
-
-    return True
-# }}}
 
 class Flaat():# {{{
     '''FLAsk OIDc AUthentication and Authorisation.
@@ -132,8 +87,8 @@ class Flaat():# {{{
     def set_verify_tls(self, param_verify_tls=True):
         '''Whether to verify tls connections. Only use for development and debugging'''
         self.verify_tls        = param_verify_tls
-        tokentools.verify_tls  = level
-        issuertools.verify_tls = level
+        tokentools.verify_tls  = param_verify_tls
+        issuertools.verify_tls = param_verify_tls
     def set_client_id(self, client_id):
         '''Client id. At the moment this one is sent to all matching providers. This is only
         required if you need to access the token introspection endpoint. I don't have a use case for

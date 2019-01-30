@@ -11,6 +11,8 @@ For using the API you will need a valid OIDC access token. For the
 commandline you might want to use
 [oidc-agent](https://github.com/indigo-dc/oidc-agent) for that .
 
+# License
+FLAAT is provided under the [MIT License](https://opensource.org/licenses/MIT)
 
 # Installation
 
