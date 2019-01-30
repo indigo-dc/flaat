@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # pylint # {{{
 # vim: tw=100 foldmethod=marker
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens

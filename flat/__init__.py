@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 '''FLask support for OIDC Access Tokens -- FLAT. A set of decorators for authorising
 access to OIDC authenticated REST APIs.'''
 # pylint # {{{
