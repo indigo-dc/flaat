@@ -34,7 +34,7 @@ from functools import wraps
 import json
 from flask import request
 
-from aarc_g002_matcher import *
+from . import aarc_g002_matcher
 from . import tokentools
 from . import issuertools
 
@@ -322,7 +322,7 @@ class Flaat():# {{{
                 matches_found = 0
                 for entry in avail_group_entries:
                     for g in req_group_list:
-                        if aarc_g002_matcher(required_group=g, actual_group=entry):
+                        if aarc_g002_matcher.aarc_g002_matcher(required_group=g, actual_group=entry):
                             matches_found += 1
                 if self.verbose > 0:
                     print('found %d of %d matches' % (matches_found, required_matches))
