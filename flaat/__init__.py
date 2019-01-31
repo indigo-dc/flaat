@@ -183,6 +183,12 @@ class Flaat():# {{{
         def wrapper(view_func):
             @wraps(view_func)
             def decorated(*args, **kwargs):
+                try:
+                    if os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER'].lower() == 'yes':
+                        return view_func(*args, **kwargs)
+                except KeyError: # i.e. the environment variable was not set
+                    pass
+
                 all_info = self._get_all_info(request)
                 if all_info is not None:
                     if self.verbose>1:
@@ -204,6 +210,12 @@ class Flaat():# {{{
         def wrapper(view_func):
             @wraps(view_func)
             def decorated(*args, **kwargs):
+                try:
+                    if os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER'].lower() == 'yes':
+                        return view_func(*args, **kwargs)
+                except KeyError: # i.e. the environment variable was not set
+                    pass
+
                 user_message = 'Not enough required group memberships found.'
                 all_info = self._get_all_info(request)
                 if all_info is None:
@@ -276,6 +288,12 @@ class Flaat():# {{{
         def wrapper(view_func):
             @wraps(view_func)
             def decorated(*args, **kwargs):
+                try:
+                    if os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER'].lower() == 'yes':
+                        return view_func(*args, **kwargs)
+                except KeyError: # i.e. the environment variable was not set
+                    pass
+
                 user_message = 'Not enough required group memberships found.'
                 all_info = self._get_all_info(request)
                 if all_info is None:
