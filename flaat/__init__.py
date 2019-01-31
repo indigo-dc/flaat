@@ -137,6 +137,8 @@ class Flaat():# {{{
         Returns a "supertoken" json structure.'''
 
         access_token = tokentools.get_access_token_from_request(param_request)
+        if access_token is None: 
+            return None
         # get all possible issuer configs{{{
         issuer_configs = self._find_issuer_config_everywhere(access_token)
         accesstoken_info = tokentools.get_accesstoken_info(access_token)
