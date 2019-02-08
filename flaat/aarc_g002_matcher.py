@@ -1,3 +1,4 @@
+# This code is distributed under the MIT License
 # pylint # {{{
 # vim: tw=100 foldmethod=marker
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
