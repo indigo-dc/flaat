@@ -172,14 +172,18 @@ class Flaat():
         if access_token is None:
             return None
 
-        accesstoken_info = self.get_info_thats_in_at(access_token)
-        user_info = self.get_info_from_userinfo_endpoints(access_token)
+        accesstoken_info   = self.get_info_thats_in_at(access_token)
+        user_info          = self.get_info_from_userinfo_endpoints(access_token)
         introspection_info = self.get_info_from_introspection_endpoints(access_token)
 
+        timeleft = tokentools.get_timeleft(accesstoken_info)
 
-        # supertoken = tokentools.merge_tokens ([at_head, at_body, user_info, introspection_info])
-        supertoken = tokentools.merge_tokens ([accesstoken_info, user_info, introspection_info])
-        return supertoken
+        if timeleft < 0:
+            # print ('\n\n: TIMELEFT: %d' % timeleft)
+            return None
+
+        return tokentools.merge_tokens ([accesstoken_info['header'], accesstoken_info['body'], user_info, introspection_info])
+        # return tokentools.merge_tokens ([accesstoken_info, user_info, introspection_info])
 # }}}
     def _get_all_info_from_request(self, param_request):
     # {{{
