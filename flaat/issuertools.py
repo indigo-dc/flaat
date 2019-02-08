@@ -51,12 +51,17 @@ def find_issuer_config_in_string(string):# {{{
             iss_config = get_iss_config_from_endpoint(string+'/oauth2'+'/.well-known/openid-configuration')
     return iss_config
 # }}}
-def find_issuer_config_in_list(op_list, op_hint = None):# {{{
+def find_issuer_config_in_list(op_list, op_hint = None, exclude_list = []):
+# {{{
     '''find the hinted issuer in configured op_list'''
     iss_config = None
     if op_list:
         iss_config=[]
         for issuer in op_list:
+            if issuer in exclude_list:
+                if verbose>1:
+                    print ('skipping %s due to exclude list' % issuer)
+                continue
             if op_hint is None:
                 issuer_wellknown=issuer.rstrip('/') + '/.well-known/openid-configuration'
                 iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))
@@ -66,7 +71,8 @@ def find_issuer_config_in_list(op_list, op_hint = None):# {{{
                     iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))
     return iss_config
 # }}}
-def find_issuer_config_in_file(op_file, op_hint = None):# {{{
+def find_issuer_config_in_file(op_file, op_hint = None, exclude_list=[]):
+# {{{
     '''find the hinted issuer in a configured, oidc-agent compatible issuers.conf file
     we only use the first (space separated) entry of that file.'''
     iss_config = None
@@ -75,6 +81,10 @@ def find_issuer_config_in_file(op_file, op_hint = None):# {{{
         for issuer in fileinput.input(op_file):
             issuer_from_conf=issuer.rstrip('\n').split(' ')[0]
             if issuer_from_conf == '':
+                continue
+            if issuer_from_conf in exclude_list:
+                if verbose>1:
+                    print ('skipping %s due to exclude list' % issuer)
                 continue
             if op_hint is None:
                 issuer_wellknown=issuer_from_conf.rstrip('/') + '/.well-known/openid-configuration'
@@ -100,7 +110,7 @@ def get_iss_config_from_endpoint(issuer_url):# {{{
     config_url = config_url.replace('//', '/')
     config_url = 'https://'+config_url
 
-    if verbose:
+    if verbose>1:
         print('Getting config from: %s' % config_url)
     resp = requests.get (config_url, verify=verify_tls, headers=headers)
     if verbose > 2:

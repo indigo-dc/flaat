@@ -31,29 +31,41 @@ class Flaat():
     # pylint: disable=too-many-instance-attributes
     def __init__(self):
         # {{{
-        self.op_list       = None
-        self.iss           = None
-        self.op_hint       = None
-        self.op_file       = None
-        self.verbose       = 0
-        self.verify_tls    = True
-        self.client_id     = None
-        self.client_secret = None
-        self.last_error    = ''
+        self.trusted_op_list = None
+        self.iss             = None
+        self.op_hint         = None
+        self.trusted_op_file = None
+        self.verbose         = 0
+        self.verify_tls      = True
+        self.client_id       = None
+        self.client_secret   = None
+        self.last_error      = ''
+        self.ops_that_support_jwt = \
+                    [ 'https://iam-test.indigo-datacloud.eu/',
+                      'https://iam.deep-hybrid-datacloud.eu/',
+                      'https://iam.extreme-datacloud.eu/',
+                      'https://aai.egi.eu/oidc/',
+                      'https://aai-dev.egi.eu/oidc',
+                      'https://oidc.scc.kit.edu/auth/realms/kit/']
+        # unknown:
+        'https://login.elixir-czech.org/oidc/',
+        'https://services.humanbrainproject.eu/oidc/',
+
+
 
     def set_OP(self, iss):
         '''Define OIDC Provider. Must be a valid URL. E.g. 'https://aai.egi.eu/oidc/'
         This should not be required for OPs that put their address into the AT (e.g. keycloak, mitre,
         shibboleth)'''
         self.iss = iss
-    def set_OP_list(self, op_list):
+    def set_trusted_OP_list(self, trusted_op_list):
         '''Define a list of OIDC provider URLs.
             E.g. ['https://iam.deep-hybrid-datacloud.eu/', 'https://login.helmholtz-data-federation.de/oauth2/', 'https://aai.egi.eu/oidc/'] '''
-        self.op_list = op_list
-    def set_OP_file(self, filename='/etc/oidc-agent/issuer.config', hint=None):
+        self.trusted_op_list = trusted_op_list
+    def set_trusted_OP_file(self, filename='/etc/oidc-agent/issuer.config', hint=None):
         '''Set filename of oidc-agent's issuer.config. Requires oidc-agent to be installed.'''
-        self.op_file = filename
-        self.op_hint = hint
+        self.trusted_op_file = filename
+        self.op_hint         = hint
     def set_OP_hint(self, hint):
         '''String to specify the hint. This is used for regex searching in lists of providers for
         possible matching ones.'''
@@ -111,15 +123,17 @@ class Flaat():
 
         # 3: Try the provided list of providers:
         if self.verbose > 1:
-            print ('Trying to find issuer from "set_OIDC_provider_list"')
-        iss_config = issuertools.find_issuer_config_in_list(self.op_list, self.op_hint)
+            print ('Trying to find issuer from trusted_op_list')
+        iss_config = issuertools.find_issuer_config_in_list(self.trusted_op_list, self.op_hint,
+                exclude_list = self.ops_that_support_jwt)
         if iss_config is not None:
             return iss_config
 
         # 4: Try oidc-agent's issuer config file
         if self.verbose > 1:
             print ('Trying to find issuer from "set_OIDC_provider_file"')
-        iss_config = issuertools.find_issuer_config_in_file(self.op_file, self.op_hint)
+        iss_config = issuertools.find_issuer_config_in_file(self.trusted_op_file, self.op_hint,
+                exclude_list = self.ops_that_support_jwt)
         if iss_config is not None:
             return iss_config
 

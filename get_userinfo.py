@@ -78,7 +78,7 @@ args = parseOptions().parse_args()
 
 flaat = Flaat()
 
-flaat.set_OP_list([
+flaat.set_trusted_OP_list([
 'https://b2access.eudat.eu/oauth2/',
 'https://b2access-integration.fz-juelich.de/oauth2',
 'https://unity.helmholtz-data-federation.de/oauth2/',

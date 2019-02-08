@@ -37,7 +37,7 @@ flaat = Flaat()
 # flaat.
 #TODO: Caching
 # flaat.set_OP('https://unity.helmholtz-data-federation.de/oauth2/')
-flaat.set_OP_list([
+flaat.set_trusted_OP_list([
 'https://b2access.eudat.eu/oauth2/',
 'https://b2access-integration.fz-juelich.de/oauth2',
 'https://unity.helmholtz-data-federation.de/oauth2/',
@@ -46,9 +46,15 @@ flaat.set_OP_list([
 'https://accounts.google.com/',
 'https://aai.egi.eu/oidc/',
 'https://aai-dev.egi.eu/oidc',
-'https://login.elixir-czech.org/oidc/'
+'https://login.elixir-czech.org/oidc/',
+'https://iam-test.indigo-datacloud.eu/',
+'https://iam.deep-hybrid-datacloud.eu/',
+'https://iam.extreme-datacloud.eu/',
+'https://aai.egi.eu/oidc/',
+'https://aai-dev.egi.eu/oidc',
+'https://oidc.scc.kit.edu/auth/realms/kit/'
 ])
-# flaat.set_OP_file('/etc/oidc-agent/issuer.config')
+# flaat.set_trusted_OP_file('/etc/oidc-agent/issuer.config')
 # flaat.set_OP_hint("helmholtz")
 # flaat.set_OP_hint("google")
 

@@ -120,4 +120,3 @@ def get_timeleft(token):
         except KeyError: # no 'exp' claim
             pass
     return timeleft
-
