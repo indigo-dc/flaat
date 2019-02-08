@@ -96,24 +96,38 @@ if args.show_user_info or args.show_access_token or args.show_introspection_info
 
 accesstoken_info = flaat.get_info_thats_in_at(args.access_token)
 if args.show_access_token or args.show_all:
-    print('Information stored inside the access token:')
-    print(json.dumps(accesstoken_info, sort_keys=True, indent=4, separators=(',', ': ')))
+    if accesstoken_info is None:
+        print ('Your access token does not contain information (at least I cannot find it.)\n'\
+                'Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong')
+    else:
+        print('Information stored inside the access token:')
+        print(json.dumps(accesstoken_info, sort_keys=True, indent=4, separators=(',', ': ')))
     print('')
+
 
 user_info = flaat.get_info_from_userinfo_endpoints(args.access_token)
 if args.show_user_info or args.show_all:
-    print('Information retrieved from userinfo endpoint:')
-    print(json.dumps(user_info, sort_keys=True, indent=4, separators=(',', ': ')))
+    if user_info is None:
+        print ('The response from the userinfo endpoint does not contain information (at least I cannot find it.)\n'\
+                'Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong')
+    else:
+        print('Information retrieved from userinfo endpoint:')
+        print(json.dumps(user_info, sort_keys=True, indent=4, separators=(',', ': ')))
     print('')
+
 
 if args.client_id:
     flaat.set_client_id(args.client_id)
 if args.client_secret:
     flaat.set_client_secret(args.client_secret)
 introspection_info = flaat.get_info_from_introspection_endpoints(args.access_token)
-if args.show_introspection_info or args.show_all:
-    print('Information retrieved from introspection endpoint:')
-    print(json.dumps(introspection_info, sort_keys=True, indent=4, separators=(',', ': ')))
+if args.show_introspection_info:
+    if introspection_info is None:
+        print ('The response from the introspection endpoint does not contain information (at least I cannot find it.)\n'\
+                'Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong')
+    else:
+        print('Information retrieved from introspection endpoint:')
+        print(json.dumps(introspection_info, sort_keys=True, indent=4, separators=(',', ': ')))
     print('')
 
 timeleft = tokentools.get_timeleft(tokentools.merge_tokens([accesstoken_info,
