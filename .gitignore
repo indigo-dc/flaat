@@ -98,4 +98,8 @@ rclone.conf
 
 # Mac OS-specific storage files
 .DS_Store
-AUTHORS ChangeLog cache.sqlite source.tgz source
+AUTHORS
+ChangeLog
+cache.sqlite
+source.tgz
+source
