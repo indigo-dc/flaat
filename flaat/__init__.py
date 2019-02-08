@@ -1,26 +1,6 @@
 '''FLAsk support for OIDC Access Tokens -- FLAAT. A set of decorators for authorising
 access to OIDC authenticated REST APIs.'''
-# MIT License{{{
-#
-# Copyright (c) 2017 - 2019 Karlsruhe Institute of Technology - Steinbuch Centre for Computing
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.}}}
+# This code is distributed under the MIT License
 # pylint # {{{
 # vim: tw=100 foldmethod=marker
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
@@ -44,11 +24,13 @@ name = "flaat"
 verbose = 0
 verify_tls = True
 
-class Flaat():# {{{
-    '''FLAsk OIDc AUthentication and Authorisation.
+class Flaat():
+    # {{{
+    '''FLAsk support for OIDC Access Tokens.
     Provide decorators and configuration for OIDC'''
     # pylint: disable=too-many-instance-attributes
-    def __init__(self):# {{{
+    def __init__(self):
+        # {{{
         self.op_list       = None
         self.iss           = None
         self.op_hint       = None
@@ -100,8 +82,10 @@ class Flaat():# {{{
         self.client_secret = client_secret
 
 # }}}
-    def _find_issuer_config_everywhere(self, access_token):# {{{
+    def _find_issuer_config_everywhere(self, access_token):
+        # {{{
         '''Use many places to find issuer configs'''
+
         # 1: find info in the AT
         if self.verbose > 1:
             print ('Trying to find issuer in accesstoken')
@@ -132,29 +116,32 @@ class Flaat():# {{{
 
         return None
     # }}}
-    def _get_all_info(self, param_request):# {{{
-        '''gather all info about the user that we can find.
-        Returns a "supertoken" json structure.'''
 
-        access_token = tokentools.get_access_token_from_request(param_request)
-        if access_token is None: 
-            return None
-        # get all possible issuer configs{{{
-        issuer_configs = self._find_issuer_config_everywhere(access_token)
+    def get_info_thats_in_at(self, access_token):
+        # {{{
+        # '''analyse access_token and return info'''
         accesstoken_info = tokentools.get_accesstoken_info(access_token)
         at_head=None
         at_body=None
         if accesstoken_info is not None and not {}:
             at_head = accesstoken_info['header']
             at_body = accesstoken_info['body']
-            # now = time.time()
-            # timeleft = accesstoken_info['body']['exp'] - now
+        # return (at_head, at_body)
+        return (accesstoken_info)
         # }}}
+    def get_info_from_userinfo_endpoints(self, access_token):
+    # {{{
+        '''Traverse all reasonable configured userinfo endpoints and query them with the
+        access_token. Note: For OPs that include the iss inside the AT, they will be directly
+        queried, and are not included in the search (because that makes no sense)'''
 
+        # get all possible issuer configs{{{
+        issuer_configs = self._find_issuer_config_everywhere(access_token)
         if issuer_configs is None:
             if self.verbose:
-                print('No issuer config found, returning accesstoken info, only')
-            return tokentools.merge_tokens([at_head, at_body])
+                print('No issuer config found')
+            return tokentools.merge_tokens(None)
+        # }}}
 
         # get userinfo{{{
         for issuer_config in issuer_configs:
@@ -162,21 +149,49 @@ class Flaat():# {{{
             if user_info is not None:
                 break
         # }}}
-
-        # get introspection_token{{{
+        return(user_info)
+    # }}}
+    def get_info_from_introspection_endpoints(self, access_token):
+    # {{{
+        '''If there's a client_id and client_secret defined, we access the token introspection
+        endpoint and return the info obtained from there'''
+        # get introspection_token
+        issuer_configs = self._find_issuer_config_everywhere(access_token)
         for issuer_config in issuer_configs:
             introspection_info = issuertools.get_introspected_token_info(access_token, issuer_config,
                 self.client_id, self.client_secret)
             if introspection_info is not None:
                 break
+        return(introspection_info)
         # }}}
 
-        supertoken = tokentools.merge_tokens ([at_head, at_body, user_info, introspection_info])
+    def get_all_info_by_at(self, access_token):
+        # {{{
+        '''Collect all possible user info and return them as one json
+        object.'''
+        if access_token is None:
+            return None
 
+        accesstoken_info = self.get_info_thats_in_at(access_token)
+        user_info = self.get_info_from_userinfo_endpoints(access_token)
+        introspection_info = self.get_info_from_introspection_endpoints(access_token)
+
+
+        # supertoken = tokentools.merge_tokens ([at_head, at_body, user_info, introspection_info])
+        supertoken = tokentools.merge_tokens ([accesstoken_info, user_info, introspection_info])
         return supertoken
+# }}}
+    def _get_all_info_from_request(self, param_request):
+    # {{{
+        '''gather all info about the user that we can find.
+        Returns a "supertoken" json structure.'''
+
+        access_token = tokentools.get_access_token_from_request(param_request)
+        return self.get_all_info_by_at(access_token)
     # }}}
 
-    def login_required(self, on_failure=None):# {{{
+    def login_required(self, on_failure=None):
+    # {{{
         '''Decorator to enforce a valid login.
         Optional on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page'''
@@ -189,7 +204,7 @@ class Flaat():# {{{
                 except KeyError: # i.e. the environment variable was not set
                     pass
 
-                all_info = self._get_all_info(request)
+                all_info = self._get_all_info_from_request(request)
                 if all_info is not None:
                     if self.verbose>1:
                         print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
@@ -200,11 +215,12 @@ class Flaat():# {{{
             return decorated
         return wrapper
 # }}}
-    def group_required(self, group=None, claim=None, on_failure=None, match='all'):# {{{
+    def group_required(self, group=None, claim=None, on_failure=None, match='all'):
+        # {{{
         '''Decorator to enforce membership in a given group.
         group is the name (or list) of the group to match
         match specifies how many of the given groups must be matched. Valid values for match are
-            'all', 'one', or an integer
+        'all', 'one', or an integer
         on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page'''
         def wrapper(view_func):
@@ -217,7 +233,7 @@ class Flaat():# {{{
                     pass
 
                 user_message = 'Not enough required group memberships found.'
-                all_info = self._get_all_info(request)
+                all_info = self._get_all_info_from_request(request)
                 if all_info is None:
                     if on_failure:
                         return on_failure
@@ -278,11 +294,12 @@ class Flaat():# {{{
             return decorated
         return wrapper
 # }}}
-    def aarc_g002_group_required(self, group=None, claim=None, on_failure=None, match='all'):# {{{
+    def aarc_g002_group_required(self, group=None, claim=None, on_failure=None, match='all'):
+        # {{{
         '''Decorator to enforce membership in a given group defined according to AARC-G002.
         group is the name (or list) of the group to match
         match specifies how many of the given groups must be matched. Valid values for match are
-            'all', 'one', or an integer
+        'all', 'one', or an integer
         on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page'''
         def wrapper(view_func):
@@ -295,7 +312,7 @@ class Flaat():# {{{
                     pass
 
                 user_message = 'Not enough required group memberships found.'
-                all_info = self._get_all_info(request)
+                all_info = self._get_all_info_from_request(request)
                 if all_info is None:
                     if on_failure:
                         return on_failure
