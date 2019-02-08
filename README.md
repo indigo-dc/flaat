@@ -1,22 +1,5 @@
 # FLAsk support for handling oidc Access Tokens - FLAAT
 
-
-
-Tested OIDC Providers are
-- IAM of the [Deep Hybrid Datacloud](https://deep-hybrid-datacloud.eu) project.
-- EGI
-- Unity / B2Access as used in the Helmholtz-Data-Federation
-- KIT's Shibboleth installation
-- Google
-
-
-For using the API you will need a valid OIDC access token. For the
-commandline you might want to use
-[oidc-agent](https://github.com/indigo-dc/oidc-agent) for that.
-
-# License
-FLAAT is provided under the [MIT License](https://opensource.org/licenses/MIT)
-
 # Installation
 
 Actually the code should just run straight from github. Python
@@ -25,7 +8,14 @@ are pretty standard.
 
 Just *source* install.sh to get a pyve with the dependencies installed:
 
-`  . install.sh`
+`pip install flaat`
+
+# TL;DR
+
+FLAAT is here to provide the simplest way to verify OIDC Access Tokens.
+The goal is that FLAAT is a tool that can be used to very easily make
+access decisions or not.  Priority is on ease of use, which comes with a
+few potential drawbacks.
 
 # Documentation
 
@@ -62,14 +52,83 @@ docstrings.
 
 Your Bearer token can be any OIDC Access Token.
 
+## Examples
 
-# Tested OPs:
-- https://iam.deep-hybrid-datacloud.eu/
-- https://unity.helmholtz-data-federation.de/oauth2/
-- https://accounts.google.com/
-- https://oidc.scc.kit.edu/auth/realms/kit/
+FLAAT comes with two examples:
+- `example.py`, which is an example FLASK app. That uses the three
+  decorators provided by FLAAT:
+  -  login_required
+  -  group_required
+  -  aarc_g002_group_required
+  That protect the functions they decorate
+    You can run it like
+    ``python3 ./example.py`
+    You can run queries against it like:
+```
+http localhost:8080/valid_user "Authorization: Bearer $OIDC"
+http localhost:8080/valid_user "Authorization: Bearer `oidc-token unity`"
+curl localhost:8080/valid_user -H "Authorization: Bearer `oidc-token egi`"
+http localhost:8080/group_test_iam "Authorization: Bearer `oidc-token google`"
+```
 
-# Open Issues / Roadmap:
-- Offline verification: Check the signature, in case token is a jwt
-- Fix aarc-g002 handling
+- `get_userinfo.py` is a commandline application for testing. It uses
+  FLAAT in a similar way as `example.py`
+Examples:
+```
+./get_userinfo.py `oidc-token indigo-iam`
+```
 
+## What does FLAAT do?
+
+FLAAT tries to get as much information out of the AT to determine whether
+or not the function it protects should be called or not.
+
+FLAAT only operates on the OIDC Access Token, called AT.
+
+-  FLAAT firstly analyses the AT to see if the AT is a json web token
+   (JWT). In that case there may be an `exp` claim, which is used.
+
+   In case the AT is JWT, FLAAT will also query the userinfo endpoint of
+   the OP found in the `iss` claim.
+
+-  For cases in which the OP cannot be determined, FLAAT offers several
+   ways to determine the issuing OP. You can provide a list of trusted
+   OPs, a file that cointains a list of trusted OPs, or a single OP.
+   In the case of lists, an OP_hint can be specified, which is used to
+   filter the available list of trusted OPs.
+
+   Based on list and OP_hint, FLAAT queries all provided OPs for their
+   config and then for their userinfo endpoint, to evaluate whether the AT
+   is possibly provided by them.
+
+   Note: For being nice to OPs that are known to issue JWTs, these are
+   excluded from the search.
+
+-  In case the user provides a valid client_id and client_secret, the
+   token introspection endpoint of the given OP is queried.
+
+## Issues
+
+FLAAT works under the assumption that ATs cannot be used to access the
+userinfo endpoint after the AT expired.  This does not seem to be the
+case. If you need to be strict on lifetime checking, please obtain a
+client_id and client_secret from the OPs that you work with.
+
+
+## Compatibility
+Tested OIDC Providers are
+- IAM of the [Deep Hybrid Datacloud](https://deep-hybrid-datacloud.eu) project -- https://iam.deep-hybrid-datacloud.eu/
+- EGI -- https://aai.egi.eu/oidc/
+- Unity / B2Access as used in the Helmholtz-Data-Federation -- https://unity.helmholtz-data-federation.de/oauth2/
+- KIT's Shibboleth installation -- https://oidc.scc.kit.edu/auth/realms/kit/
+- Google https://accounts.google.com/
+
+
+# Recommendation
+
+For obtaining OIDC access tokens on  the commandline you might want to use
+[oidc-agent](https://github.com/indigo-dc/oidc-agent) 
+
+
+# License
+FLAAT is provided under the [MIT License](https://opensource.org/licenses/MIT)
