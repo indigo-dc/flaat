@@ -62,7 +62,9 @@ def parseOptions():# {{{
     parser.add_argument('--accesstoken',   '-at'  , default=False , action="store_true", dest='show_access_token')
     parser.add_argument('--userinfo',      '-ui'  , default=False , action="store_true", dest='show_user_info')
     parser.add_argument('--introspection', '-in'  , default=False , action="store_true", dest='show_introspection_info')
-    parser.add_argument('--all',           '-a'    , default=True , action="store_true", dest='show_all')
+    parser.add_argument('--all',           '-a'   , default=True ,                      dest='show_all')
+    parser.add_argument('--quiet',         '-q'   , default=False, action="store_true")
+
 
     parser.add_argument('--issuersconf'            , default='/etc/oidc-agent/issuer.config',
                                                      help='issuer.config, e.g. from oidc-agent')
@@ -89,7 +91,7 @@ flaat.set_OP_list([
 ])
 
 # if -in -ui or -at are specified, we set all to false:
-if args.show_user_info or args.show_access_token or args.show_introspection_info:
+if args.show_user_info or args.show_access_token or args.show_introspection_info or args.quiet:
     args.show_all = False
 
 accesstoken_info = flaat.get_info_thats_in_at(args.access_token)
@@ -118,5 +120,8 @@ timeleft = tokentools.get_timeleft(tokentools.merge_tokens([accesstoken_info,
     user_info, introspection_info]))
 
 if timeleft is not None:
-    print ('Token valid for %.1f more seconds.' % timeleft)
+    if timeleft > 0:
+        print('Token valid for %.1f more seconds.' % timeleft)
+    else:
+        print('Your token is expired for %.1f seconds!' % abs(timeleft))
     print('')
