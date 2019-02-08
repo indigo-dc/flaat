@@ -78,6 +78,8 @@ args = parseOptions().parse_args()
 
 flaat = Flaat()
 
+flaat.set_verbosity(args.verbose)
+
 flaat.set_trusted_OP_list([
 'https://b2access.eudat.eu/oauth2/',
 'https://b2access-integration.fz-juelich.de/oauth2',
