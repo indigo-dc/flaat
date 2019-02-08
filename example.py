@@ -48,7 +48,8 @@ flaat.set_trusted_OP_list([
 'https://iam.extreme-datacloud.eu/',
 'https://aai.egi.eu/oidc/',
 'https://aai-dev.egi.eu/oidc',
-'https://oidc.scc.kit.edu/auth/realms/kit/'
+'https://oidc.scc.kit.edu/auth/realms/kit/',
+'https://proxy.demo.eduteams.org'
 ])
 # flaat.set_trusted_OP_file('/etc/oidc-agent/issuer.config')
 # flaat.set_OP_hint("helmholtz")
