@@ -121,7 +121,8 @@ Tested OIDC Providers are
 - EGI -- https://aai.egi.eu/oidc/
 - Unity / B2Access as used in the Helmholtz-Data-Federation -- https://unity.helmholtz-data-federation.de/oauth2/
 - KIT's Shibboleth installation -- https://oidc.scc.kit.edu/auth/realms/kit/
-- Google https://accounts.google.com/
+- Google -- https://accounts.google.com/
+- EduTEAMS -- https://proxy.demo.eduteams.org
 
 
 # Recommendation
