@@ -1,25 +1,5 @@
 '''Toolds for FLAAT'''
-# MIT License{{{
-#
-# Copyright (c) 2017 - 2019 Karlsruhe Institute of Technology - Steinbuch Centre for Computing
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.}}}
+# This code is distributed under the MIT License
 # pylint # {{{
 # vim: tw=100 foldmethod=marker
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
@@ -29,6 +9,7 @@
 
 import base64
 import re
+import time
 import json
 
 verbose = 0
@@ -120,3 +101,23 @@ def get_issuer_from_accesstoken_info(access_token):# {{{
     except TypeError:
         return None
     # }}}
+
+def get_timeleft(token):
+    '''Get the lifetime left in the token'''
+    timeleft = None
+    if token is not None:
+        now = time.time()
+        try:
+            timeleft = token['exp'] - now
+        except KeyError: # no 'exp' claim
+            pass
+        try:
+            timeleft = token['body']['exp'] - now
+        except KeyError: # no 'exp' claim
+            pass
+        try:
+            timeleft = token['access_token']['body']['exp'] - now
+        except KeyError: # no 'exp' claim
+            pass
+    return timeleft
+
