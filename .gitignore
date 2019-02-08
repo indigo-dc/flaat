@@ -103,3 +103,4 @@ ChangeLog
 cache.sqlite
 source.tgz
 source
+Dockerfile
