@@ -137,5 +137,5 @@ if timeleft is not None:
     if timeleft > 0:
         print('Token valid for %.1f more seconds.' % timeleft)
     else:
-        print('Your token is expired for %.1f seconds!' % abs(timeleft))
+        print('Your token is already EXPIRED for %.1f seconds!' % abs(timeleft))
     print('')
