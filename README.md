@@ -1,7 +1,10 @@
-# FLAsk support for handling Access Tokens - FLAAT
+# FLAsk support for handling oidc Access Tokens - FLAAT
+
+
 
 Tested OIDC Providers are
 - IAM of the [Deep Hybrid Datacloud](https://deep-hybrid-datacloud.eu) project.
+- EGI
 - Unity / B2Access as used in the Helmholtz-Data-Federation
 - KIT's Shibboleth installation
 - Google
@@ -9,7 +12,7 @@ Tested OIDC Providers are
 
 For using the API you will need a valid OIDC access token. For the
 commandline you might want to use
-[oidc-agent](https://github.com/indigo-dc/oidc-agent) for that .
+[oidc-agent](https://github.com/indigo-dc/oidc-agent) for that.
 
 # License
 FLAAT is provided under the [MIT License](https://opensource.org/licenses/MIT)

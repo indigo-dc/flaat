@@ -34,9 +34,7 @@ app=Flask(__name__)
 
 flaat = Flaat()
 
-# flaat.
-#TODO: Caching
-# flaat.set_OP('https://unity.helmholtz-data-federation.de/oauth2/')
+# flaat.set_trusted_OP('https://unity.helmholtz-data-federation.de/oauth2/')
 flaat.set_trusted_OP_list([
 'https://b2access.eudat.eu/oauth2/',
 'https://b2access-integration.fz-juelich.de/oauth2',
@@ -65,14 +63,14 @@ flaat.set_trusted_OP_list([
 #     3: Max
 flaat.set_verbosity(1)
 # flaat.set_verify_tls(True)
-# # Required for using token introspection endpoint
 
+
+# # Required for using token introspection endpoint:
 # flaat.set_client_id('')
 # flaat.set_client_secret('')
 
 
 def my_failure_callback(message=''):
-    # return 'Failed login, caught by my own failure function.\nError Message: "%s"' % message
     return 'Failed login, caught by my own failure function.\nError Message: "%s"' % message
 
 @app.route('/valid_user')

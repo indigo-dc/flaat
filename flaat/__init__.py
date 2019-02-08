@@ -53,7 +53,7 @@ class Flaat():
 
 
 
-    def set_OP(self, iss):
+    def set_trusted_OP(self, iss):
         '''Define OIDC Provider. Must be a valid URL. E.g. 'https://aai.egi.eu/oidc/'
         This should not be required for OPs that put their address into the AT (e.g. keycloak, mitre,
         shibboleth)'''
