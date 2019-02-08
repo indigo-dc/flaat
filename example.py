@@ -69,8 +69,13 @@ def my_failure_callback():
     return 'Failed login, caught by my own failure function'
 
 @app.route('/valid_user')
+@flaat.login_required()
+def valid_user():
+    return('This worked: there was a valid login')
+
+@app.route('/valid_user_2')
 @flaat.login_required(on_failure=my_failure_callback())
-def demo_login():
+def valid_user_own_callback():
     return('This worked: there was a valid login')
 
 @app.route('/group_test_kit')
