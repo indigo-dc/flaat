@@ -65,8 +65,9 @@ flaat.set_verbosity(1)
 # flaat.set_client_secret('')
 
 
-def my_failure_callback():
-    return 'Failed login, caught by my own failure function'
+def my_failure_callback(message=''):
+    # return 'Failed login, caught by my own failure function.\nError Message: "%s"' % message
+    return 'Failed login, caught by my own failure function.\nError Message: "%s"' % message
 
 @app.route('/valid_user')
 @flaat.login_required()
@@ -74,13 +75,14 @@ def valid_user():
     return('This worked: there was a valid login')
 
 @app.route('/valid_user_2')
-@flaat.login_required(on_failure=my_failure_callback())
+@flaat.login_required(on_failure=my_failure_callback)
 def valid_user_own_callback():
     return('This worked: there was a valid login')
 
 @app.route('/group_test_kit')
 @flaat.group_required(group=['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
-        claim='eduperson_scoped_affiliation', match=2)
+        claim='eduperson_scoped_affiliation', match=2,
+        on_failure=my_failure_callback)
 def demo_groups_kit():
     return('This worked: user is member of the requested group')
 

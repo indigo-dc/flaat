@@ -39,6 +39,7 @@ class Flaat():
         self.verify_tls    = True
         self.client_id     = None
         self.client_secret = None
+        self.last_error    = ''
 
     def set_OP(self, iss):
         '''Define OIDC Provider. Must be a valid URL. E.g. 'https://aai.egi.eu/oidc/'
@@ -80,6 +81,14 @@ class Flaat():
     def set_client_secret(self, client_secret):
         '''Client Secret. At the moment this one is sent to all matching providers.'''
         self.client_secret = client_secret
+    def set_last_error(self, error):
+        '''Store an error message'''
+        self.last_error = error
+    def get_last_error(self):
+        '''Retrieve and clear the error message'''
+        retval = self.last_error
+        self.last_error = ''
+        return retval
 
 # }}}
     def _find_issuer_config_everywhere(self, access_token):
@@ -170,20 +179,23 @@ class Flaat():
         '''Collect all possible user info and return them as one json
         object.'''
         if access_token is None:
+            self.set_last_error('No access token found')
             return None
 
         accesstoken_info   = self.get_info_thats_in_at(access_token)
         user_info          = self.get_info_from_userinfo_endpoints(access_token)
         introspection_info = self.get_info_from_introspection_endpoints(access_token)
 
-        timeleft = tokentools.get_timeleft(accesstoken_info)
+        if accesstoken_info is not None:
+            timeleft = tokentools.get_timeleft(accesstoken_info)
 
-        if timeleft < 0:
-            # print ('\n\n: TIMELEFT: %d' % timeleft)
-            return None
+            if timeleft < 0:
+                # print ('\n\n: TIMELEFT: %d' % timeleft)
+                self.set_last_error('Token expired for %d seconds' % abs(timeleft))
+                return None
 
-        return tokentools.merge_tokens ([accesstoken_info['header'], accesstoken_info['body'], user_info, introspection_info])
-        # return tokentools.merge_tokens ([accesstoken_info, user_info, introspection_info])
+        # return tokentools.merge_tokens ([accesstoken_info['header'], accesstoken_info['body'], user_info, introspection_info])
+        return tokentools.merge_tokens ([accesstoken_info, user_info, introspection_info])
 # }}}
     def _get_all_info_from_request(self, param_request):
     # {{{
@@ -214,8 +226,8 @@ class Flaat():
                         print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
                     return view_func(*args, **kwargs)
                 if on_failure:
-                    return on_failure
-                return ('No valid authentication found.')
+                    return on_failure(self.get_last_error())
+                return ('No valid authentication found: %s' % self.get_last_error())
             return decorated
         return wrapper
 # }}}
@@ -240,8 +252,8 @@ class Flaat():
                 all_info = self._get_all_info_from_request(request)
                 if all_info is None:
                     if on_failure:
-                        return on_failure
-                    return ('No valid authentication found.')
+                        return on_failure(self.get_last_error())
+                    return ('No valid authentication found: %s' % self.get_last_error())
 
                 # Make sure we have a list:
                 if isinstance(group, str):
@@ -293,7 +305,7 @@ class Flaat():
 
                 # Either we returned above or there was no matching group
                 if on_failure:
-                    return on_failure
+                    return on_failure(user_message)
                 return (user_message)
             return decorated
         return wrapper
@@ -319,8 +331,8 @@ class Flaat():
                 all_info = self._get_all_info_from_request(request)
                 if all_info is None:
                     if on_failure:
-                        return on_failure
-                    return ('No valid authentication found.')
+                        return on_failure(self.get_last_error())
+                    return ('No valid authentication found: %s' % self.get_last_error())
 
                 # Make sure we have a list:
                 if isinstance(group, str):
@@ -372,7 +384,7 @@ class Flaat():
 
                 # Either we returned above or there was no matching group
                 if on_failure:
-                    return on_failure
+                    return on_failure(user_message)
                 return (user_message)
             return decorated
         return wrapper
