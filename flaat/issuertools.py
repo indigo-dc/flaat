@@ -15,8 +15,8 @@ import requests_cache
 
 from . import tokentools
 
-# This file config:
-requests_cache.install_cache(include_get_headers=True)
+# default values:
+requests_cache.install_cache(include_get_headers=True, expire_after=300)
 
 verbose = 0
 verify_tls = True

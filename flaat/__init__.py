@@ -16,7 +16,10 @@ from flask import request
 
 from . import aarc_g002_matcher
 from . import tokentools
+print('importing issuertools')
 from . import issuertools
+print('imported issuertools')
+
 
 name = "flaat"
 
@@ -51,7 +54,10 @@ class Flaat():
         'https://login.elixir-czech.org/oidc/',
         'https://services.humanbrainproject.eu/oidc/',
 
-
+    def set_cache_lifetime(self, lifetime):
+        '''Set lifetime of requests_cache in seconds, default: 300s'''
+        self.cache_lifetime = lifetime
+        issuertools.requests_cache.install_cache(include_get_headers=True, expire_after=lifetime)
 
     def set_trusted_OP(self, iss):
         '''Define OIDC Provider. Must be a valid URL. E.g. 'https://aai.egi.eu/oidc/'
@@ -142,6 +148,7 @@ class Flaat():
 
     def get_info_thats_in_at(self, access_token):
         # {{{
+        '''return the information contained inside the access_token itself'''
         # '''analyse access_token and return info'''
         accesstoken_info = tokentools.get_accesstoken_info(access_token)
         at_head=None
