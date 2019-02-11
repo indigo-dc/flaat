@@ -35,6 +35,7 @@ app=Flask(__name__)
 flaat = Flaat()
 
 # flaat.set_trusted_OP('https://unity.helmholtz-data-federation.de/oauth2/')
+flaat.set_cache_lifetime(120) # seconds; default is 300
 flaat.set_trusted_OP_list([
 'https://b2access.eudat.eu/oauth2/',
 'https://b2access-integration.fz-juelich.de/oauth2',

@@ -79,6 +79,7 @@ args = parseOptions().parse_args()
 flaat = Flaat()
 
 flaat.set_verbosity(args.verbose)
+flaat.set_cache_lifetime(120) # seconds; default is 300
 
 flaat.set_trusted_OP_list([
 'https://b2access.eudat.eu/oauth2/',
