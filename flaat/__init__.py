@@ -6,14 +6,21 @@ access to OIDC authenticated REST APIs.'''
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace
 # pylint: disable=logging-not-lazy, logging-format-interpolation
+# pylint: disable=wrong-import-position
 
 
-import os
-import sys
 from functools import wraps
 import json
-from flask import request
+import os
+import sys
+is_py2 = sys.version[0] == '2'
+if is_py2:
+    from Queue import Queue, Empty
+else:
+    from queue import Queue, Empty
+from threading import Thread
 
+from flask import request
 from aarc_g002_entitlement import Aarc_g002_entitlement
 from . import tokentools
 from . import issuertools
@@ -30,7 +37,6 @@ class Flaat():
     Provide decorators and configuration for OIDC'''
     # pylint: disable=too-many-instance-attributes
     def __init__(self):
-        
         self.trusted_op_list = None
         self.iss             = None
         self.op_hint         = None
@@ -40,6 +46,7 @@ class Flaat():
         self.client_id       = None
         self.client_secret   = None
         self.last_error      = ''
+        self.num_request_workers = 10
         self.ops_that_support_jwt = \
                     [ 'https://iam-test.indigo-datacloud.eu/',
                       'https://iam.deep-hybrid-datacloud.eu/',
@@ -55,7 +62,6 @@ class Flaat():
         '''Set lifetime of requests_cache zn seconds, default: 300s'''
         self.cache_lifetime = lifetime
         issuertools.requests_cache.install_cache(include_get_headers=True, expire_after=lifetime)
-
     def set_trusted_OP(self, iss):
         '''Define OIDC Provider. Must be a valid URL. E.g. 'https://aai.egi.eu/oidc/'
         This should not be required for OPs that put their address into the AT (e.g. keycloak, mitre,
@@ -104,10 +110,7 @@ class Flaat():
         retval = self.last_error
         self.last_error = ''
         return retval
-
-
     def _find_issuer_config_everywhere(self, access_token):
-        
         '''Use many places to find issuer configs'''
 
         # 1: find info in the AT
@@ -141,10 +144,7 @@ class Flaat():
             return iss_config
 
         return None
-    
-
     def get_info_thats_in_at(self, access_token):
-        
         '''return the information contained inside the access_token itself'''
         # '''analyse access_token and return info'''
         accesstoken_info = tokentools.get_accesstoken_info(access_token)
@@ -155,12 +155,11 @@ class Flaat():
             at_body = accesstoken_info['body']
         # return (at_head, at_body)
         return (accesstoken_info)
-        
     def get_info_from_userinfo_endpoints(self, access_token):
-    
         '''Traverse all reasonable configured userinfo endpoints and query them with the
         access_token. Note: For OPs that include the iss inside the AT, they will be directly
         queried, and are not included in the search (because that makes no sense)'''
+        user_info = "" # return value
 
         # get all possible issuer configs
         issuer_configs = self._find_issuer_config_everywhere(access_token)
@@ -168,18 +167,45 @@ class Flaat():
             if self.verbose:
                 print('No issuer config found')
             return tokentools.merge_tokens(None)
-        
 
         # get userinfo
+        param_q  = Queue(self.num_request_workers*2)
+        result_q = Queue(self.num_request_workers*2)
+
+        def thread_worker_get_userinfo():
+            '''Thread worker'''
+            while True:
+                item = param_q.get()
+                if item is None:
+                    break
+                result = issuertools.get_user_info(item['access_token'], item['issuer_config'])
+                result_q.put(result)
+                param_q.task_done()
+                result_q.task_done()
+
+        for i in range (self.num_request_workers):
+            t = Thread(target=thread_worker_get_userinfo)
+            t.daemon = True
+            t.start()
+
         for issuer_config in issuer_configs:
-            user_info = issuertools.get_user_info(access_token, issuer_config)
-            if user_info is not None:
-                break
-        
+            # user_info = issuertools.get_user_info(access_token, issuer_config)
+            params = {}
+            params['access_token'] = access_token
+            params['issuer_config'] = issuer_config
+            param_q.put(params)
+        param_q.join()
+        result_q.join()
+        try:
+            for user_info in iter(result_q.get_nowait, None):
+                if user_info is not None:
+                    return (user_info)
+        except Empty:
+            pass
+
         return(user_info)
-    
+
     def get_info_from_introspection_endpoints(self, access_token):
-    
         '''If there's a client_id and client_secret defined, we access the token introspection
         endpoint and return the info obtained from there'''
         # get introspection_token
@@ -190,10 +216,9 @@ class Flaat():
             if introspection_info is not None:
                 break
         return(introspection_info)
-        
 
     def get_all_info_by_at(self, access_token):
-        
+
         '''Collect all possible user info and return them as one json
         object.'''
         if access_token is None:
@@ -216,16 +241,13 @@ class Flaat():
         return tokentools.merge_tokens ([accesstoken_info, user_info, introspection_info])
 
     def _get_all_info_from_request(self, param_request):
-    
         '''gather all info about the user that we can find.
         Returns a "supertoken" json structure.'''
 
         access_token = tokentools.get_access_token_from_request(param_request)
         return self.get_all_info_by_at(access_token)
-    
 
     def login_required(self, on_failure=None):
-    
         '''Decorator to enforce a valid login.
         Optional on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page'''
@@ -284,7 +306,6 @@ class Flaat():
             return (None, user_message)
 
         return (avail_group_entries, None)
-
 
     def group_required(self, group=None, claim=None, on_failure=None, match='all'):
         '''Decorator to enforce membership in a given group.
@@ -439,5 +460,3 @@ class Flaat():
                 return (user_message)
             return decorated
         return wrapper
-
-
