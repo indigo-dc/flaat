@@ -1,3 +1,4 @@
 flask
 requests
 requests_cache
+aarc_g002_entitlement
