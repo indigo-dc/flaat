@@ -16,10 +16,7 @@ from flask import request
 
 from . import aarc_g002_matcher
 from . import tokentools
-print('importing issuertools')
 from . import issuertools
-print('imported issuertools')
-
 
 name = "flaat"
 
