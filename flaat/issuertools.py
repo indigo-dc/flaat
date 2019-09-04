@@ -1,11 +1,11 @@
 '''Tools for token handling in FLAAT'''
 # This code is distributed under the MIT License
-# pylint # {{{
-# vim: tw=100 foldmethod=marker
+# pylint 
+# vim: tw=100 foldmethod=indent
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace
 # pylint: disable=logging-not-lazy, logging-format-interpolation
-# }}}
+
 import re
 import fileinput
 from base64 import b64encode
@@ -21,7 +21,7 @@ requests_cache.install_cache(include_get_headers=True, expire_after=300)
 verbose = 0
 verify_tls = True
 
-def find_issuer_config_in_at(access_token):# {{{
+def find_issuer_config_in_at(access_token):
     '''If there is an issuer in the AT, we fetch the ISS config and return it'''
     iss_config = None
     at_iss = tokentools.get_issuer_from_accesstoken_info(access_token)
@@ -32,8 +32,8 @@ def find_issuer_config_in_at(access_token):# {{{
             config_url = at_iss+'/.well-known/openid-configuration'
             iss_config = get_iss_config_from_endpoint(config_url)
     return iss_config
-# }}}
-def find_issuer_config_in_string(string):# {{{
+
+def find_issuer_config_in_string(string):
     '''If the string provided is a URL: try several well known endpoints until the ISS config is
     found'''
     iss_config = None
@@ -50,9 +50,9 @@ def find_issuer_config_in_string(string):# {{{
                 return [iss_config]
             iss_config = get_iss_config_from_endpoint(string+'/oauth2'+'/.well-known/openid-configuration')
     return iss_config
-# }}}
+
 def find_issuer_config_in_list(op_list, op_hint = None, exclude_list = []):
-# {{{
+
     '''find the hinted issuer in configured op_list'''
     iss_config = None
     if op_list:
@@ -70,9 +70,9 @@ def find_issuer_config_in_list(op_list, op_hint = None, exclude_list = []):
                     issuer_wellknown=issuer.rstrip('/') + '/.well-known/openid-configuration'
                     iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))
     return iss_config
-# }}}
+
 def find_issuer_config_in_file(op_file, op_hint = None, exclude_list=[]):
-# {{{
+
     '''find the hinted issuer in a configured, oidc-agent compatible issuers.conf file
     we only use the first (space separated) entry of that file.'''
     iss_config = None
@@ -94,9 +94,9 @@ def find_issuer_config_in_file(op_file, op_hint = None, exclude_list=[]):
                     issuer_wellknown=issuer_from_conf.rstrip('/') + '/.well-known/openid-configuration'
                     iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))
     return iss_config
-# }}}
 
-def get_iss_config_from_endpoint(issuer_url):# {{{
+
+def get_iss_config_from_endpoint(issuer_url):
     '''Get issuer_wellknown/configuration from url; return json if true, None otherwise. 
     Note that this endpoint is called more often than necessary. We rely on requests_cache to keep
     this efficient'''
@@ -120,8 +120,8 @@ def get_iss_config_from_endpoint(issuer_url):# {{{
     except:
         print(str(resp.text))
         return None
-# }}}
-def get_user_info(access_token, issuer_config):# {{{
+
+def get_user_info(access_token, issuer_config):
     '''Query the userinfo endpoint, using the AT as authentication'''
     headers = {}
     headers = {'Content-type': 'application/x-www-form-urlencoded'}
@@ -147,8 +147,8 @@ def get_user_info(access_token, issuer_config):# {{{
     if verbose > 2:
         print('userinfo: resp: %s' % resp.status_code)
     return resp_json
-# }}}
-def get_introspected_token_info(access_token, issuer_config, client_id=None, client_secret=None):# {{{
+
+def get_introspected_token_info(access_token, issuer_config, client_id=None, client_secret=None):
     '''Query te token introspection endpoint, if there is a client_id and client_secret set'''
     headers = {}
     headers = {'Content-type': 'application/x-www-form-urlencoded'}
@@ -196,4 +196,4 @@ def get_introspected_token_info(access_token, issuer_config, client_id=None, cli
             return None
 
     return(resp.json())
-# }}}
+

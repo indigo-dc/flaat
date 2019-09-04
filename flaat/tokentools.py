@@ -1,11 +1,11 @@
 '''Toolds for FLAAT'''
 # This code is distributed under the MIT License
-# pylint # {{{
-# vim: tw=100 foldmethod=marker
+# pylint 
+# vim: tw=100 foldmethod=indent
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace
 # pylint: disable=logging-not-lazy, logging-format-interpolation
-# }}}
+
 
 import base64
 import re
@@ -15,7 +15,7 @@ import json
 verbose = 0
 verify_tls = True
 
-def merge_tokens(tokenlist):# {{{
+def merge_tokens(tokenlist):
     '''put all provided none None tokens into one token.'''
     supertoken = {}
     for entry in tokenlist:
@@ -27,8 +27,8 @@ def merge_tokens(tokenlist):# {{{
     if supertoken == {}:
         return None
     return supertoken
-# }}}
-def get_access_token_from_request(request):# {{{
+
+def get_access_token_from_request(request):
     '''Helper function to obtain the OIDC AT from the flask request variable'''
     token = None
     if 'Authorization' in request.headers and request.headers['Authorization'].startswith('Bearer '):
@@ -39,15 +39,15 @@ def get_access_token_from_request(request):# {{{
     elif 'access_token' in request.args:
         token = request.args['access_token']
     return token
-# }}}
-def base64url_encode(data):# {{{
+
+def base64url_encode(data):
     '''Decode base64 encode data'''
     if not isinstance(data, bytes):
         data = data.encode('utf-8')
     encode = base64.urlsafe_b64encode(data)
     return encode.decode('utf-8').rstrip('=')
-# }}}
-def base64url_decode(data):# {{{
+
+def base64url_decode(data):
     '''Encode base64 encode data'''
     size = len(data) % 4
     if size == 2:
@@ -57,8 +57,8 @@ def base64url_decode(data):# {{{
     elif size != 0:
         raise ValueError('Invalid base64 string')
     return base64.urlsafe_b64decode(data.encode('utf-8'))
-# }}}
-def is_url(string):# {{{
+
+def is_url(string):
     '''Return True if parameter is a URL, otherwise False'''
     regex = re.compile(
         r'^(?:http|ftp)s?://' # http:// or https://
@@ -68,8 +68,8 @@ def is_url(string):# {{{
         r'(?::\d+)?' # optional port
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
     return re.match(regex, string)
-# }}}
-def get_accesstoken_info(access_token):# {{{
+
+def get_accesstoken_info(access_token):
     '''Return information contained in the access token. Maybe None'''
     try:
         (header_enc, body_enc, signature_enc) = access_token.split('.')
@@ -91,8 +91,8 @@ def get_accesstoken_info(access_token):# {{{
         # issuer to be used
         # raise
         return None
-# }}}
-def get_issuer_from_accesstoken_info(access_token):# {{{
+
+def get_issuer_from_accesstoken_info(access_token):
     '''Return the issuer of the AT, if it can be found, otherwise None'''
     try:
         return get_accesstoken_info(access_token)['body']['iss']
@@ -100,7 +100,7 @@ def get_issuer_from_accesstoken_info(access_token):# {{{
         return None
     except TypeError:
         return None
-    # }}}
+    
 
 def get_timeleft(token):
     '''Get the lifetime left in the token'''
