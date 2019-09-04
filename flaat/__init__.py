@@ -1,12 +1,12 @@
 '''FLAsk support for OIDC Access Tokens -- FLAAT. A set of decorators for authorising
 access to OIDC authenticated REST APIs.'''
 # This code is distributed under the MIT License
-# pylint # {{{
-# vim: tw=100 foldmethod=marker
+# pylint 
+# vim: tw=100 
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace
 # pylint: disable=logging-not-lazy, logging-format-interpolation
-# }}}
+
 
 import os
 import sys
@@ -14,7 +14,7 @@ from functools import wraps
 import json
 from flask import request
 
-from . import aarc_g002_matcher
+import aarc_g002_entitlement
 from . import tokentools
 from . import issuertools
 
@@ -25,12 +25,12 @@ verbose = 0
 verify_tls = True
 
 class Flaat():
-    # {{{
+    
     '''FLAsk support for OIDC Access Tokens.
     Provide decorators and configuration for OIDC'''
     # pylint: disable=too-many-instance-attributes
     def __init__(self):
-        # {{{
+        
         self.trusted_op_list = None
         self.iss             = None
         self.op_hint         = None
@@ -105,9 +105,9 @@ class Flaat():
         self.last_error = ''
         return retval
 
-# }}}
+
     def _find_issuer_config_everywhere(self, access_token):
-        # {{{
+        
         '''Use many places to find issuer configs'''
 
         # 1: find info in the AT
@@ -141,10 +141,10 @@ class Flaat():
             return iss_config
 
         return None
-    # }}}
+    
 
     def get_info_thats_in_at(self, access_token):
-        # {{{
+        
         '''return the information contained inside the access_token itself'''
         # '''analyse access_token and return info'''
         accesstoken_info = tokentools.get_accesstoken_info(access_token)
@@ -155,31 +155,31 @@ class Flaat():
             at_body = accesstoken_info['body']
         # return (at_head, at_body)
         return (accesstoken_info)
-        # }}}
+        
     def get_info_from_userinfo_endpoints(self, access_token):
-    # {{{
+    
         '''Traverse all reasonable configured userinfo endpoints and query them with the
         access_token. Note: For OPs that include the iss inside the AT, they will be directly
         queried, and are not included in the search (because that makes no sense)'''
 
-        # get all possible issuer configs{{{
+        # get all possible issuer configs
         issuer_configs = self._find_issuer_config_everywhere(access_token)
         if issuer_configs is None:
             if self.verbose:
                 print('No issuer config found')
             return tokentools.merge_tokens(None)
-        # }}}
+        
 
-        # get userinfo{{{
+        # get userinfo
         for issuer_config in issuer_configs:
             user_info = issuertools.get_user_info(access_token, issuer_config)
             if user_info is not None:
                 break
-        # }}}
+        
         return(user_info)
-    # }}}
+    
     def get_info_from_introspection_endpoints(self, access_token):
-    # {{{
+    
         '''If there's a client_id and client_secret defined, we access the token introspection
         endpoint and return the info obtained from there'''
         # get introspection_token
@@ -190,10 +190,10 @@ class Flaat():
             if introspection_info is not None:
                 break
         return(introspection_info)
-        # }}}
+        
 
     def get_all_info_by_at(self, access_token):
-        # {{{
+        
         '''Collect all possible user info and return them as one json
         object.'''
         if access_token is None:
@@ -214,18 +214,18 @@ class Flaat():
 
         # return tokentools.merge_tokens ([accesstoken_info['header'], accesstoken_info['body'], user_info, introspection_info])
         return tokentools.merge_tokens ([accesstoken_info, user_info, introspection_info])
-# }}}
+
     def _get_all_info_from_request(self, param_request):
-    # {{{
+    
         '''gather all info about the user that we can find.
         Returns a "supertoken" json structure.'''
 
         access_token = tokentools.get_access_token_from_request(param_request)
         return self.get_all_info_by_at(access_token)
-    # }}}
+    
 
     def login_required(self, on_failure=None):
-    # {{{
+    
         '''Decorator to enforce a valid login.
         Optional on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page'''
@@ -248,9 +248,9 @@ class Flaat():
                 return ('No valid authentication found: %s' % self.get_last_error())
             return decorated
         return wrapper
-# }}}
+
     def group_required(self, group=None, claim=None, on_failure=None, match='all'):
-        # {{{
+        
         '''Decorator to enforce membership in a given group.
         group is the name (or list) of the group to match
         match specifies how many of the given groups must be matched. Valid values for match are
@@ -327,9 +327,9 @@ class Flaat():
                 return (user_message)
             return decorated
         return wrapper
-# }}}
+
     def aarc_g002_group_required(self, group=None, claim=None, on_failure=None, match='all'):
-        # {{{
+        
         '''Decorator to enforce membership in a given group defined according to AARC-G002.
         group is the name (or list) of the group to match
         match specifies how many of the given groups must be matched. Valid values for match are
@@ -406,5 +406,5 @@ class Flaat():
                 return (user_message)
             return decorated
         return wrapper
-# }}}
-# }}}
+
+
