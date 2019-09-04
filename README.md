@@ -59,7 +59,6 @@ FLAAT comes with two examples:
   decorators provided by FLAAT:
   -  login_required
   -  group_required
-  -  aarc_g002_group_required
   That protect the functions they decorate
     You can run it like
     ``python3 ./example.py`

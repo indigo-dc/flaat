@@ -2,7 +2,7 @@
 access to OIDC authenticated REST APIs.'''
 # This code is distributed under the MIT License
 # pylint 
-# vim: tw=100 
+# vim: tw=100 foldmethod=indent
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace
 # pylint: disable=logging-not-lazy, logging-format-interpolation
@@ -14,7 +14,7 @@ from functools import wraps
 import json
 from flask import request
 
-import aarc_g002_entitlement
+from aarc_g002_entitlement import Aarc_g002_entitlement
 from . import tokentools
 from . import issuertools
 
@@ -52,7 +52,7 @@ class Flaat():
         'https://services.humanbrainproject.eu/oidc/',
 
     def set_cache_lifetime(self, lifetime):
-        '''Set lifetime of requests_cache in seconds, default: 300s'''
+        '''Set lifetime of requests_cache zn seconds, default: 300s'''
         self.cache_lifetime = lifetime
         issuertools.requests_cache.install_cache(include_get_headers=True, expire_after=lifetime)
 
@@ -249,8 +249,44 @@ class Flaat():
             return decorated
         return wrapper
 
+    def _determine_number_of_required_matches(self, match, req_group_list):
+        '''determine the number of required matches from parameters'''
+        # How many matches do we need?
+        required_matches = None
+        if match == 'all':
+            required_matches = len(req_group_list)
+        if match == 'one':
+            required_matches = 1
+        if isinstance (match, int):
+            required_matches = match
+        if required_matches > len(req_group_list):
+            required_matches = len(req_group_list)
+        if self.verbose > 1:
+            print ('    required matches: {}'.format(required_matches))
+        return required_matches
+
+    def _get_entitlements_from_claim(self, all_info, claim):
+        '''extract entitlements from given claim in userinfo'''
+        # copy entries from incoming claim
+        try:
+            avail_group_entries = all_info[claim]
+        except KeyError:
+            user_message = 'Claim does not exist: "%s".' % claim
+            if self.verbose:
+                print ('Claim does not exist: "%s".' % claim)
+                print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+            return (None, user_message)
+        if not isinstance(avail_group_entries, list):
+            user_message = 'Claim does not point to a list: "%s".' % avail_group_entries
+            if self.verbose:
+                print ('Claim does not point to a list: "%s".' % avail_group_entries)
+                print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+            return (None, user_message)
+
+        return (avail_group_entries, None)
+
+
     def group_required(self, group=None, claim=None, on_failure=None, match='all'):
-        
         '''Decorator to enforce membership in a given group.
         group is the name (or list) of the group to match
         match specifies how many of the given groups must be matched. Valid values for match are
@@ -280,35 +316,18 @@ class Flaat():
                     req_group_list = group
 
                 # How many matches do we need?
-                if match == 'all':
-                    required_matches = len(req_group_list)
-                if match == 'one':
-                    required_matches = 1
-                if isinstance (match, int):
-                    required_matches = match
-                if required_matches > len(req_group_list):
-                    required_matches = len(req_group_list)
-
+                required_matches = self._determine_number_of_required_matches(match, req_group_list)
                 if not required_matches:
                     print('Error interpreting the "match" parameter')
                     return('Error interpreting the "match" parameter')
 
                 if self.verbose>1:
                     print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+
                 # copy entries from incoming claim
-                avail_group_entries = []
-                try:
-                    avail_group_entries = all_info[claim]
-                except KeyError:
-                    user_message = 'Claim does not exist: "%s".' % claim
-                    if self.verbose:
-                        print ('Claim does not exist: "%s".' % claim)
-                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
-                if not isinstance(avail_group_entries, list):
-                    user_message = 'Claim does not point to a list: "%s".' % avail_group_entries
-                    if self.verbose:
-                        print ('Claim does not exist: "%s".' % avail_group_entries)
-                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+                (avail_group_entries, user_message) = self._get_entitlements_from_claim(all_info, claim)
+                if not avail_group_entries:
+                    return user_message
 
                 # now we do the actual checking
                 matches_found = 0
@@ -328,14 +347,27 @@ class Flaat():
             return decorated
         return wrapper
 
-    def aarc_g002_group_required(self, group=None, claim=None, on_failure=None, match='all'):
-        
+    def aarc_g002_entitlement_required(self, entitlement=None, claim=None, on_failure=None, match='all'):
         '''Decorator to enforce membership in a given group defined according to AARC-G002.
-        group is the name (or list) of the group to match
+        entitlement is the name (or list) of the entitlement to match
         match specifies how many of the given groups must be matched. Valid values for match are
         'all', 'one', or an integer
         on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page'''
+        return self.aarc_g002_group_required(entitlement, claim, on_failure, match)
+
+    def aarc_g002_group_required(self, group=None, claim=None, on_failure=None, match='all'):
+        '''Decorator to enforce membership in a given group defined according to AARC-G002.
+        group is the name (or list) of the entitlement to match
+        match specifies how many of the given groups must be matched. Valid values for match are
+        'all', 'one', or an integer
+        on_failure is a function that will be invoked if there was no valid user detected.
+        Useful for redirecting to some login page'''
+
+        # rename for clarity, don't use group below
+        entitlement=group
+        del(group)
+
         def wrapper(view_func):
             @wraps(view_func)
             def decorated(*args, **kwargs):
@@ -345,7 +377,7 @@ class Flaat():
                 except KeyError: # i.e. the environment variable was not set
                     pass
 
-                user_message = 'Not enough required group memberships found.'
+                user_message = 'Not enough required entitlements found.'
                 all_info = self._get_all_info_from_request(request)
                 if all_info is None:
                     if on_failure:
@@ -353,54 +385,55 @@ class Flaat():
                     return ('No valid authentication found: %s' % self.get_last_error())
 
                 # Make sure we have a list:
-                if isinstance(group, str):
-                    req_group_list = [group]
+                if isinstance(entitlement, str):
+                    req_entitlement_list = [entitlement]
                 else:
-                    req_group_list = group
+                    req_entitlement_list = entitlement
 
                 # How many matches do we need?
-                if match == 'all':
-                    required_matches = len(req_group_list)
-                if match == 'one':
-                    required_matches = 1
-                if isinstance (match, int):
-                    required_matches = match
-                if required_matches > len(req_group_list):
-                    required_matches = len(req_group_list)
-
+                required_matches = self._determine_number_of_required_matches(match, req_entitlement_list)
                 if not required_matches:
                     print('Error interpreting the "match" parameter')
                     return('Error interpreting the "match" parameter')
 
                 if self.verbose>1:
                     print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
-                # actual check for group membership:
-                avail_group_entries = []
-                try:
-                    avail_group_entries = all_info[claim]
-                except KeyError:
-                    user_message = 'Claim does not exist: "%s".' % claim
-                    if self.verbose:
-                        print ('Claim does not exist: "%s".' % claim)
-                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
-                if not isinstance(avail_group_entries, list):
-                    user_message = 'Claim does not point to a list: "%s".' % avail_group_entries
-                    if self.verbose:
-                        print ('Claim does not exist: "%s".' % avail_group_entries)
-                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+
+                # copy entries from incoming claim
+                (avail_entitlement_entries, user_message) = self._get_entitlements_from_claim(all_info, claim)
+                if not avail_entitlement_entries:
+                    return user_message
+
+                if self.verbose > 1:
+                    print ('\nAvailable Entitlements:')
+                    print (str(avail_entitlement_entries))
+                    print ('\nRequired Entitlements:')
+                    print (str(req_entitlement_list))
+
+                # generate entitlement objects from input strings
+                avail_entitlements = [ Aarc_g002_entitlement(es) for es in avail_entitlement_entries ]
+                req_entitlements   = [ Aarc_g002_entitlement(es) for es in req_entitlement_list ]
+                if self.verbose > 1:
+                    print ('\nAvailable Entitlements:')
+                    print ('{}'.format('\n\n'.join([x.__mstr__() for x in avail_entitlements])))
+                    print ('\n\nRequired Entitlements:')
+                    print ('{}'.format('\n\n'.join([x.__mstr__() for x in req_entitlements])))
+
 
                 # now we do the actual checking
                 matches_found = 0
-                for entry in avail_group_entries:
-                    for g in req_group_list:
-                        if aarc_g002_matcher.aarc_g002_matcher(required_group=g, actual_group=entry):
+
+                for required in req_entitlements:
+                    for avail in req_entitlements:
+                        if required.is_contained_in(avail):
                             matches_found += 1
+
                 if self.verbose > 0:
                     print('found %d of %d matches' % (matches_found, required_matches))
                 if matches_found >= required_matches:
                     return view_func(*args, **kwargs)
 
-                # Either we returned above or there was no matching group
+                # Either we returned above or there was no matching entitlement
                 if on_failure:
                     return on_failure(user_message)
                 return (user_message)
