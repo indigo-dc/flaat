@@ -1,6 +1,6 @@
-'''Toolds for FLAAT'''
+'''Tools for FLAAT'''
 # This code is distributed under the MIT License
-# pylint 
+# pylint
 # vim: tw=100 foldmethod=indent
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace
@@ -100,7 +100,6 @@ def get_issuer_from_accesstoken_info(access_token):
         return None
     except TypeError:
         return None
-    
 
 def get_timeleft(token):
     '''Get the lifetime left in the token'''
