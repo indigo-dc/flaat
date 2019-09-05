@@ -1,4 +1,4 @@
 flask
 requests
 requests_cache
-aarc_g002_entitlement
+aarc_g002_entitlement >= 0.0.5
