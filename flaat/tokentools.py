@@ -16,7 +16,7 @@ verbose = 0
 verify_tls = True
 
 def merge_tokens(tokenlist):
-    '''put all provided none None tokens into one token.'''
+    '''put all provided tokens into one token.'''
     supertoken = {}
     for entry in tokenlist:
         try:
@@ -67,7 +67,9 @@ def is_url(string):
         r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
         r'(?::\d+)?' # optional port
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
-    return re.match(regex, string)
+    if re.match(regex, string):
+        return True
+    return False
 
 def get_accesstoken_info(access_token):
     '''Return information contained in the access token. Maybe None'''
