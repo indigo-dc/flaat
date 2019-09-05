@@ -57,7 +57,6 @@ class Flaat():
         # unknown:
         'https://login.elixir-czech.org/oidc/',
         'https://services.humanbrainproject.eu/oidc/',
-
     def set_cache_lifetime(self, lifetime):
         '''Set lifetime of requests_cache zn seconds, default: 300s'''
         self.cache_lifetime = lifetime
@@ -204,7 +203,6 @@ class Flaat():
             pass
 
         return(user_info)
-
     def get_info_from_introspection_endpoints(self, access_token):
         '''If there's a client_id and client_secret defined, we access the token introspection
         endpoint and return the info obtained from there'''
@@ -216,9 +214,7 @@ class Flaat():
             if introspection_info is not None:
                 break
         return(introspection_info)
-
     def get_all_info_by_at(self, access_token):
-
         '''Collect all possible user info and return them as one json
         object.'''
         if access_token is None:
@@ -239,14 +235,12 @@ class Flaat():
 
         # return tokentools.merge_tokens ([accesstoken_info['header'], accesstoken_info['body'], user_info, introspection_info])
         return tokentools.merge_tokens ([accesstoken_info, user_info, introspection_info])
-
     def _get_all_info_from_request(self, param_request):
         '''gather all info about the user that we can find.
         Returns a "supertoken" json structure.'''
 
         access_token = tokentools.get_access_token_from_request(param_request)
         return self.get_all_info_by_at(access_token)
-
     def login_required(self, on_failure=None):
         '''Decorator to enforce a valid login.
         Optional on_failure is a function that will be invoked if there was no valid user detected.
@@ -270,7 +264,6 @@ class Flaat():
                 return ('No valid authentication found: %s' % self.get_last_error())
             return decorated
         return wrapper
-
     def _determine_number_of_required_matches(self, match, req_group_list):
         '''determine the number of required matches from parameters'''
         # How many matches do we need?
@@ -286,7 +279,6 @@ class Flaat():
         if self.verbose > 1:
             print ('    required matches: {}'.format(required_matches))
         return required_matches
-
     def _get_entitlements_from_claim(self, all_info, claim):
         '''extract entitlements from given claim in userinfo'''
         # copy entries from incoming claim
@@ -306,7 +298,6 @@ class Flaat():
             return (None, user_message)
 
         return (avail_group_entries, None)
-
     def group_required(self, group=None, claim=None, on_failure=None, match='all'):
         '''Decorator to enforce membership in a given group.
         group is the name (or list) of the group to match
@@ -367,7 +358,6 @@ class Flaat():
                 return (user_message)
             return decorated
         return wrapper
-
     def aarc_g002_entitlement_required(self, entitlement=None, claim=None, on_failure=None, match='all'):
         '''Decorator to enforce membership in a given group defined according to AARC-G002.
         entitlement is the name (or list) of the entitlement to match
@@ -376,7 +366,6 @@ class Flaat():
         on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page'''
         return self.aarc_g002_group_required(entitlement, claim, on_failure, match)
-
     def aarc_g002_group_required(self, group=None, claim=None, on_failure=None, match='all'):
         '''Decorator to enforce membership in a given group defined according to AARC-G002.
         group is the name (or list) of the entitlement to match
