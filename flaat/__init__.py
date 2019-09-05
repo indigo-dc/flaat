@@ -47,6 +47,7 @@ class Flaat():
         self.client_secret   = None
         self.last_error      = ''
         self.num_request_workers = 10
+        self.client_connect_timeout = 4.2 # seconds
         self.ops_that_support_jwt = \
                     [ 'https://iam-test.indigo-datacloud.eu/',
                       'https://iam.deep-hybrid-datacloud.eu/',
@@ -109,6 +110,18 @@ class Flaat():
         retval = self.last_error
         self.last_error = ''
         return retval
+    def set_num_request_workers(self, num):
+        '''set number of request workers'''
+        self.num_request_workers = num
+    def get_num_request_workers(self):
+        '''get number of request workers'''
+        return (self.num_request_workers)
+    def set_client_connect_timeout(self, num):
+        '''set timeout for flaat connecting to OPs'''
+        self.client_connect_timeout = num
+    def get_client_connect_timeout(self):
+        '''get timeout for flaat connecting to OPs'''
+        return (self.client_connect_timeout)
     def _find_issuer_config_everywhere(self, access_token):
         '''Use many places to find issuer configs'''
 
