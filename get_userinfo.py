@@ -85,6 +85,7 @@ flaat.set_trusted_OP_list([
 'https://b2access.eudat.eu/oauth2/',
 'https://b2access-integration.fz-juelich.de/oauth2',
 'https://unity.helmholtz-data-federation.de/oauth2/',
+'https://login.helmholtz-data-federation.de/oauth2/',
 'https://unity.eudat-aai.fz-juelich.de/oauth2/',
 'https://services.humanbrainproject.eu/oidc/',
 'https://accounts.google.com/',
