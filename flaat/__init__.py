@@ -47,7 +47,7 @@ class Flaat():
         self.client_secret   = None
         self.last_error      = ''
         self.num_request_workers = 10
-        self.client_connect_timeout = 4.2 # seconds
+        self.client_connect_timeout = 1.2 # seconds
         self.ops_that_support_jwt = \
                     [ 'https://iam-test.indigo-datacloud.eu/',
                       'https://iam.deep-hybrid-datacloud.eu/',
@@ -209,11 +209,15 @@ class Flaat():
         param_q.join()
         result_q.join()
         try:
-            for user_info in iter(result_q.get_nowait, None):
+            while not result_q.empty():
+                user_info = result_q.get(block=False, timeout=self.client_connect_timeout)
                 if user_info is not None:
                     return (user_info)
         except Empty:
-            pass
+            print ("EMPTY")
+            # pass
+        except Exception as e:
+            print ("Error: Uncaught Exception: {}".format(str(e)))
 
         return(user_info)
     def get_info_from_introspection_endpoints(self, access_token):

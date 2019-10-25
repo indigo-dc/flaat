@@ -64,6 +64,7 @@ FLAAT comes with two examples:
     ``python3 ./example.py`
     You can run queries against it like:
 ```
+http localhost:8080/info "Authorization: Bearer $OIDC"
 http localhost:8080/valid_user "Authorization: Bearer $OIDC"
 http localhost:8080/valid_user "Authorization: Bearer `oidc-token unity`"
 curl localhost:8080/valid_user -H "Authorization: Bearer `oidc-token egi`"

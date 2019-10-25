@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# MIT License{{{
+# MIT License
 #
 # Copyright (c) 2017 - 2019 Karlsruhe Institute of Technology - Steinbuch Centre for Computing
 #
@@ -19,14 +19,14 @@
 # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.}}}
-# pylint # {{{
-# vim: tw=100 foldmethod=marker
+# SOFTWARE.
+#
+# vim: tw=100 foldmethod=indent
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace, mixed-indentation
 # pylint: disable=redefined-outer-name, logging-not-lazy, logging-format-interpolation
 # pylint: disable=missing-docstring, trailing-whitespace, trailing-newlines, too-few-public-methods
-# }}}
+
 
 import os
 import sys
@@ -38,7 +38,7 @@ import requests
 import configargparse
 from flaat import Flaat, tokentools 
 
-def parseOptions():# {{{
+def parseOptions():
     '''Parse the commandline options'''
 
     path_of_executable = os.path.realpath(sys.argv[0])
@@ -57,12 +57,12 @@ def parseOptions():# {{{
     parser.add_argument('--verbose', '-v', action="count", default=0, help='Verbosity')
     parser.add_argument('--client_id',               default="")
     parser.add_argument('--client_secret',           default="")
-    parser.add_argument('--verify_tls'             , default=True  , action="store_false" , help='disable verify')
+    parser.add_argument('--verify_tls'             , default=True , action="store_false" , help='disable verify')
 
-    parser.add_argument('--accesstoken',   '-at'  , default=False , action="store_true", dest='show_access_token')
-    parser.add_argument('--userinfo',      '-ui'  , default=False , action="store_true", dest='show_user_info')
-    parser.add_argument('--introspection', '-in'  , default=False , action="store_true", dest='show_introspection_info')
-    parser.add_argument('--all',           '-a'   , default=True ,                      dest='show_all')
+    parser.add_argument('--accesstoken',   '-at'  , default=False, action="store_true", dest='show_access_token')
+    parser.add_argument('--userinfo',      '-ui'  , default=False, action="store_true", dest='show_user_info')
+    parser.add_argument('--introspection', '-in'  , default=False, action="store_true", dest='show_introspection_info')
+    parser.add_argument('--all',           '-a'   , default=False, action="store_true", dest='show_all')
     parser.add_argument('--quiet',         '-q'   , default=False, action="store_true")
 
 
@@ -72,7 +72,7 @@ def parseOptions():# {{{
     parser.add_argument(dest='access_token'   )
 
     return parser
-# }}}
+
 
 args = parseOptions().parse_args()
 
@@ -85,6 +85,7 @@ flaat.set_trusted_OP_list([
 'https://b2access.eudat.eu/oauth2/',
 'https://b2access-integration.fz-juelich.de/oauth2',
 'https://unity.helmholtz-data-federation.de/oauth2/',
+'https://login.helmholtz-data-federation.de/oauth2/',
 'https://unity.eudat-aai.fz-juelich.de/oauth2/',
 'https://services.humanbrainproject.eu/oidc/',
 'https://accounts.google.com/',

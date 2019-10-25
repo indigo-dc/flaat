@@ -26,9 +26,9 @@ from . import tokentools
 # default values:
 requests_cache.install_cache(include_get_headers=True, expire_after=300)
 
-verbose = 0
+verbose = 1
 verify_tls = True
-timeout = 4.2 #(seconds)
+timeout = 1.2 #(seconds)
 num_request_workers = 10
 param_q  = Queue(num_request_workers*2)
 result_q = Queue(num_request_workers*2)
@@ -70,8 +70,8 @@ def thread_worker_issuerconfig():
         if item is None:
             break
         result = get_iss_config_from_endpoint(item)
-        result_q.put(result)
         param_q.task_done()
+        result_q.put(result)
         result_q.task_done()
 
 def find_issuer_config_in_list(op_list, op_hint = None, exclude_list = []):
@@ -145,9 +145,15 @@ def get_iss_config_from_endpoint(issuer_url):
 
     if verbose>1:
         print('Getting config from: %s' % config_url)
-    resp = requests.get (config_url, verify=verify_tls, headers=headers, timeout=timeout)
-    if verbose > 2:
-        print('Getconfig: resp: %s' % resp.status_code)
+    try:
+        resp = requests.get (config_url, verify=verify_tls, headers=headers, timeout=timeout)
+        if verbose > 2:
+            print('Getconfig: resp: %s' % resp.status_code)
+    except requests.exceptions.ConnectionError as e:
+        if verbose > 0:
+            print ('Warning: cannot obtain iss_config from endpoint: {}'.format(config_url))
+            # print ('Additional info: {}'.format (e))
+        return None
     try:
         return resp.json()
     except:

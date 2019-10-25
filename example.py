@@ -26,7 +26,9 @@
 # }}}
 from flask import Flask
 from flaat import Flaat
-
+from flask import request
+from flaat import tokentools
+import json
 
 ##########
 # Basic config
@@ -73,6 +75,15 @@ flaat.set_verbosity(1)
 def my_failure_callback(message=''):
     return 'Failed login, caught by my own failure function.\nError Message: "%s"' % message
 
+@app.route('/info')
+def info():
+    access_token = tokentools.get_access_token_from_request(request)
+    info = flaat.get_info_thats_in_at(access_token)
+    x = json.dumps(info, sort_keys=True, indent=4, separators=(',', ': '))
+    return(str(x))
+    return("yeah")
+
+
 @app.route('/valid_user')
 @flaat.login_required()
 def valid_user():
@@ -106,4 +117,5 @@ def demo_groups_hdf():
 ##########
 # Main / Boilerplate
 if __name__ == '__main__':
-    app.run(host="127.0.0.1", port=8080, debug=True)
+    # app.run(host="127.0.0.1", port=8080, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=True)
