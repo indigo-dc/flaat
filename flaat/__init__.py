@@ -156,7 +156,10 @@ class Flaat():
             return iss_config
 
         return None
+    # def verify_at_is_from_truested_iss(self, access_token):
+    #     '''verify that the AT is issued by a trusted issuer'''
     def get_info_thats_in_at(self, access_token):
+        # FIXME: Add here parameter verify=True, then go and verify the token
         '''return the information contained inside the access_token itself'''
         # '''analyse access_token and return info'''
         accesstoken_info = tokentools.get_accesstoken_info(access_token)
@@ -241,6 +244,8 @@ class Flaat():
         accesstoken_info   = self.get_info_thats_in_at(access_token)
         user_info          = self.get_info_from_userinfo_endpoints(access_token)
         introspection_info = self.get_info_from_introspection_endpoints(access_token)
+        # FIXME: We have to verify the accesstoken
+        # And verify that it comes from a trusted issuer!!
 
         if accesstoken_info is not None:
             timeleft = tokentools.get_timeleft(accesstoken_info)
