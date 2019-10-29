@@ -62,7 +62,7 @@ def parseOptions():
     parser.add_argument('--accesstoken',   '-at'  , default=False, action="store_true", dest='show_access_token')
     parser.add_argument('--userinfo',      '-ui'  , default=False, action="store_true", dest='show_user_info')
     parser.add_argument('--introspection', '-in'  , default=False, action="store_true", dest='show_introspection_info')
-    parser.add_argument('--all',           '-a'   , default=False, action="store_true", dest='show_all')
+    parser.add_argument('--all',           '-a'   , default=True , action="store_true", dest='show_all')
     parser.add_argument('--quiet',         '-q'   , default=False, action="store_true")
 
 
@@ -108,8 +108,7 @@ if args.show_user_info or args.show_access_token or args.show_introspection_info
 accesstoken_info = flaat.get_info_thats_in_at(args.access_token)
 if args.show_access_token or args.show_all:
     if accesstoken_info is None:
-        print ('Your access token does not contain information (at least I cannot find it.)\n'\
-                'Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong')
+        print ('Info: Your access token is not a JWT. I.e. it does not contain information (at least I cannot find it.)')
     else:
         print('Information stored inside the access token:')
         print(json.dumps(accesstoken_info, sort_keys=True, indent=4, separators=(',', ': ')))
