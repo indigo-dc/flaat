@@ -56,8 +56,7 @@ def base64url_decode(data):
         data += '='
     elif size != 0:
         raise ValueError('Invalid base64 string')
-    # return base64.urlsafe_b64decode(data.encode('utf-8'))
-    return base64.urlsafe_b64decode(data)
+    return base64.urlsafe_b64decode(data).decode()
 
 def is_url(string):
     '''Return True if parameter is a URL, otherwise False'''
