@@ -24,24 +24,36 @@
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace, missing-docstring
 # }}}
+import os
+import logging
 from flask import Flask
 from flaat import Flaat
 from flask import request
 from flaat import tokentools
 import json
 
+logformat='[%(levelname)s] %(message)s'
+logformat='[%(levelname)s] [%(filename)s:%(funcName)s:%(lineno)d] %(message)s'
+logging.basicConfig(level=os.environ.get("LOG", "INFO"), format = logformat)
+
+logger = logging.getLogger(__name__)
+
+
 ##########
-# Basic config
+## Basic config
+# FLASK 
 app=Flask(__name__)
 
+# FLAAT
 flaat = Flaat()
 
-# flaat.set_trusted_OP('https://unity.helmholtz-data-federation.de/oauth2/')
+flaat.set_web_framework('flask')
 flaat.set_cache_lifetime(120) # seconds; default is 300
 flaat.set_trusted_OP_list([
 'https://b2access.eudat.eu/oauth2/',
 'https://b2access-integration.fz-juelich.de/oauth2',
 'https://unity.helmholtz-data-federation.de/oauth2/',
+'https://login.helmholtz-data-federation.de/oauth2/',
 'https://unity.eudat-aai.fz-juelich.de/oauth2/',
 'https://services.humanbrainproject.eu/oidc/',
 'https://accounts.google.com/',
@@ -73,12 +85,13 @@ flaat.set_verbosity(1)
 
 
 def my_failure_callback(message=''):
-    return 'Failed login, caught by my own failure function.\nError Message: "%s"' % message
+    return 'User define failure callback.\nError Message: "%s"' % message
 
 @app.route('/info')
 def info():
     access_token = tokentools.get_access_token_from_request(request)
     info = flaat.get_info_thats_in_at(access_token)
+    # FIXME: Also display info from userinfo endpoint
     x = json.dumps(info, sort_keys=True, indent=4, separators=(',', ': '))
     return(str(x))
     return("yeah")
@@ -115,7 +128,7 @@ def demo_groups_hdf():
 
 
 ##########
-# Main / Boilerplate
+# Main
 if __name__ == '__main__':
-    # app.run(host="127.0.0.1", port=8080, debug=True)
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    # app.run(host="127.0.0.1", port=8081, debug=True)
+    app.run(host="0.0.0.0", port=8081, debug=True)
