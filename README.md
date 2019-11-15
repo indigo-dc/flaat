@@ -1,4 +1,5 @@
 # FLAsk support for handling oidc Access Tokens - FLAAT
+Now with support for AIOHTTP (>= v0.5.0)
 
 # Installation
 
@@ -19,9 +20,10 @@ few potential drawbacks.
 
 # Documentation
 
-First off there's a pretty neat example.py that you can find all the
-examples inside. example.py provides an API via flask that is protected
-with `flaat` (FLAsk support for Access Tokens).
+First off there's examples that demonstrate the functionality 
+(example-flask.py and example-aio.py) 
+They  provide an API that is protected
+with `flaat`.
 
 `flaat` allows protecting REST interfaces with simple decorators like:
 ```
@@ -47,7 +49,7 @@ http localhost:8080/group_test_hdf "Authorization: Bearer `oidc-token unity`"
 ```
 or
 
-Please find details for usage in example.py and in the respective
+Please find details for usage in the examples and in the respective
 docstrings.
 
 Your Bearer token can be any OIDC Access Token.
@@ -55,13 +57,14 @@ Your Bearer token can be any OIDC Access Token.
 ## Examples
 
 FLAAT comes with two examples:
-- `example.py`, which is an example FLASK app. That uses the three
+- `example-flask.py` / `example-aio.py`, rhat uses the three
   decorators provided by FLAAT:
   -  login_required
   -  group_required
   That protect the functions they decorate
     You can run it like
-    ``python3 ./example.py`
+    ``python3 ./example-flask.py`
+    ``python3 ./example-aio.py`
     You can run queries against it like:
 ```
 http localhost:8080/info "Authorization: Bearer $OIDC"
@@ -72,7 +75,7 @@ http localhost:8080/group_test_iam "Authorization: Bearer `oidc-token google`"
 ```
 
 - `get_userinfo.py` is a commandline application for testing. It uses
-  FLAAT in a similar way as `example.py`
+  FLAAT in a similar way as the examples
 Examples:
 ```
 ./get_userinfo.py `oidc-token indigo-iam`
