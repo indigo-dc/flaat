@@ -244,6 +244,7 @@ class Flaat():
         '''If there's a client_id and client_secret defined, we access the token introspection
         endpoint and return the info obtained from there'''
         # get introspection_token
+        introspection_info = None
         issuer_configs = self._find_issuer_config_everywhere(access_token)
         for issuer_config in issuer_configs:
             introspection_info = issuertools.get_introspected_token_info(access_token, issuer_config,
@@ -281,13 +282,13 @@ class Flaat():
         if self.web_framework == 'aiohttp':
             return args[0]
         return None
-    def _return_formatter_wf(self, return_value):
+    def _return_formatter_wf(self, return_value, status=200):
         '''Return the object appropriate for the chosen web framework'''
         if self.web_framework == 'flask':
-            return return_value
+            return (return_value, status=status)
         if self.web_framework == 'aiohttp':
             from aiohttp import web
-            return web.Response(text=return_value)
+            return web.Response(text=return_value, status=status)
         return None
 
     def _get_all_info_from_request(self, param_request):
@@ -315,14 +316,14 @@ class Flaat():
                         print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
                     return view_func(*args, **kwargs)
                 if on_failure:
-                    return self._return_formatter_wf(on_failure(self.get_last_error()))
+                    return self._return_formatter_wf(on_failure(self.get_last_error()), 401)
 
                 return self._return_formatter_wf(\
-                        ('No valid authentication found: %s' % self.get_last_error()))
+                        ('No valid authentication found: %s' % self.get_last_error()), 401)
             return decorated
         return wrapper
     def _determine_number_of_required_matches(self, match, req_group_list):
-        '''determine the number of required matches from parameters'''
+        '''determine the number of requi`example.py`red matches from parameters'''
         # How many matches do we need?
         required_matches = None
         if match == 'all':
@@ -378,14 +379,14 @@ class Flaat():
 
                 if all_info is None:
                     if on_failure:
-                        return self._return_formatter_wf(on_failure(self.get_last_error()))
-                    return self._return_formatter_wf('No valid authentication found. %s' % self.get_last_error())
+                        return self._return_formatter_wf(on_failure(self.get_last_error()), 401)
+                    return self._return_formatter_wf('No valid authentication found. %s' % self.get_last_error(), 401)
 
                 req_group_list = ensure_is_list (group)
                 required_matches = self._determine_number_of_required_matches(match, req_group_list)
                 if not required_matches:
                     print('Error interpreting the "match" parameter')
-                    return self._return_formatter_wf('Error interpreting the "match" parameter')
+                    return self._return_formatter_wf('Error interpreting the "match" parameter', 403)
 
                 if self.verbose>1:
                     print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
@@ -393,7 +394,7 @@ class Flaat():
                 # copy entries from incoming claim
                 (avail_group_entries, user_message) = self._get_entitlements_from_claim(all_info, claim)
                 if not avail_group_entries:
-                    return self._return_formatter_wf(user_message)
+                    return self._return_formatter_wf(user_message, 403)
 
                 # now we do the actual checking
                 matches_found = 0
@@ -411,8 +412,8 @@ class Flaat():
 
                 # Either we returned above or there was no matching group
                 if on_failure:
-                    return self._return_formatter_wf(on_failure(user_message))
-                return self._return_formatter_wf(user_message)
+                    return self._return_formatter_wf(on_failure(user_message), 403)
+                return self._return_formatter_wf(user_message, 403)
             return decorated
         return wrapper
     def aarc_g002_entitlement_required(self, entitlement=None, claim=None, on_failure=None, match='all'):
@@ -451,8 +452,8 @@ class Flaat():
 
                 if all_info is None:
                     if on_failure:
-                        return self._return_formatter_wf(on_failure(self.get_last_error()))
-                    return self._return_formatter_wf('No valid authentication found. %s' % self.get_last_error())
+                        return self._return_formatter_wf(on_failure(self.get_last_error()), 401)
+                    return self._return_formatter_wf('No valid authentication found. %s' % self.get_last_error(), 401)
 
                 req_entitlement_list = ensure_is_list (entitlement)
                 # # # Make sure we have a list:
@@ -464,7 +465,7 @@ class Flaat():
                 required_matches = self._determine_number_of_required_matches(match, req_entitlement_list)
                 if not required_matches:
                     print('Error interpreting the "match" parameter')
-                    return self._return_formatter_wf('Error interpreting the "match" parameter')
+                    return self._return_formatter_wf('Error interpreting the "match" parameter', 403)
 
                 if self.verbose>1:
                     print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
@@ -472,7 +473,7 @@ class Flaat():
                 # copy entries from incoming claim
                 (avail_entitlement_entries, user_message) = self._get_entitlements_from_claim(all_info, claim)
                 if not avail_entitlement_entries:
-                    return self._return_formatter_wf(user_message)
+                    return self._return_formatter_wf(user_message, 403)
 
                 if self.verbose > 1:
                     print ('\nAvailable Entitlements:')
@@ -506,7 +507,7 @@ class Flaat():
 
                 # Either we returned above or there was no matching entitlement
                 if on_failure:
-                    return self._return_formatter_wf(on_failure(user_message))
-                return self._return_formatter_wf(user_message)
+                    return self._return_formatter_wf(on_failure(user_message), 403)
+                return self._return_formatter_wf(user_message, 403)
             return decorated
         return wrapper
