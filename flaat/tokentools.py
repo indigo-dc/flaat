@@ -11,6 +11,9 @@ import base64
 import re
 import time
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 verbose = 0
 verify_tls = True
@@ -34,7 +37,7 @@ def get_access_token_from_request(request):
     if 'Authorization' in request.headers and request.headers['Authorization'].startswith('Bearer '):
         temp = request.headers['Authorization'].split('authorization header: ')[0]
         token = temp.split(' ')[1]
-    if 'access_token' in request.form:
+    elif 'access_token' in request.form:
         token = request.form['access_token']
     elif 'access_token' in request.args:
         token = request.args['access_token']
