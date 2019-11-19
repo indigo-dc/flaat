@@ -285,7 +285,7 @@ class Flaat():
     def _return_formatter_wf(self, return_value, status=200):
         '''Return the object appropriate for the chosen web framework'''
         if self.web_framework == 'flask':
-            return (return_value, status=status)
+            return (return_value, status)
         if self.web_framework == 'aiohttp':
             from aiohttp import web
             return web.Response(text=return_value, status=status)
@@ -402,7 +402,6 @@ class Flaat():
                     for g in req_group_list:
                         if entry == g:
                             matches_found += 1
-                self.verbose=2
                 if self.verbose > 0:
                     print('found %d of %d matches' % (matches_found, required_matches))
                 if matches_found >= required_matches:
