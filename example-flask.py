@@ -75,7 +75,7 @@ flaat.set_trusted_OP_list([
 #     1: Errors
 #     2: More info, including token info
 #     3: Max
-flaat.set_verbosity(1)
+flaat.set_verbosity(2)
 # flaat.set_verify_tls(True)
 
 
@@ -124,6 +124,19 @@ def demo_groups_iam():
         'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
         claim='eduperson_entitlement', match='all')
 def demo_groups_hdf():
+    return('This worked: user is member of the requested group')
+
+@app.route('/group_test_hdf2')
+@flaat.aarc_g002_group_required(group=[
+        'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
+        claim='eduperson_entitlement', match='all')
+def demo_groups_hdf2():
+    return('This worked: user is member of the requested group')
+
+@app.route('/group_test_hdf3')
+@flaat.aarc_g002_group_required(group=['urn:geant:h-df.de:group:aai-admin'],
+        claim='eduperson_entitlement', match='all')
+def demo_groups_hdf3():
     return('This worked: user is member of the requested group')
 
 

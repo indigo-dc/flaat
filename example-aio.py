@@ -76,7 +76,7 @@ flaat.set_trusted_OP_list([
 #     1: Errors
 #     2: More info, including token info
 #     3: Max
-flaat.set_verbosity(1)
+flaat.set_verbosity(0)
 # flaat.set_verify_tls(True)
 
 
@@ -123,6 +123,19 @@ async def demo_groups_iam(request):
         'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
         claim='eduperson_entitlement', match='all')
 async def demo_groups_hdf(request):
+    return web.Response(text='This worked: user has the required entitlement(s)')
+
+@routes.get('/group_test_hdf2')
+@flaat.aarc_g002_group_required(group=[
+        'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
+        claim='eduperson_entitlement', match='all')
+async def demo_groups_hdf2(request):
+    return web.Response(text='This worked: user has the required entitlement(s)')
+
+@routes.get('/group_test_hdf3')
+@flaat.aarc_g002_group_required(group=['urn:geant:h-df.de:group:aai-admin'],
+        claim='eduperson_entitlement', match='all')
+async def demo_groups_hdf3(request):
     return web.Response(text='This worked: user has the required entitlement(s)')
 
 app.add_routes(routes)
