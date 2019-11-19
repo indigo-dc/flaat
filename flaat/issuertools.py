@@ -154,6 +154,11 @@ def get_iss_config_from_endpoint(issuer_url):
             print ('Warning: cannot obtain iss_config from endpoint: {}'.format(config_url))
             # print ('Additional info: {}'.format (e))
         return None
+    except requests.exceptions.ReadTimeout as e:
+        if verbose > 0:
+            print ('Warning: cannot obtain iss_config from endpoint: {}'.format(config_url))
+            # print ('Additional info: {}'.format (e))
+        return None
     try:
         return resp.json()
     except:
