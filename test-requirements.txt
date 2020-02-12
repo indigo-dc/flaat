@@ -15,4 +15,4 @@ testtools>=1.4.0
 mock>=1.2
 nose>=1.1.2
 nosexcover
-aarc_g002_entitlement
+aarc_g002_entitlement>=0.1.2
