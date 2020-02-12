@@ -23,6 +23,10 @@ import requests_cache
 
 from . import tokentools
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # default values:
 requests_cache.install_cache(include_get_headers=True, expire_after=300)
 
@@ -70,8 +74,8 @@ def thread_worker_issuerconfig():
         if item is None:
             break
         result = get_iss_config_from_endpoint(item)
-        param_q.task_done()
         result_q.put(result)
+        param_q.task_done()
         result_q.task_done()
 
 def find_issuer_config_in_list(op_list, op_hint = None, exclude_list = []):
@@ -103,9 +107,14 @@ def find_issuer_config_in_list(op_list, op_hint = None, exclude_list = []):
         param_q.join()
         result_q.join()
         try:
-            for entry in iter(result_q.get_nowait, None):
-                iss_config.append(entry)
+            while not result_q.empty():
+                entry = result_q.get(block=False, timeout=2)
+                if entry is not None:
+                    iss_config.append(entry)
+            # for entry in iter(result_q.get_nowait, None):
+                # iss_config.append(entry)
         except Empty:
+            logger.info("exception: Empty value")
             pass
 
     return iss_config
