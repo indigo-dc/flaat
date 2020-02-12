@@ -21,7 +21,8 @@ else:
 from threading import Thread
 
 from flask import request
-from aarc_g002_entitlement import Aarc_g002_entitlement
+from aarc_g002_entitlement import Aarc_g002_entitlement 
+from aarc_g002_entitlement import Failure as g002_failure
 from . import tokentools
 from . import issuertools
 import logging
@@ -481,8 +482,16 @@ class Flaat():
                     print (str(req_entitlement_list))
 
                 # generate entitlement objects from input strings
-                avail_entitlements = [ Aarc_g002_entitlement(es) for es in avail_entitlement_entries ]
-                req_entitlements   = [ Aarc_g002_entitlement(es) for es in req_entitlement_list ]
+                logger.info(F"Parsing entitlements")
+                try:
+                    avail_entitlements = [ Aarc_g002_entitlement(es, strict=False) for es in avail_entitlement_entries ]
+                    req_entitlements   = [ Aarc_g002_entitlement(es, strict=False) for es in req_entitlement_list ]
+                except g002_failure as e:
+                    logger.error (F"Failed to parse entitlement: {e}")
+                    logger.error (F"    available entitlement_entries: {avail_entitlement_entries}")
+                    logger.error (F"    required  entitlement_list:    {req_entitlement_list}")
+                logger.info(F"done")
+
                 if self.verbose > 1:
                     print ('\nAvailable Entitlements:')
                     print ('{}'.format('\n\n'.join([x.__mstr__() for x in avail_entitlements])))
