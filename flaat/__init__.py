@@ -196,10 +196,9 @@ class Flaat():
 
         # get all possible issuer configs
         issuer_configs = self._find_issuer_config_everywhere(access_token)
-        if issuer_configs is None:
-            if self.verbose:
-                print('No issuer config found')
-            return tokentools.merge_tokens(None)
+        if issuer_configs is None or len(issuer_configs) == 0 :
+            logger.warning('No issuer config found')
+            return None
 
         # get userinfo
         param_q  = Queue(self.num_request_workers*2)
@@ -221,6 +220,7 @@ class Flaat():
             t.daemon = True
             t.start()
 
+        logger.debug (F"len of issuer_configs: {len(issuer_configs)}")
         for issuer_config in issuer_configs:
             # user_info = issuertools.get_user_info(access_token, issuer_config)
             params = {}
@@ -235,10 +235,10 @@ class Flaat():
                 if user_info is not None:
                     return (user_info)
         except Empty:
-            print ("EMPTY")
+            logger.info("EMPTY result in thead join")
             # pass
         except Exception as e:
-            print ("Error: Uncaught Exception: {}".format(str(e)))
+            logger.info("Error: Uncaught Exception: {}".format(str(e)))
 
         return(user_info)
     def get_info_from_introspection_endpoints(self, access_token):
@@ -296,6 +296,7 @@ class Flaat():
         '''gather all info about the user that we can find.
         Returns a "supertoken" json structure.'''
         access_token = tokentools.get_access_token_from_request(param_request)
+        # logger.info (F"access_token: {access_token}")
         return self.get_all_info_by_at(access_token)
     def login_required(self, on_failure=None):
         '''Decorator to enforce a valid login.
@@ -310,7 +311,9 @@ class Flaat():
                 except KeyError: # i.e. the environment variable was not set
                     pass
                 request_object = self._find_request_based_on_web_framework(request, args)
+                logger.info (F"request_object: {request_object}")
                 all_info = self._get_all_info_from_request(request_object)
+                # logger.info (F"all info: {all_info}")
 
                 if all_info is not None:
                     if self.verbose>1:
