@@ -34,14 +34,17 @@ def merge_tokens(tokenlist):
 def get_access_token_from_request(request):
     '''Helper function to obtain the OIDC AT from the flask request variable'''
     token = None
-    if 'Authorization' in request.headers and request.headers['Authorization'].startswith('Bearer '):
-        temp = request.headers['Authorization'].split('authorization header: ')[0]
-        token = temp.split(' ')[1]
-    elif 'access_token' in request.form:
-        token = request.form['access_token']
-    elif 'access_token' in request.args:
-        token = request.args['access_token']
-    return token
+    try:
+        if 'Authorization' in request.headers and request.headers['Authorization'].startswith('Bearer '):
+            temp = request.headers['Authorization'].split('authorization header: ')[0]
+            token = temp.split(' ')[1]
+        elif 'access_token' in request.form:
+            token = request.form['access_token']
+        elif 'access_token' in request.args:
+            token = request.args['access_token']
+        return token
+    except AttributeError:
+        return None
 
 def base64url_encode(data):
     '''Decode base64 encode data'''
