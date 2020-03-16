@@ -192,7 +192,8 @@ class Flaat():
         '''Traverse all reasonable configured userinfo endpoints and query them with the
         access_token. Note: For OPs that include the iss inside the AT, they will be directly
         queried, and are not included in the search (because that makes no sense)'''
-        user_info = "" # return value
+        # user_info = "" # return value
+        user_info = None # return value
 
         # get all possible issuer configs
         issuer_configs = self._find_issuer_config_everywhere(access_token)
@@ -239,7 +240,8 @@ class Flaat():
             # pass
         except Exception as e:
             logger.info("Error: Uncaught Exception: {}".format(str(e)))
-
+        if user_info is None:
+            self.set_last_error ("User Info not found or not accessible. Something may be wrong with the Access Token.")
         return(user_info)
     def get_info_from_introspection_endpoints(self, access_token):
         '''If there's a client_id and client_secret defined, we access the token introspection
@@ -296,6 +298,9 @@ class Flaat():
         '''gather all info about the user that we can find.
         Returns a "supertoken" json structure.'''
         access_token = tokentools.get_access_token_from_request(param_request)
+        if access_token is None:
+            self.set_last_error("No Access Token Found.")
+            return None
         # logger.info (F"access_token: {access_token}")
         return self.get_all_info_by_at(access_token)
     def login_required(self, on_failure=None):
