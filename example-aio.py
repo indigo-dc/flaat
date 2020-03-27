@@ -1,5 +1,5 @@
-# MIT License{{{
-#
+# vim: tw=100 foldmethod=marker
+# MIT License#
 # Copyright (c) 2017 - 2019 Karlsruhe Institute of Technology - Steinbuch Centre for Computing
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -18,12 +18,11 @@
 # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.}}}
-# pylint # {{{
-# vim: tw=100 foldmethod=marker
+# SOFTWARE.
+# pylint
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace, missing-docstring
-# }}}
+#
 import os
 import logging
 from flaat import Flaat
@@ -87,6 +86,25 @@ flaat.set_verbosity(0)
 
 def my_failure_callback(message=''):
     return 'User define failure callback.\nError Message: "%s"' % message
+
+@routes.get('/')
+async def root(request):
+    text = '''This is an example for useing flaat with AIO. These endpoints are available:
+    /info               General info about the access_token (if provided)
+    /valid_user         Requires a valid user
+    /valid_user_2       Requires a valid user, uses a custom callback on error
+    /group_test_kit     Requires user to have two "eduperson_scoped_affiliation" of
+                            ['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
+    /group_test_iam     Requires user to be in the group "KIT-Cloud" transported in "groups"
+    /group_test_hdf     Requires user to be in all groups found in "eduperson_entitlement"
+                            ['urn:geant:h-df.de:group:aai-admin', 'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de']
+
+    /group_test_hdf2     Requires user to be in all groups found in "eduperson_entitlement"
+                            ['urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
+    /group_test_hdf3     Requires user to be in all groups found in "eduperson_entitlement"
+                            ['urn:geant:h-df.de:group:aai-admin'],
+        '''
+    return web.Response(text=text)
 
 @routes.get('/info')
 async def info(request):

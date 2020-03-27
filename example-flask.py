@@ -87,6 +87,25 @@ flaat.set_verbosity(2)
 def my_failure_callback(message=''):
     return 'User define failure callback.\nError Message: "%s"' % message
 
+@app.route('/')
+def root():
+    text = '''This is an example for useing flaat with AIO. These endpoints are available:
+    /info               General info about the access_token (if provided)
+    /valid_user         Requires a valid user
+    /valid_user_2       Requires a valid user, uses a custom callback on error
+    /group_test_kit     Requires user to have two "eduperson_scoped_affiliation" of
+                            ['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
+    /group_test_iam     Requires user to be in the group "KIT-Cloud" transported in "groups"
+    /group_test_hdf     Requires user to be in all groups found in "eduperson_entitlement"
+                            ['urn:geant:h-df.de:group:aai-admin', 'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de']
+
+    /group_test_hdf2     Requires user to be in all groups found in "eduperson_entitlement"
+                            ['urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
+    /group_test_hdf3     Requires user to be in all groups found in "eduperson_entitlement"
+                            ['urn:geant:h-df.de:group:aai-admin'],
+        '''
+    return (text)
+
 @app.route('/info')
 def info():
     access_token = tokentools.get_access_token_from_request(request)
