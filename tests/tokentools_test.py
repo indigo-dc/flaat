@@ -28,26 +28,26 @@ class base64(unittest.TestCase):
         b64_dec = tokentools.base64url_decode(b64)
 
         # self.assertEqual (data, b64_dec.decode())
-        self.assertEqual (data, tokentools.base64url_decode(b64).decode())
+        self.assertEqual (data, tokentools.base64url_decode(b64))
 
     def test_encode_decode_newline(self):
         data="this is a static teststring with\nnewline\rand\tstuff"
         b64 = tokentools.base64url_encode(data)
-        self.assertEqual (data, tokentools.base64url_decode(b64).decode())
+        self.assertEqual (data, tokentools.base64url_decode(b64))
 
     def test_encode_decode_evil(self):
         '''No unicode for python2'''
         if not is_py2:
             data=u"this is a static\nteststring\rwith mäni€ strange characters"
             b64 = tokentools.base64url_encode(data)
-            self.assertEqual (data, tokentools.base64url_decode(b64).decode())
+            self.assertEqual (data, tokentools.base64url_decode(b64))
 
     def test_encode_decode_evil_unicode(self):
         '''No unicode for python2'''
         if not is_py2:
             data=u"this is a static\nteststring\rwith mäni€ strange characters"
             b64 = tokentools.base64url_encode(data)
-            self.assertEqual (data, tokentools.base64url_decode(b64).decode())
+            self.assertEqual (data, tokentools.base64url_decode(b64))
 
 class tokens(unittest.TestCase):
     def test_merge_tokens(self):
