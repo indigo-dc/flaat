@@ -1,4 +1,5 @@
 flask
+aiohttp
 requests
 requests_cache
 aarc_g002_entitlement >= 0.1.2
