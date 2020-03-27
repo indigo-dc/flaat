@@ -21,10 +21,12 @@ else:
 from threading import Thread
 
 from flask import request
+from aiohttp import web
 from aarc_g002_entitlement import Aarc_g002_entitlement 
 from aarc_g002_entitlement import Failure as g002_failure
 from . import tokentools
 from . import issuertools
+from . import flaat_exceptions
 import logging
 
 logger = logging.getLogger(__name__)
@@ -68,7 +70,9 @@ class Flaat():
         # 'https://login.elixir-czech.org/oidc/',
         # 'https://services.humanbrainproject.eu/oidc/',
         self.supported_web_frameworks = ['flask', 'aiohttp']
-        self.web_framework = 'flaat'
+        self.web_framework = 'flask'
+        self.raise_error_on_return = True # else just return an error
+
     def set_cache_lifetime(self, lifetime):
         '''Set lifetime of requests_cache zn seconds, default: 300s'''
         self.cache_lifetime = lifetime
@@ -180,7 +184,9 @@ class Flaat():
         # FIXME: Add here parameter verify=True, then go and verify the token
         '''return the information contained inside the access_token itself'''
         # '''analyse access_token and return info'''
-        accesstoken_info = tokentools.get_accesstoken_info(access_token)
+        accesstoken_info = None
+        if access_token:
+            accesstoken_info = tokentools.get_accesstoken_info(access_token)
         at_head=None
         at_body=None
         if accesstoken_info is not None and not {}:
@@ -287,11 +293,16 @@ class Flaat():
         return None
     def _return_formatter_wf(self, return_value, status=200):
         '''Return the object appropriate for the chosen web framework'''
-        if self.web_framework == 'flask':
-            return (return_value, status)
-        if self.web_framework == 'aiohttp':
-            from aiohttp import web
-            return web.Response(text=return_value, status=status)
+        if self.raise_error_on_return:
+            if self.web_framework == 'flask':
+                raise flaat_exceptions.FlaatExceptionFlask(reason=return_value, status_code=status)
+            if self.web_framework == 'aiohttp':
+                raise flaat_exceptions.FlaatExceptionAio(reason=return_value, status_code=status)
+        else:
+            if self.web_framework == 'flask':
+                return (return_value, status)
+            if self.web_framework == 'aiohttp':
+                return web.Response(text=return_value, status=status)
         return None
 
     def _get_all_info_from_request(self, param_request):
