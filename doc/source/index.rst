@@ -33,7 +33,8 @@ currently supported:
 
    installation
    configuration/index
-   configuration/sample
+   configuration/sample-aio
+   configuration/sample-flask
    cli/flaat-get_userinfo
 
 API reference
