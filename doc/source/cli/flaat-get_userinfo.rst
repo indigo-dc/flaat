@@ -14,20 +14,40 @@ Description
 Options
 -------
 
-   .. argparse::
-      :filename: get_userinfo.py
-      :func: parseOptions
-      :prog: get_userinfo.py
+usage: get_userinfo.py [-h] [-c MY_CONFIG] [--verbose] [--client_id CLIENT_ID] [--client_secret CLIENT_SECRET] [--verify_tls]
+                       [--accesstoken] [--userinfo] [--introspection] [--all] [--quiet] [--issuersconf ISSUERSCONF] [--issuer ISSUER]  access_token
 
-Files
------
+positional arguments:
+  access_token          An Access Token
 
-TBD.
+optional arguments:
+  -h, --help          show this help message and exit
 
-See Also
---------
+  -c MY_CONFIG, --my-config         MY_CONFIG config file path
 
-TBD.
+  --verbose, -v         Verbosity
+
+  --client_id            CLIENT_ID
+
+  --client_secret        CLIENT_SECRET
+
+  --verify_tls          disable verify
+
+  --accesstoken, -at    Access Token
+
+  --userinfo, -ui       Show info from userinfo endpoint 
+
+  --introspection, -in   Show results from introspection endpoint
+
+  --all, -a             Show all info
+
+  --quiet, -q           Quiet operation 
+
+  --issuersconf ISSUERSCONF         issuer.config, e.g. from oidc-agent
+
+  --issuer ISSUER, --iss ISSUER, -i         ISSUER Specify issuer (OIDC Provider)
+
+
 
 Reporting Bugs
 --------------
