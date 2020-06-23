@@ -27,8 +27,37 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# default values:
-requests_cache.install_cache(include_get_headers=True, expire_after=300)
+# default cache values:
+class Cache_options():
+    '''capture options for requests_cache'''
+    def __init__(self):
+        self.include_get_headers = True
+        self.expire_after        = 300
+        self.allowable_codes     = (200,400, 401, 402, 403, 404)
+        self.backend             = 'sqlite'
+    def set_lifetime(self, lifetime):
+        '''set cache lifetime'''
+        self.expire_after = lifetime
+        self.update_cache()
+    def set_allowable_codes(self, allowable_codes):
+        '''set http status code that will be cached'''
+        self.allowable_codes = allowable_codes
+        self.update_cache()
+    def set_backend(self, backend):
+        '''set the backend'''
+        self.backend = backend
+        self.update_cache()
+    def update_cache(self):
+        '''update the changes'''
+        requests_cache.install_cache(include_get_headers=self.include_get_headers,
+                                     expire_after=self.expire_after,
+                                     allowable_codes=self.allowable_codes,
+                                     backend=self.backend)
+
+cache_options = Cache_options()
+cache_options.update_cache()
+
+
 
 verbose = 1
 verify_tls = True
