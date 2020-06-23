@@ -71,7 +71,6 @@ class Flaat():
         self.supported_web_frameworks = ['flask', 'aiohttp']
         self.web_framework = 'flask'
         self.raise_error_on_return = True # else just return an error
-
     def set_cache_lifetime(self, lifetime):
         '''Set lifetime of requests_cache zn seconds, default: 300s'''
         self.cache_lifetime = lifetime
@@ -149,6 +148,19 @@ class Flaat():
         # 1: find info in the AT
         if self.verbose > 1:
             print ('Trying to find issuer in accesstoken')
+
+        at_iss = tokentools.get_issuer_from_accesstoken_info(access_token)
+        if at_iss is not None:
+            trusted_op_list_buf = []
+            if len(self.trusted_op_list) >0:
+                trusted_op_list_buf = self.trusted_op_list
+            if self.iss is not None:
+                trusted_op_list_buf.append(self.iss)
+            if at_iss not in trusted_op_list_buf:
+                logger.warning('The issuer of the received access_token is not trusted')
+                self.set_last_error('The issuer of the received access_token is not trusted')
+                return None
+
         iss_config = issuertools.find_issuer_config_in_at(access_token)
         if iss_config is not None:
             return [iss_config]
@@ -176,6 +188,7 @@ class Flaat():
         if iss_config is not None:
             return iss_config
 
+        self.set_last_error("Issuer config not found")
         return None
     # def verify_at_is_from_truested_iss(self, access_token):
     #     '''verify that the AT is issued by a trusted issuer'''
@@ -196,14 +209,16 @@ class Flaat():
     def get_info_from_userinfo_endpoints(self, access_token):
         '''Traverse all reasonable configured userinfo endpoints and query them with the
         access_token. Note: For OPs that include the iss inside the AT, they will be directly
-        queried, and are not included in the search (because that makes no sense)'''
+        queried, and are not included in the search (because that makes no sense). 
+        Returns user_info object or None.  If None is returned self.last_error is set with a
+        meaningful message.'''
         # user_info = "" # return value
         user_info = None # return value
 
         # get all possible issuer configs
         issuer_configs = self._find_issuer_config_everywhere(access_token)
         if issuer_configs is None or len(issuer_configs) == 0 :
-            logger.warning('No issuer config found')
+            logger.warning('No issuer config found, or issuer not supported')
             return None
 
         # get userinfo
@@ -254,6 +269,10 @@ class Flaat():
         # get introspection_token
         introspection_info = None
         issuer_configs = self._find_issuer_config_everywhere(access_token)
+        if issuer_configs is None:
+            logger.info("Issuer Configs yielded None")
+            self.set_last_error("Issuer of Access Token is not supported")
+            return None
         for issuer_config in issuer_configs:
             introspection_info = issuertools.get_introspected_token_info(access_token, issuer_config,
                 self.client_id, self.client_secret)
@@ -281,6 +300,9 @@ class Flaat():
                 self.set_last_error('Token expired for %d seconds' % abs(timeleft))
                 return None
 
+        if user_info is None:
+            return None
+
         # return tokentools.merge_tokens ([accesstoken_info['header'], accesstoken_info['body'], user_info, introspection_info])
         return tokentools.merge_tokens ([accesstoken_info, user_info, introspection_info])
     def _find_request_based_on_web_framework(self, request, args):
@@ -303,7 +325,6 @@ class Flaat():
             if self.web_framework == 'aiohttp':
                 return web.Response(text=return_value, status=status)
         return None
-
     def _get_all_info_from_request(self, param_request):
         '''gather all info about the user that we can find.
         Returns a "supertoken" json structure.'''
@@ -326,7 +347,6 @@ class Flaat():
                 except KeyError: # i.e. the environment variable was not set
                     pass
                 request_object = self._find_request_based_on_web_framework(request, args)
-                logger.info (F"request_object: {request_object}")
                 all_info = self._get_all_info_from_request(request_object)
                 # logger.info (F"all info: {all_info}")
 
