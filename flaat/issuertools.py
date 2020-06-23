@@ -41,6 +41,7 @@ def find_issuer_config_in_at(access_token):
     '''If there is an issuer in the AT, we fetch the ISS config and return it'''
     iss_config = None
     at_iss = tokentools.get_issuer_from_accesstoken_info(access_token)
+    logger.info(F"at_iss: {at_iss}")
     if verbose > 2:
         print ('got iss from access_token: %s' % str(at_iss))
     if at_iss is not None:
