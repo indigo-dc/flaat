@@ -34,7 +34,7 @@ class Cache_options():
         self.include_get_headers = True
         self.expire_after        = 300
         self.allowable_codes     = (200,400, 401, 402, 403, 404)
-        self.backend             = 'sqlite'
+        self.backend             = 'memory'
     def set_lifetime(self, lifetime):
         '''set cache lifetime'''
         self.expire_after = lifetime
