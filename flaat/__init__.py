@@ -6,7 +6,7 @@ access to OIDC authenticated REST APIs.'''
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace
 # pylint: disable=logging-not-lazy, logging-format-interpolation
-# pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-position, no-self-use
 
 
 from functools import wraps
@@ -22,7 +22,7 @@ from threading import Thread
 
 from flask import request
 from aiohttp import web
-from aarc_g002_entitlement import Aarc_g002_entitlement 
+from aarc_g002_entitlement import Aarc_g002_entitlement
 from . import tokentools
 from . import issuertools
 from . import flaat_exceptions
@@ -72,9 +72,14 @@ class Flaat():
         self.web_framework = 'flask'
         self.raise_error_on_return = True # else just return an error
     def set_cache_lifetime(self, lifetime):
-        '''Set lifetime of requests_cache zn seconds, default: 300s'''
-        self.cache_lifetime = lifetime
-        issuertools.requests_cache.install_cache(include_get_headers=True, expire_after=lifetime)
+        '''Set cache lifetime of requests_cache zn seconds, default: 300s'''
+        issuertools.cache_options.set_lifetime(lifetime)
+    def set_cache_allowable_codes(self, allowable_codes):
+        '''set http status code that will be cached'''
+        issuertools.cache_options.set_allowable_codes(allowable_codes)
+    def set_cache_backend(self, backend):
+        '''set the cache backend'''
+        issuertools.cache_options.backend = backend
     def set_trusted_OP(self, iss):
         '''Define OIDC Provider. Must be a valid URL. E.g. 'https://aai.egi.eu/oidc/'
         This should not be required for OPs that put their address into the AT (e.g. keycloak, mitre,
