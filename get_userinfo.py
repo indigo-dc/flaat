@@ -90,13 +90,11 @@ flaat.set_trusted_OP_list([
 'https://services.humanbrainproject.eu/oidc/',
 'https://accounts.google.com/',
 'https://aai.egi.eu/oidc/',
-'https://aai-dev.egi.eu/oidc',
+'https://aai-dev.egi.eu/oidc/',
 'https://login.elixir-czech.org/oidc/',
 'https://iam-test.indigo-datacloud.eu/',
 'https://iam.deep-hybrid-datacloud.eu/',
 'https://iam.extreme-datacloud.eu/',
-'https://aai.egi.eu/oidc/',
-'https://aai-dev.egi.eu/oidc',
 'https://oidc.scc.kit.edu/auth/realms/kit/',
 'https://proxy.demo.eduteams.org'
 ])
