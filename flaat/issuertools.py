@@ -125,7 +125,7 @@ def find_issuer_config_in_list(op_list, op_hint = None, exclude_list = []):
                 if verbose>1:
                     print ('skipping %s due to exclude list' % issuer)
                 continue
-            issuer_wellknown=issuer.rstrip('/') + '/.well-known/openid-configuration'
+            issuer_wellknown=issuer + '/.well-known/openid-configuration'
             if op_hint is None:
                 # print ('getting issuer config from {}'.format(issuer))
                 # iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))

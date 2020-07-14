@@ -84,11 +84,13 @@ class Flaat():
         '''Define OIDC Provider. Must be a valid URL. E.g. 'https://aai.egi.eu/oidc/'
         This should not be required for OPs that put their address into the AT (e.g. keycloak, mitre,
         shibboleth)'''
-        self.iss = iss
+        self.iss = iss.rstrip('/')
     def set_trusted_OP_list(self, trusted_op_list):
         '''Define a list of OIDC provider URLs.
             E.g. ['https://iam.deep-hybrid-datacloud.eu/', 'https://login.helmholtz-data-federation.de/oauth2/', 'https://aai.egi.eu/oidc/'] '''
-        self.trusted_op_list = trusted_op_list
+        self.trusted_op_list = []
+        for issuer in trusted_op_list:
+            self.trusted_op_list.append(issuer.rstrip('/'))
     def set_trusted_OP_file(self, filename='/etc/oidc-agent/issuer.config', hint=None):
         '''Set filename of oidc-agent's issuer.config. Requires oidc-agent to be installed.'''
         self.trusted_op_file = filename
@@ -161,9 +163,11 @@ class Flaat():
                 trusted_op_list_buf = self.trusted_op_list
             if self.iss is not None:
                 trusted_op_list_buf.append(self.iss)
-            if at_iss not in trusted_op_list_buf:
-                logger.warning('The issuer of the received access_token is not trusted')
-                self.set_last_error('The issuer of the received access_token is not trusted')
+            if at_iss.rstrip('/') not in trusted_op_list_buf:
+                logger.warning(F'The issuer {at_iss} of the received access_token is not trusted')
+                self.set_last_error(F'The issuer {at_iss} of the received access_token is not trusted')
+                # newline="\n"
+                # logger.warning(F"list: {newline.join(trusted_op_list_buf)}")
                 return None
 
         iss_config = issuertools.find_issuer_config_in_at(access_token)
