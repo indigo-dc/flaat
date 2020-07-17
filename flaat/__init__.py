@@ -64,6 +64,8 @@ class Flaat():
                       'https://iam.extreme-datacloud.eu/',
                       'https://aai.egi.eu/oidc/',
                       'https://aai-dev.egi.eu/oidc',
+                      'https://login-dev.helmholtz.de/oauth2/',
+                      'https://login.helmholtz.de/oauth2/',
                       'https://oidc.scc.kit.edu/auth/realms/kit/']
         # unknown:
         # 'https://login.elixir-czech.org/oidc/',
@@ -87,7 +89,7 @@ class Flaat():
         self.iss = iss.rstrip('/')
     def set_trusted_OP_list(self, trusted_op_list):
         '''Define a list of OIDC provider URLs.
-            E.g. ['https://iam.deep-hybrid-datacloud.eu/', 'https://login.helmholtz-data-federation.de/oauth2/', 'https://aai.egi.eu/oidc/'] '''
+            E.g. ['https://iam.deep-hybrid-datacloud.eu/', 'https://login.helmholtz.de/oauth2/', 'https://aai.egi.eu/oidc/'] '''
         self.trusted_op_list = []
         for issuer in trusted_op_list:
             self.trusted_op_list.append(issuer.rstrip('/'))
