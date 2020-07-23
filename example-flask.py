@@ -117,11 +117,21 @@ def info():
     return(str(x))
     return("yeah")
 
+@app.route('/valid_user/<int:id>', methods=['POST', 'GET'])
+@flaat.login_required()
+def valid_user_id(id):
+    retval = ""
+    if request.method == 'POST':
+        retval += "POST\n"
+    if request.method == 'GET':
+        retval += "GET\n"
+    retval += F'This worked: there was a valid login, and an id: {id}\n'
+    return (retval)
 
 @app.route('/valid_user')
 @flaat.login_required()
 def valid_user():
-    return('This worked: there was a valid login')
+    return('This worked: there was a valid login\n')
 
 @app.route('/valid_user_2')
 @flaat.login_required(on_failure=my_failure_callback)
