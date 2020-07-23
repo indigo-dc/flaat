@@ -35,7 +35,7 @@ currently supported:
    configuration/index
    configuration/sample-aio
    configuration/sample-flask
-   cli/flaat-get_userinfo
+   cli/flaat-userinfo
 
 API reference
 -------------

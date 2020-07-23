@@ -1,20 +1,20 @@
-flaat-get-userinfo.py
-=====================
+flaat-userinfo
+==============
 
 Synopsis
 --------
 
-:program:`get_userinfo` [options]
+:program:`flaat-userinfo` [options]
 
 Description
 -----------
 
-:program:`get_userinfo` is a simple tool to gather all info based on a given OIDC Access Token.
+:program:`flaat-userinfo` is a simple tool to gather all info based on a given OIDC Access Token.
 
 Options
 -------
 
-usage: get_userinfo.py [-h] [-c MY_CONFIG] [--verbose] [--client_id CLIENT_ID] [--client_secret CLIENT_SECRET] [--verify_tls]
+usage: flaat-userinfo [-h] [-c MY_CONFIG] [--verbose] [--client_id CLIENT_ID] [--client_secret CLIENT_SECRET] [--verify_tls]
                        [--accesstoken] [--userinfo] [--introspection] [--all] [--quiet] [--issuersconf ISSUERSCONF] [--issuer ISSUER]  access_token
 
 positional arguments:
