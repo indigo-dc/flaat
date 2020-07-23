@@ -74,11 +74,11 @@ curl localhost:8080/valid_user -H "Authorization: Bearer `oidc-token egi`"
 http localhost:8080/group_test_iam "Authorization: Bearer `oidc-token google`"
 ```
 
-- `get_userinfo.py` is a commandline application for testing. It uses
+- `flaat-userinfo` is a commandline application for testing. It uses
   FLAAT in a similar way as the examples
 Examples:
 ```
-./get_userinfo.py `oidc-token indigo-iam`
+./flaat-userinfo `oidc-token indigo-iam`
 ```
 
 ## What does FLAAT do?
