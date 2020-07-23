@@ -161,8 +161,9 @@ class Flaat():
         at_iss = tokentools.get_issuer_from_accesstoken_info(access_token)
         if at_iss is not None:
             trusted_op_list_buf = []
-            if len(self.trusted_op_list) >0:
-                trusted_op_list_buf = self.trusted_op_list
+            if self.trusted_op_list is not None:
+                if len(self.trusted_op_list) >0:
+                    trusted_op_list_buf = self.trusted_op_list
             if self.iss is not None:
                 trusted_op_list_buf.append(self.iss)
             if at_iss.rstrip('/') not in trusted_op_list_buf:
