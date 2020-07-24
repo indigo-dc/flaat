@@ -20,7 +20,32 @@ few potential drawbacks.
 
 # Documentation
 
-First off there's examples that demonstrate the functionality 
+To use flaat, add this to your code:
+
+```python
+from flaat import Flaat
+flaat = Flaat()
+flaat.set_web_framework('flask')
+# flaat.set_web_framework('aiohttp')
+```
+## Trust
+
+You MUST specify which OIDC Providers you trus:
+```python
+
+flaat.set_trusted_OP_list([
+'https://login.helmholtz-data-federation.de/oauth2/',
+'https://unity.eudat-aai.fz-juelich.de/oauth2/',
+'https://services.humanbrainproject.eu/oidc/',
+'https://accounts.google.com/',
+'https://login.elixir-czech.org/oidc/'
+])
+```
+For more OPs, please check the example-*.py files.
+
+## Usage:
+
+There are examples that demonstrate the functionality in more detail:
 (example-flask.py and example-aio.py) 
 They  provide an API that is protected
 with `flaat`.
