@@ -23,6 +23,7 @@
 # vim: tw=100 foldmethod=marker
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace, missing-docstring
+# pylint: disable=logging-not-lazy, logging-format-interpolation, logging-fstring-interpolation
 # }}}
 import os
 import logging
@@ -52,8 +53,6 @@ flaat.set_cache_lifetime(120) # seconds; default is 300
 flaat.set_trusted_OP_list([
 'https://b2access.eudat.eu/oauth2/',
 'https://b2access-integration.fz-juelich.de/oauth2',
-'https://unity.helmholtz-data-federation.de/oauth2/',
-'https://login.helmholtz-data-federation.de/oauth2/',
 'https://login-dev.helmholtz.de/oauth2/',
 'https://login.helmholtz.de/oauth2/',
 'https://unity.eudat-aai.fz-juelich.de/oauth2/',
@@ -138,6 +137,12 @@ def valid_user():
 def valid_user_own_callback():
     return('This worked: there was a valid login')
 
+@app.route('/valid_user_3')
+@flaat.login_required(on_failure=my_failure_callback)
+def valid_user_no_param(**kwargs):
+    logger.info("(**kwargs) - kwargs: %s" % (kwargs))
+    return ('This worked: there was a valid login')
+
 @app.route('/group_test_kit')
 @flaat.group_required(group=['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
         claim='eduperson_scoped_affiliation', match=2,
@@ -175,4 +180,4 @@ def demo_groups_hdf3():
 # Main
 if __name__ == '__main__':
     # app.run(host="127.0.0.1", port=8081, debug=True)
-    app.run(host="0.0.0.0", port=8081, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=True)

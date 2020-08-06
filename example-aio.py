@@ -22,6 +22,7 @@
 # pylint
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace, missing-docstring
+# pylint: disable=logging-not-lazy, logging-format-interpolation, logging-fstring-interpolation
 #
 import os
 import logging
@@ -52,8 +53,6 @@ flaat.set_cache_lifetime(120) # seconds; default is 300
 flaat.set_trusted_OP_list([
 'https://b2access.eudat.eu/oauth2/',
 'https://b2access-integration.fz-juelich.de/oauth2',
-'https://unity.helmholtz-data-federation.de/oauth2/',
-'https://login.helmholtz-data-federation.de/oauth2/',
 'https://login-dev.helmholtz.de/oauth2/',
 'https://login.helmholtz.de/oauth2/',
 'https://unity.eudat-aai.fz-juelich.de/oauth2/',
@@ -86,7 +85,7 @@ flaat.set_verbosity(0)
 # flaat.set_client_secret('')
 
 
-def my_failure_callback(message=''):
+def my_failure_callback(message='', *args, **kwargs):
     return 'User define failure callback.\nError Message: "%s"' % message
 
 @routes.get('/')
@@ -124,6 +123,29 @@ async def valid_user(request):
 @routes.get('/valid_user_2')
 @flaat.login_required(on_failure=my_failure_callback)
 async def valid_user_own_callback(request):
+    return web.Response(text='This worked: there was a valid login')
+
+@routes.get('/valid_user_pos_args')
+@flaat.login_required(on_failure=my_failure_callback)
+async def valid_user_pos_args(*args):
+    for arg in args:
+        print (F"positional arg: {arg}")
+    return web.Response(text='This worked: there was a valid login')
+
+@routes.get('/valid_user_kw_args')
+@flaat.login_required(on_failure=my_failure_callback)
+async def valid_user_kw_args(**kwargs):
+    for arg in kwargs:
+        print (F"named arg: {arg}: {kwargs[arg]}")
+    return web.Response(text='This worked: there was a valid login')
+
+@routes.get('/valid_user_pos_kw_args')
+@flaat.login_required(on_failure=my_failure_callback)
+async def valid_user_pos_kw_args(*args, **kwargs):
+    for arg in args:
+        print (F"positional arg: {arg}")
+    for arg in kwargs:
+        print (F"named arg: {arg}: {kwargs[arg]}")
     return web.Response(text='This worked: there was a valid login')
 
 @routes.get('/group_test_kit')
