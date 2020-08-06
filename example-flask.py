@@ -76,7 +76,7 @@ flaat.set_trusted_OP_list([
 #     1: Errors
 #     2: More info, including token info
 #     3: Max
-flaat.set_verbosity(2)
+flaat.set_verbosity(1)
 # flaat.set_verify_tls(True)
 
 
@@ -94,6 +94,11 @@ def root():
     /info               General info about the access_token (if provided)
     /valid_user         Requires a valid user
     /valid_user_2       Requires a valid user, uses a custom callback on error
+    
+    /valid_user_pos_kw_args
+    /valid_user_kw_args
+    /valid_user_pos_args
+
     /group_test_kit     Requires user to have two "eduperson_scoped_affiliation" of
                             ['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
     /group_test_iam     Requires user to be in the group "KIT-Cloud" transported in "groups"
@@ -104,6 +109,9 @@ def root():
                             ['urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
     /group_test_hdf3     Requires user to be in all groups found in "eduperson_entitlement"
                             ['urn:geant:h-df.de:group:aai-admin'],
+    /valid_user_pos_kw_args
+    /valid_user_kw_args
+    /valid_user_pos_args
         '''
     return (text)
 
@@ -137,11 +145,35 @@ def valid_user():
 def valid_user_own_callback():
     return('This worked: there was a valid login')
 
-@app.route('/valid_user_3')
+
+@app.route('/valid_user_no_args')
 @flaat.login_required(on_failure=my_failure_callback)
-def valid_user_no_param(**kwargs):
-    logger.info("(**kwargs) - kwargs: %s" % (kwargs))
+def valid_user_no_args():
     return ('This worked: there was a valid login')
+
+@app.route('/valid_user_pos_args')
+@flaat.login_required(on_failure=my_failure_callback)
+def valid_user_pos_args(*args):
+    for arg in args:
+        print (F"positional arg: {arg}")
+    return ('This worked: there was a valid login')
+
+@app.route('/valid_user_kw_args')
+@flaat.login_required(on_failure=my_failure_callback)
+def valid_user_kw_args(**kwargs):
+    for arg in kwargs:
+        print (F"named arg: {arg}: {kwargs[arg]}")
+    return ('This worked: there was a valid login')
+
+@app.route('/valid_user_pos_kw_args')
+@flaat.login_required(on_failure=my_failure_callback)
+def valid_user_pos_kw_args(*args, **kwargs):
+    for arg in args:
+        print (F"positional arg: {arg}")
+    for arg in kwargs:
+        print (F"named arg: {arg}: {kwargs[arg]}")
+    return ('This worked: there was a valid login')
+
 
 @app.route('/group_test_kit')
 @flaat.group_required(group=['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],

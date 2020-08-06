@@ -94,6 +94,11 @@ async def root(request):
     /info               General info about the access_token (if provided)
     /valid_user         Requires a valid user
     /valid_user_2       Requires a valid user, uses a custom callback on error
+    
+    /valid_user_pos_kw_args
+    /valid_user_kw_args
+    /valid_user_pos_args
+
     /group_test_kit     Requires user to have two "eduperson_scoped_affiliation" of
                             ['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
     /group_test_iam     Requires user to be in the group "KIT-Cloud" transported in "groups"
@@ -125,6 +130,12 @@ async def valid_user(request):
 async def valid_user_own_callback(request):
     return web.Response(text='This worked: there was a valid login')
 
+
+@routes.get('/valid_user_no_args')
+@flaat.login_required(on_failure=my_failure_callback)
+async def valid_user_no_args():
+    return web.Response(text='This worked: there was a valid login')
+
 @routes.get('/valid_user_pos_args')
 @flaat.login_required(on_failure=my_failure_callback)
 async def valid_user_pos_args(*args):
@@ -147,6 +158,7 @@ async def valid_user_pos_kw_args(*args, **kwargs):
     for arg in kwargs:
         print (F"named arg: {arg}: {kwargs[arg]}")
     return web.Response(text='This worked: there was a valid login')
+
 
 @routes.get('/group_test_kit')
 @flaat.group_required(group=['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
