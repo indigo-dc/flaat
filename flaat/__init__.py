@@ -337,7 +337,8 @@ class Flaat():
             logger.error(F"len(args): {len(args)}")
             for arg in args:
                 logger.error(F"    arg: {arg}")
-            return args[0]
+            # return args[0]
+            return args
         return None
     def _return_formatter_wf(self, return_value, status=200):
         '''Return the object appropriate for the chosen web framework'''
