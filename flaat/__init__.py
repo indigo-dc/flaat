@@ -330,10 +330,13 @@ class Flaat():
         return tokentools.merge_tokens ([accesstoken_info, user_info, introspection_info])
     def _find_request_based_on_web_framework(self, request, args):
         '''use configured web_framework and return the actual request object'''
-        logger.error("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
         if self.web_framework == 'flask':
             return request
         if self.web_framework == 'aiohttp':
+            logger.error("analysis of my parameters:")
+            logger.error(F"len(args): {len(args)}")
+            for arg in args:
+                logger.error(F"    arg: {arg}")
             return args[0]
         return None
     def _return_formatter_wf(self, return_value, status=200):
