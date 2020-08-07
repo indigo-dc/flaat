@@ -27,7 +27,6 @@
 import os
 import logging
 from flaat import Flaat
-from flask import request
 from flaat import tokentools
 import json
 from aiohttp import web
@@ -95,6 +94,7 @@ async def root(request):
     /valid_user         Requires a valid user
     /valid_user_2       Requires a valid user, uses a custom callback on error
     
+    /valid_user_no_args
     /valid_user_pos_kw_args
     /valid_user_kw_args
     /valid_user_pos_args
@@ -113,8 +113,10 @@ async def root(request):
     return web.Response(text=text)
 
 @routes.get('/info')
-async def info(request):
-    access_token = tokentools.get_access_token_from_request(request)
+async def info(any_argument):
+    print ("going to get accesstoken from somewhere")
+    access_token = tokentools.get_access_token_from_request(any_argument)
+    print ("done")
     info = flaat.get_info_thats_in_at(access_token)
     # FIXME: Also display info from userinfo endpoint
     x = json.dumps(info, sort_keys=True, indent=4, separators=(',', ': '))

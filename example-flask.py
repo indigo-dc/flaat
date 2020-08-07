@@ -95,6 +95,7 @@ def root():
     /valid_user         Requires a valid user
     /valid_user_2       Requires a valid user, uses a custom callback on error
     
+    /valid_user_no_args
     /valid_user_pos_kw_args
     /valid_user_kw_args
     /valid_user_pos_args
