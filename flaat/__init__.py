@@ -48,16 +48,6 @@ class Flaat():
     # pylint: disable=too-many-instance-attributes
     def __init__(self):
         ## Debug for docker
-        self.logfile = open("/tmp/flaat.log", "w")
-        self.logfile.write("yeah")
-        self.logfile.close()
-        # my_log = logging.getLogger('flaat')
-        # logger.setLevel(logging.info)
-        logger.critical("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        logger.error("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        logger.warning("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        logger.debug("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        logger.info("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
         self.trusted_op_list = None
         self.iss             = None
         self.op_hint         = None
@@ -333,12 +323,11 @@ class Flaat():
         if self.web_framework == 'flask':
             return request
         if self.web_framework == 'aiohttp':
-            logger.error("analysis of my parameters:")
-            logger.error(F"len(args): {len(args)}")
+            logger.info("analysis of my parameters:")
+            logger.info(F"len(args): {len(args)}")
             for arg in args:
-                logger.error(F"    arg: {arg}")
-            # return args[0]
-            return args
+                logger.info(F"    arg: {arg}")
+            return args[0]
         return None
     def _return_formatter_wf(self, return_value, status=200):
         '''Return the object appropriate for the chosen web framework'''
@@ -366,51 +355,41 @@ class Flaat():
         '''Decorator to enforce a valid login.
         Optional on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page'''
-        logger.error("inside decorator of login_required 1")
-        logger.info("inside decorator of login_required 1")
         def wrapper(view_func):
-            logger.error("inside decorator of login_required 2")
             @wraps(view_func)
             def decorated(*args, **kwargs):
-                logger.error("inside decorator of login_required 3")
                 try:
+                    logger.debug("Bypassing authentication")
                     if os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER'].lower() == 'yes':
                         return view_func(*args, **kwargs)
                 except KeyError: # i.e. the environment variable was not set
                     pass
-                # logger.error(F"Request object: {request}")
+                logger.info(F"LEN OF ARGS: {len(args)}")
+                logger.info(F"ARGS : {args}")
+                logger.info(F"LEN OF KWARGS: {len(kwargs)}")
+                for arg in args:
+                    logging.info(F"  positional arg: {arg}")
+                for arg in kwargs:
+                    logging.info(F"         kw args: {arg}: {kwargs[arg]}")
+
                 request_object = self._find_request_based_on_web_framework(request, args)
-                logger.error(F"Request_object: {request_object}")
-                # logger.error(F"Request object: {request}")
+                logger.info(F"   Request_object: {request_object}")
                 all_info = self._get_all_info_from_request(request_object)
                 # logger.info (F"all info: {all_info}")
 
-                logger.error("inside decorator of login_required 3.5")
                 if all_info is not None:
                     if self.verbose>1:
                         print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
-                    if args and kwargs:
+                    try:
                         return view_func(*args, **kwargs)
-                    if args:
-                        return view_func(*args)
-                    if kwargs:
+                    except TypeError: # cater for funcs that only accept keyword args
                         return view_func(**kwargs)
-                    # else:
-                    logging.error("No args to return. These are the ones that I got:")
-                    for arg in args:
-                        logging.error(F"positional arg: {arg}")
-                    for arg in kwargs:
-                        logging.error(F"named arg: {arg}: {kwargs[arg]}")
-                    return None # This is an error
                 if on_failure:
                     return self._return_formatter_wf(on_failure(self.get_last_error()), 401)
 
                 return self._return_formatter_wf(\
                         ('No valid authentication found: %s' % self.get_last_error()), 401)
-            logger.error("inside decorator of login_required 4")
             return decorated
-            logger.error("inside decorator of login_required 5")
-        logger.error("inside decorator of login_required 6")
         return wrapper
     def _determine_number_of_required_matches(self, match, req_group_list):
         '''determine the number of requi`example.py`red matches from parameters'''
@@ -495,7 +474,10 @@ class Flaat():
                 if self.verbose > 0:
                     print('found %d of %d matches' % (matches_found, required_matches))
                 if matches_found >= required_matches:
-                    return view_func(*args, **kwargs)
+                    try:
+                        return view_func(*args, **kwargs)
+                    except TypeError: # cater for funcs that only accept keyword args
+                        return view_func(**kwargs)
 
                 user_message = 'You are not authorised'
 
@@ -572,14 +554,19 @@ class Flaat():
 
                 # generate entitlement objects from input strings
                 logger.info(F"Parsing entitlements")
-                try:
-                    avail_entitlements = [ Aarc_g002_entitlement(es, strict=False) for es in avail_entitlement_entries ]
-                    req_entitlements   = [ Aarc_g002_entitlement(es, strict=False) for es in req_entitlement_list ]
-                except ValueError as e:
-                    logger.error (F"Failed to parse entitlement: {e}")
-                    logger.error (F"    available entitlement_entries: {avail_entitlement_entries}")
-                    logger.error (F"    required  entitlement_list:    {req_entitlement_list}")
-                logger.info(F"done")
+                def catch (func, *args, **kwargs):
+                    '''Helperfunction for catchin errors in list expansion'''
+                    try:
+                        return func(*args, **kwargs)
+                    except ValueError as err:
+                        # logger.error(F"Ignoring invalid aarc_g002_entitlement in for loop: {err}")
+                        pass
+                avail_entitlements = [catch(lambda: Aarc_g002_entitlement(es, strict=False)) for es in avail_entitlement_entries ]
+                req_entitlements   = [catch(lambda: Aarc_g002_entitlement(es, strict=False)) for es in req_entitlement_list ]
+                nl="\n    "
+                if verbose > 0:
+                    logger.info(F" available entitlements: \n    {nl.join([str(x) for x in avail_entitlements])}")
+                    logger.info(F" required  entitlements: \n    {nl.join([str(x) for x in req_entitlements])}")
 
                 if self.verbose > 1:
                     print ('\nAvailable Entitlements:')
@@ -598,7 +585,10 @@ class Flaat():
                 if self.verbose > 0:
                     print('found %d of %d matches' % (matches_found, required_matches))
                 if matches_found >= required_matches:
-                    return view_func(*args, **kwargs)
+                    try:
+                        return view_func(*args, **kwargs)
+                    except TypeError: # cater for funcs that only accept keyword args
+                        return view_func(**kwargs)
 
                 user_message = 'You are not authorised'
 
