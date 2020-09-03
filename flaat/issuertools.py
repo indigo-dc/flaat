@@ -72,7 +72,7 @@ def find_issuer_config_in_at(access_token):
     at_iss = tokentools.get_issuer_from_accesstoken_info(access_token)
     logger.info(F"at_iss: {at_iss}")
     if verbose > 2:
-        print ('got iss from access_token: %s' % str(at_iss))
+        logger.info('got iss from access_token: %s' % str(at_iss))
     if at_iss is not None:
         if tokentools.is_url(at_iss):
             config_url = at_iss+'/.well-known/openid-configuration'
@@ -123,7 +123,7 @@ def find_issuer_config_in_list(op_list, op_hint = None, exclude_list = []):
         for issuer in op_list:
             if issuer in exclude_list:
                 if verbose>1:
-                    print ('skipping %s due to exclude list' % issuer)
+                    logger.info('skipping %s due to exclude list' % issuer)
                 continue
             issuer_wellknown=issuer + '/.well-known/openid-configuration'
             if op_hint is None:
@@ -162,7 +162,7 @@ def find_issuer_config_in_file(op_file, op_hint = None, exclude_list=[]):
                 continue
             if issuer_from_conf in exclude_list:
                 if verbose>1:
-                    print ('skipping %s due to exclude list' % issuer)
+                    logger.info('skipping %s due to exclude list' % issuer)
                 continue
             op_list.append(issuer_from_conf)
         return (find_issuer_config_in_list(op_list, op_hint, exclude_list))
@@ -183,19 +183,19 @@ def get_iss_config_from_endpoint(issuer_url):
     config_url = 'https://'+config_url
 
     if verbose>1:
-        print('Getting config from: %s' % config_url)
+        logger.info('Getting config from: %s' % config_url)
     try:
         resp = requests.get (config_url, verify=verify_tls, headers=headers, timeout=timeout)
         if verbose > 2:
-            print('Getconfig: resp: %s' % resp.status_code)
+            logger.warning ('Getconfig: resp: %s' % resp.status_code)
     except requests.exceptions.ConnectionError as e:
         if verbose > 0:
-            print ('Warning: cannot obtain iss_config from endpoint: {}'.format(config_url))
+            logger.warning ('Warning: cannot obtain iss_config from endpoint: {}'.format(config_url))
             # print ('Additional info: {}'.format (e))
         return None
     except requests.exceptions.ReadTimeout as e:
         if verbose > 0:
-            print ('Warning: cannot obtain iss_config from endpoint: {}'.format(config_url))
+            logger.warning ('Warning: cannot obtain iss_config from endpoint: {}'.format(config_url))
             # print ('Additional info: {}'.format (e))
         return None
     try:
@@ -217,19 +217,19 @@ def get_user_info(access_token, issuer_config):
             timeout=timeout)
     if resp.status_code != 200:
         if verbose > 2:
-            print('userinfo: Error: %s' % resp.status_code)
-            print('userinfo: Error: %s' % resp.text)
-            print('userinfo: Error: %s' % str(resp.reason))
+            logger.warning('userinfo: Error: %s' % resp.status_code)
+            logger.warning('userinfo: Error: %s' % resp.text)
+            logger.warning('userinfo: Error: %s' % str(resp.reason))
         return None
         # return ({'error': '{}: {}'.format(resp.status_code, resp.reason)})
 
     resp_json=resp.json()
     if verbose:
-        print('Success')
+        logger.info('Success')
     if verbose>1:
-        print(json.dumps(resp_json, sort_keys=True, indent=4, separators=(',', ': ')))
+        logger.info(json.dumps(resp_json, sort_keys=True, indent=4, separators=(',', ': ')))
     if verbose > 2:
-        print('userinfo: resp: %s' % resp.status_code)
+        logger.info('userinfo: resp: %s' % resp.status_code)
     return resp_json
 
 def get_introspected_token_info(access_token, issuer_config, client_id=None, client_secret=None):
@@ -253,7 +253,7 @@ def get_introspected_token_info(access_token, issuer_config, client_id=None, cli
     headers['Authorization'] = 'Basic %s' % b64encode(basic_auth_bytes).decode('utf-8')
 
     if verbose > 1:
-        print('Getting introspection from %s' % issuer_config['userinfo_endpoint'])
+        logger.info('Getting introspection from %s' % issuer_config['userinfo_endpoint'])
     try:
         resp = requests.post (issuer_config['introspection_endpoint'], \
                               verify=verify_tls, headers=headers, data=post_data, timeout=timeout)
@@ -261,7 +261,7 @@ def get_introspected_token_info(access_token, issuer_config, client_id=None, cli
         return None
 
     if verbose>2:
-        print('introspect: resp: %s' % resp.status_code)
+        logger.info('introspect: resp: %s' % resp.status_code)
     if resp.status_code != 200:
         try:
             # lets try to find an error in a returned json:
@@ -272,10 +272,10 @@ def get_introspected_token_info(access_token, issuer_config, client_id=None, cli
             # return ({'error': 'unknown error: {}'.format(resp.status_code)})
             return None
         except:
-            print('Introspect: Error: %s' % resp.status_code)
-            print('Introspect: Error: %s' % resp.text)
-            print('Introspect: Error: %s' % str(resp.text))
-            print('Introspect: Error: %s' % str(resp.reason))
+            logger.error('Introspect: Error: %s' % resp.status_code)
+            logger.error('Introspect: Error: %s' % resp.text)
+            logger.error('Introspect: Error: %s' % str(resp.text))
+            logger.error('Introspect: Error: %s' % str(resp.reason))
             # return ({'error': '{}: {}'.format(resp.status_code, resp.reason)})
             return None
 
