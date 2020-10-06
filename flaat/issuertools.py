@@ -213,8 +213,11 @@ def get_user_info(access_token, issuer_config):
         print ('using this access token: %s' % access_token)
     if verbose > 1:
         print('Getting userinfo from %s' % issuer_config['userinfo_endpoint'])
-    resp = requests.get (issuer_config['userinfo_endpoint'], verify=verify_tls, headers=headers,
-            timeout=timeout)
+    try:
+        resp = requests.get (issuer_config['userinfo_endpoint'], verify=verify_tls, headers=headers,
+                timeout=timeout)
+    except requests.exceptions.ReadTimeout:
+        print ("ReadTimeout caught for issuer_config['userinfo_endpoint']")
     if resp.status_code != 200:
         if verbose > 2:
             logger.warning('userinfo: Error: %s' % resp.status_code)
