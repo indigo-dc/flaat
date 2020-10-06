@@ -534,8 +534,8 @@ class Flaat():
                 # generate entitlement objects from input strings
                 logger.info(F"Parsing entitlements")
                 try:
-                    avail_entitlements = [ Aarc_g002_entitlement(es, strict=False) for es in avail_entitlement_entries ]
-                    req_entitlements   = [ Aarc_g002_entitlement(es, strict=False) for es in req_entitlement_list ]
+                    avail_entitlements = [ Aarc_g002_entitlement(es, strict=False, raise_error_if_unparseable=True) for es in avail_entitlement_entries ]
+                    req_entitlements   = [ Aarc_g002_entitlement(es, strict=False, raise_error_if_unparseable=True) for es in req_entitlement_list ]
                 except ValueError as e:
                     logger.error (F"Failed to parse entitlement: {e}")
                     logger.error (F"    available entitlement_entries: {avail_entitlement_entries}")
