@@ -1,3 +1,4 @@
+[![eosc-synergy-logo](https://readthedocs.org/projects/flaat/badge/?version=latest)](https://flaat.readthedocs.io/)
 # FLAsk support for handling oidc Access Tokens - FLAAT
 Now with support for AIOHTTP (>= v0.5.0)
 
@@ -20,7 +21,6 @@ few potential drawbacks.
 
 # Documentation
 
-[![eosc-synergy-logo](https://readthedocs.org/projects/flaat/badge/?version=latest)](https://flaat.readthedocs.io/)
 
 To use flaat, add this to your code:
 
