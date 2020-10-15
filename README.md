@@ -20,6 +20,8 @@ few potential drawbacks.
 
 # Documentation
 
+[![eosc-synergy-logo](https://readthedocs.org/projects/flaat/badge/?version=latest)](https://flaat.readthedocs.io/)
+
 To use flaat, add this to your code:
 
 ```python
