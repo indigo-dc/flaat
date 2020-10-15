@@ -23,6 +23,7 @@
 # vim: tw=100 foldmethod=marker
 # pylint: disable=bad-continuation, invalid-name, superfluous-parens
 # pylint: disable=bad-whitespace, missing-docstring
+# pylint: disable=logging-fstring-interpolation
 # }}}
 import os
 import logging

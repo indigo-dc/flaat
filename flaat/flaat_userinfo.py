@@ -22,19 +22,14 @@
 # SOFTWARE.
 #
 # vim: tw=100 foldmethod=indent
-# pylint: disable=bad-continuation, invalid-name, superfluous-parens
-# pylint: disable=bad-whitespace, mixed-indentation
-# pylint: disable=redefined-outer-name, logging-not-lazy, logging-format-interpolation
+# pylint: disable=invalid-name, superfluous-parens, line-too-long
+# pylint: disable=redefined-outer-name, logging-not-lazy, logging-format-interpolation, logging-fstring-interpolation
 # pylint: disable=missing-docstring, trailing-whitespace, trailing-newlines, too-few-public-methods
 
 
 import os
 import sys
-import base64
-import re
-import fileinput
 import json
-import requests
 import configargparse
 from flaat import Flaat, tokentools 
 

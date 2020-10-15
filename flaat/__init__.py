@@ -3,10 +3,9 @@ access to OIDC authenticated REST APIs.'''
 # This code is distributed under the MIT License
 # pylint
 # vim: tw=100 foldmethod=indent
-# pylint: disable=bad-continuation, invalid-name, superfluous-parens
-# pylint: disable=bad-whitespace
-# pylint: disable=logging-not-lazy, logging-format-interpolation
-# pylint: disable=wrong-import-position, no-self-use
+# pylint: disable=invalid-name, superfluous-parens
+# pylint: disable=logging-not-lazy, logging-format-interpolation, logging-fstring-interpolation
+# pylint: disable=wrong-import-position, no-self-use, line-too-long
 
 
 from functools import wraps
@@ -15,10 +14,12 @@ import os
 import sys
 is_py2 = sys.version[0] == '2'
 if is_py2:
+    # pylint: disable=import-error
     from Queue import Queue, Empty
 else:
     from queue import Queue, Empty
 from threading import Thread
+import logging
 
 from flask import request
 from aiohttp import web
@@ -26,7 +27,6 @@ from aarc_g002_entitlement import Aarc_g002_entitlement
 from . import tokentools
 from . import issuertools
 from . import flaat_exceptions
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -150,14 +150,11 @@ class Flaat():
             self.web_framework = framework_name
         else:
             logger.error("Specified Web Framework '%s' is not supported" % framework_name)
-            exit (42)
+            sys.exit (42)
     def _find_issuer_config_everywhere(self, access_token):
         '''Use many places to find issuer configs'''
 
         # 1: find info in the AT
-        if self.verbose > 1:
-            print ('Trying to find issuer in accesstoken')
-
         at_iss = tokentools.get_issuer_from_accesstoken_info(access_token)
         if at_iss is not None:
             trusted_op_list_buf = []
@@ -211,17 +208,17 @@ class Flaat():
         accesstoken_info = None
         if access_token:
             accesstoken_info = tokentools.get_accesstoken_info(access_token)
-        at_head=None
-        at_body=None
-        if accesstoken_info is not None and not {}:
-            at_head = accesstoken_info['header']
-            at_body = accesstoken_info['body']
+        # at_head=None
+        # at_body=None
+        # if accesstoken_info is not None and not {}:
+        #     at_head = accesstoken_info['header']
+        #     at_body = accesstoken_info['body']
         # return (at_head, at_body)
         return (accesstoken_info)
     def get_info_from_userinfo_endpoints(self, access_token):
         '''Traverse all reasonable configured userinfo endpoints and query them with the
         access_token. Note: For OPs that include the iss inside the AT, they will be directly
-        queried, and are not included in the search (because that makes no sense). 
+        queried, and are not included in the search (because that makes no sense).
         Returns user_info object or None.  If None is returned self.last_error is set with a
         meaningful message.'''
         # user_info = "" # return value
@@ -532,7 +529,7 @@ class Flaat():
                     print (str(req_entitlement_list))
 
                 # generate entitlement objects from input strings
-                logger.info(F"Parsing entitlements")
+                logger.info("Parsing entitlements")
                 try:
                     avail_entitlements = [ Aarc_g002_entitlement(es, strict=False, raise_error_if_unparseable=True) for es in avail_entitlement_entries ]
                     req_entitlements   = [ Aarc_g002_entitlement(es, strict=False, raise_error_if_unparseable=True) for es in req_entitlement_list ]
@@ -540,7 +537,7 @@ class Flaat():
                     logger.error (F"Failed to parse entitlement: {e}")
                     logger.error (F"    available entitlement_entries: {avail_entitlement_entries}")
                     logger.error (F"    required  entitlement_list:    {req_entitlement_list}")
-                logger.info(F"done")
+                logger.info("done")
 
                 if self.verbose > 1:
                     print ('\nAvailable Entitlements:')

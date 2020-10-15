@@ -21,13 +21,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # pylint
-# pylint: disable=bad-continuation, invalid-name, superfluous-parens
-# pylint: disable=bad-whitespace
+# pylint: disable=invalid-name, superfluous-parens, line-too-long
 
 import logging
 from aiohttp import web_exceptions
 from werkzeug.exceptions import HTTPException
-from aiohttp import web_exceptions
 
 logger = logging.getLogger(__name__)
 

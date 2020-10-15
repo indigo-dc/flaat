@@ -2,9 +2,10 @@
 # This code is distributed under the MIT License
 # pylint
 # vim: tw=100 foldmethod=indent
-# pylint: disable=bad-continuation, invalid-name, superfluous-parens
-# pylint: disable=bad-whitespace
-# pylint: disable=logging-not-lazy, logging-format-interpolation
+# pylint: disable=invalid-name, superfluous-parens
+# pylint: disable=logging-not-lazy, logging-format-interpolation, logging-fstring-interpolation
+# pylint: disable=line-too-long
+
 
 
 import base64
