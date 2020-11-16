@@ -17,7 +17,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 verbose = 0
-verify_tls = True
 
 def merge_tokens(tokenlist):
     '''put all provided tokens into one token.'''

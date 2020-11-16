@@ -58,8 +58,8 @@ cache_options = Cache_options()
 cache_options.update_cache()
 
 
-
-verbose = 1
+# Set defaults:
+verbose = 0
 verify_tls = True
 timeout = 1.2 #(seconds)
 num_request_workers = 10
@@ -138,7 +138,7 @@ def find_issuer_config_in_list(op_list, op_hint = None, exclude_list = []):
         result_q.join()
         try:
             while not result_q.empty():
-                entry = result_q.get(block=False, timeout=2)
+                entry = result_q.get(block=False, timeout=timeout)
                 if entry is not None:
                     iss_config.append(entry)
             # for entry in iter(result_q.get_nowait, None):
@@ -216,13 +216,14 @@ def get_user_info(access_token, issuer_config):
         resp = requests.get (issuer_config['userinfo_endpoint'], verify=verify_tls, headers=headers,
                 timeout=timeout)
     except requests.exceptions.ReadTimeout:
-        print ("ReadTimeout caught for issuer_config['userinfo_endpoint']")
+        logger.error("ReadTimeout caught for issuer_config['userinfo_endpoint']")
+        logger.debug(F"headers were: {headers}, timeout: {timeout}")
+        return None
     if resp.status_code != 200:
         if verbose > 2:
             logger.warning('userinfo: Error: %s' % resp.status_code)
             logger.warning('userinfo: Error: %s' % resp.text)
             logger.warning('userinfo: Error: %s' % str(resp.reason))
-        return None
         # return ({'error': '{}: {}'.format(resp.status_code, resp.reason)})
 
     resp_json=resp.json()

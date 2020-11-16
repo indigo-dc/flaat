@@ -113,7 +113,6 @@ class Flaat():
     def set_verify_tls(self, param_verify_tls=True):
         '''Whether to verify tls connections. Only use for development and debugging'''
         self.verify_tls        = param_verify_tls
-        tokentools.verify_tls  = param_verify_tls
         issuertools.verify_tls = param_verify_tls
     def set_client_id(self, client_id):
         '''Client id. At the moment this one is sent to all matching providers. This is only
@@ -135,6 +134,7 @@ class Flaat():
     def set_num_request_workers(self, num):
         '''set number of request workers'''
         self.num_request_workers = num
+        issuertools.num_request_workers = num
     def get_num_request_workers(self):
         '''get number of request workers'''
         return (self.num_request_workers)
@@ -144,6 +144,20 @@ class Flaat():
     def get_client_connect_timeout(self):
         '''get timeout for flaat connecting to OPs'''
         return (self.client_connect_timeout)
+    def set_iss_config_timeout(self, num):
+        '''set timeout for connections to get config from OP'''
+        issuertools.timeout = num
+    def get_iss_config_timeout(self):
+        '''set timeout for connections to get config from OP'''
+        return (issuertools.timeout)
+    def set_timeout(self, num):
+        '''set global timeouts for http connections'''
+        self.set_iss_config_timeout(num)
+        self.set_client_connect_timeout(num)
+    def get_timeout(self):
+        '''get global timeout for https connections'''
+        return (self.timeout)
+
     def set_web_framework(self, framework_name):
         '''specify the web framework. Currently supported are 'flaat' and 'aiohttp' '''
         if framework_name in self.supported_web_frameworks:

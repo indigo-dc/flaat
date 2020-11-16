@@ -72,6 +72,7 @@ flaat.set_trusted_OP_list([
 # flaat.set_trusted_OP_file('/etc/oidc-agent/issuer.config')
 # flaat.set_OP_hint("helmholtz")
 # flaat.set_OP_hint("google")
+flaat.set_timeout(3)
 
 # verbosity:
 #     0: No output
