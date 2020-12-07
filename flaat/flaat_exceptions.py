@@ -26,6 +26,7 @@
 import logging
 from aiohttp import web_exceptions
 from werkzeug.exceptions import HTTPException
+from fastapi import HTTPException as FastAPI_HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -44,3 +45,12 @@ class FlaatExceptionAio(web_exceptions.HTTPError):
             super().__init__(text="%s: %s" %(status_code, reason))
         else:
             super().__init__()
+class FlaatExceptionFastapi(FastAPI_HTTPException):
+    '''Call the corresponding web framework exception, with a custom reason'''
+    def __init__(self, status_code, reason=None, **kwargs):
+        self.code = status_code
+        if reason:
+            self.description = reason
+            super().__init__(status_code=status_code, detail=reason)
+        else:
+            super().__init__(status_code=status_code)

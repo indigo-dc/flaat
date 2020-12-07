@@ -23,6 +23,8 @@ import logging
 
 from flask import request
 from aiohttp import web
+import asyncio
+from fastapi.responses import JSONResponse
 from aarc_g002_entitlement import Aarc_g002_entitlement
 from . import tokentools
 from . import issuertools
@@ -70,7 +72,7 @@ class Flaat():
         # unknown:
         # 'https://login.elixir-czech.org/oidc/',
         # 'https://services.humanbrainproject.eu/oidc/',
-        self.supported_web_frameworks = ['flask', 'aiohttp']
+        self.supported_web_frameworks = ['flask', 'aiohttp', 'fastapi']
         self.web_framework = 'flask'
         self.raise_error_on_return = True # else just return an error
     def set_cache_lifetime(self, lifetime):
@@ -328,12 +330,14 @@ class Flaat():
 
         # return tokentools.merge_tokens ([accesstoken_info['header'], accesstoken_info['body'], user_info, introspection_info])
         return tokentools.merge_tokens ([accesstoken_info, user_info, introspection_info])
-    def _find_request_based_on_web_framework(self, request, args):
+    def _find_request_based_on_web_framework(self, request, args, kwargs):
         '''use configured web_framework and return the actual request object'''
         if self.web_framework == 'flask':
             return request
         if self.web_framework == 'aiohttp':
             return args[0]
+        if self.web_framework == 'fastapi':
+            return kwargs["request"]
         return None
     def _return_formatter_wf(self, return_value, status=200):
         '''Return the object appropriate for the chosen web framework'''
@@ -342,11 +346,16 @@ class Flaat():
                 raise flaat_exceptions.FlaatExceptionFlask(reason=return_value, status_code=status)
             if self.web_framework == 'aiohttp':
                 raise flaat_exceptions.FlaatExceptionAio(reason=return_value, status_code=status)
+            if self.web_framework == 'fastapi':
+                raise flaat_exceptions.FlaatExceptionFastapi(reason=return_value, status_code=status)
         else:
             if self.web_framework == 'flask':
                 return (return_value, status)
             if self.web_framework == 'aiohttp':
                 return web.Response(text=return_value, status=status)
+            if self.web_framework == 'fastapi':
+                return JSONResponse(content=return_value, status_code=status)
+                #return return_value
         return None
     def _get_all_info_from_request(self, param_request):
         '''gather all info about the user that we can find.
@@ -357,6 +366,22 @@ class Flaat():
             return None
         # logger.info (F"access_token: {access_token}")
         return self.get_all_info_by_at(access_token)
+    def _wrap_async_call(self, func, *args, **kwargs):
+        '''wrap function call so that it is awaited when necessary,
+        depending on the web framework used.
+        '''
+        def get_or_create_eventloop():
+            try:
+                return asyncio.get_event_loop()
+            except RuntimeError as ex:
+                if "There is no current event loop in thread" in str(ex):
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    return asyncio.get_event_loop()
+        if self.web_framework == 'fastapi':
+            if (asyncio.iscoroutine(func) or asyncio.iscoroutinefunction(func)):
+                return get_or_create_eventloop().run_until_complete(func(*args, **kwargs))
+        return func(*args, **kwargs)
     def login_required(self, on_failure=None):
         '''Decorator to enforce a valid login.
         Optional on_failure is a function that will be invoked if there was no valid user detected.
@@ -366,17 +391,17 @@ class Flaat():
             def decorated(*args, **kwargs):
                 try:
                     if os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER'].lower() == 'yes':
-                        return view_func(*args, **kwargs)
+                        return self._wrap_async_call(view_func, *args, **kwargs)
                 except KeyError: # i.e. the environment variable was not set
                     pass
-                request_object = self._find_request_based_on_web_framework(request, args)
+                request_object = self._find_request_based_on_web_framework(request, args, kwargs)
                 all_info = self._get_all_info_from_request(request_object)
                 # logger.info (F"all info: {all_info}")
 
                 if all_info is not None:
                     if self.verbose>1:
                         print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
-                    return view_func(*args, **kwargs)
+                    return self._wrap_async_call(view_func, *args, **kwargs)
                 if on_failure:
                     return self._return_formatter_wf(on_failure(self.get_last_error()), 401)
 
@@ -430,13 +455,13 @@ class Flaat():
             def decorated(*args, **kwargs):
                 try:
                     if os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER'].lower() == 'yes':
-                        return view_func(*args, **kwargs)
+                        return self._wrap_async_call(view_func, *args, **kwargs)
                 except KeyError: # i.e. the environment variable was not set
                     pass
 
                 user_message = 'Not enough required group memberships found.'
 
-                request_object = self._find_request_based_on_web_framework(request, args)
+                request_object = self._find_request_based_on_web_framework(request, args, kwargs)
                 all_info = self._get_all_info_from_request(request_object)
 
                 if all_info is None:
@@ -467,7 +492,7 @@ class Flaat():
                 if self.verbose > 0:
                     print('found %d of %d matches' % (matches_found, required_matches))
                 if matches_found >= required_matches:
-                    return view_func(*args, **kwargs)
+                    return self._wrap_async_call(view_func, *args, **kwargs)
 
                 user_message = 'You are not authorised'
 
@@ -502,13 +527,13 @@ class Flaat():
             def decorated(*args, **kwargs):
                 try:
                     if os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER'].lower() == 'yes':
-                        return view_func(*args, **kwargs)
+                        return self._wrap_async_call(view_func, *args, **kwargs)
                 except KeyError: # i.e. the environment variable was not set
                     pass
 
                 user_message = 'Not enough required entitlements found.'
 
-                request_object = self._find_request_based_on_web_framework(request, args)
+                request_object = self._find_request_based_on_web_framework(request, args, kwargs)
                 all_info = self._get_all_info_from_request(request_object)
 
                 if all_info is None:
@@ -570,7 +595,7 @@ class Flaat():
                 if self.verbose > 0:
                     print('found %d of %d matches' % (matches_found, required_matches))
                 if matches_found >= required_matches:
-                    return view_func(*args, **kwargs)
+                    return self._wrap_async_call(view_func, *args, **kwargs)
 
                 user_message = 'You are not authorised'
 

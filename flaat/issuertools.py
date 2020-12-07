@@ -225,6 +225,7 @@ def get_user_info(access_token, issuer_config):
             logger.warning('userinfo: Error: %s' % resp.text)
             logger.warning('userinfo: Error: %s' % str(resp.reason))
         # return ({'error': '{}: {}'.format(resp.status_code, resp.reason)})
+        return None
 
     resp_json=resp.json()
     if verbose:
