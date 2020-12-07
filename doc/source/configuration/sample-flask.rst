@@ -1,5 +1,5 @@
-Example usage
-==============
+Flask Example
+=============
 
 The following is a sample of flaat. 
 
@@ -14,5 +14,4 @@ the decorators provided by flaat.
    version of this documentation.
 
 .. literalinclude:: ../../../example-flask.py
-.. literalinclude:: ../../../example-aio.py
-
+.. literalinclude:: ../../../example-fastapi.py

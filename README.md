@@ -1,6 +1,8 @@
 [![eosc-synergy-logo](https://readthedocs.org/projects/flaat/badge/?version=latest)](https://flaat.readthedocs.io/)
 # FLAsk support for handling oidc Access Tokens - FLAAT
+Now with support for FASTAPI (>= v0.10.0)
 Now with support for AIOHTTP (>= v0.5.0)
+
 
 # Installation
 
@@ -29,6 +31,7 @@ from flaat import Flaat
 flaat = Flaat()
 flaat.set_web_framework('flask')
 # flaat.set_web_framework('aiohttp')
+# flaat.set_web_framework('fastapi')
 ```
 ## Trust
 
@@ -36,9 +39,10 @@ You MUST specify which OIDC Providers you trus:
 ```python
 
 flaat.set_trusted_OP_list([
-'https://login.helmholtz-data-federation.de/oauth2/',
+'https://login.helmholtz.de/oauth2/',
 'https://unity.eudat-aai.fz-juelich.de/oauth2/',
 'https://services.humanbrainproject.eu/oidc/',
+'https://aai.egi.eu/oidc/',
 'https://accounts.google.com/',
 'https://login.elixir-czech.org/oidc/'
 ])

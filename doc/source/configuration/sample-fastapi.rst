@@ -1,4 +1,4 @@
-AIO Example
+Fastapi Example
 =============
 
 The following is a sample of flaat. 
@@ -13,5 +13,4 @@ the decorators provided by flaat.
    documentation is built. You must ensure your version of DEEPaaS matches the
    version of this documentation.
 
-.. literalinclude:: ../../../example-aio.py
-
+.. literalinclude:: ../../../example-fastapi.py
