@@ -34,7 +34,7 @@ import uvicorn
 
 logformat='[%(levelname)s] %(message)s'
 logformat='[%(levelname)s] [%(filename)s:%(funcName)s:%(lineno)d] %(message)s'
-logging.basicConfig(level=os.environ.get("LOG", "INFO"), format = logformat)
+logging.basicConfig(level=os.environ.get("LOG", "WARNING"), format = logformat)
 
 logger = logging.getLogger(__name__)
 
@@ -142,21 +142,21 @@ async def demo_groups_iam(request: Request):
     return {"message": "This worked: user is member of the requested group"}
 
 @app.get('/group_test_hdf', dependencies=[Depends(security)])
-@flaat.aarc_g002_group_required(group=['urn:geant:h-df.de:group:aai-admin',
-        'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
+@flaat.aarc_g002_group_required(group=['urn:geant:h-df.de:group:m-team:feudal-developers',
+        'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz.de'],
         claim='eduperson_entitlement', match='all')
 async def demo_groups_hdf(request: Request):
     return {"message": "This worked: user has the required entitlement(s)"}
 
 @app.get('/group_test_hdf2', dependencies=[Depends(security)])
-@flaat.aarc_g002_group_required(group=[
-        'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
+@flaat.aarc_g002_group_required(group=['urn:geant:h-df.de:group:MyExampleColab'],
         claim='eduperson_entitlement', match='all')
 async def demo_groups_hdf2(request: Request):
     return {"message": "This worked: user has the required entitlement(s)"}
 
 @app.get('/group_test_hdf3', dependencies=[Depends(security)])
-@flaat.aarc_g002_group_required(group=['urn:geant:h-df.de:group:aai-admin'],
+@flaat.aarc_g002_group_required(group=['urn:geant:h-df.de:group:MyExampleColab',
+        'urn:geant:h-df.de:group:m-team:feudal-developers'],
         claim='eduperson_entitlement', match='all')
 async def demo_groups_hdf3(request: Request):
     return {"message": "This worked: user has the required entitlement(s)"}
