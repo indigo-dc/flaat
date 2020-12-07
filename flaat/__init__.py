@@ -570,25 +570,29 @@ class Flaat():
                 # generate entitlement objects from input strings
                 logger.info("Parsing entitlements")
                 try:
-                    avail_entitlements = [ Aarc_g002_entitlement(es, strict=False, raise_error_if_unparseable=True) for es in avail_entitlement_entries ]
-                    req_entitlements   = [ Aarc_g002_entitlement(es, strict=False, raise_error_if_unparseable=True) for es in req_entitlement_list ]
+                    avail_entitlements = [ Aarc_g002_entitlement(es, strict=False,
+                                            raise_error_if_unparseable=False) for es in avail_entitlement_entries ]
                 except ValueError as e:
-                    logger.error (F"Failed to parse entitlement: {e}")
+                    logger.error (F"Failed to parse available entitlements: {e}")
                     logger.error (F"    available entitlement_entries: {avail_entitlement_entries}")
+                try:
+                    req_entitlements   = [ Aarc_g002_entitlement(es, strict=False,
+                                            raise_error_if_unparseable=False) for es in req_entitlement_list ]
+                except ValueError as e:
+                    logger.error (F"Failed to parse required entitlement(s): {e}")
                     logger.error (F"    required  entitlement_list:    {req_entitlement_list}")
                 logger.info("done")
 
                 if self.verbose > 1:
                     print ('\nAvailable Entitlements:')
-                    print ('{}'.format('\n\n'.join([x.__mstr__() for x in avail_entitlements])))
+                    print ('{}'.format('\n\n'.join([x.__mstr__() for x in avail_entitlements if x.__mstr__() is not None])))
                     print ('\n\nRequired Entitlements:')
-                    print ('{}'.format('\n\n'.join([x.__mstr__() for x in req_entitlements])))
-
+                    print ('{}'.format('\n\n'.join([x.__mstr__() for x in req_entitlements if x.__mstr__() is not None])))
                 # now we do the actual checking
                 matches_found = 0
 
                 for required in req_entitlements:
-                    for avail in req_entitlements:
+                    for avail in avail_entitlements:
                         if required.is_contained_in(avail):
                             matches_found += 1
 
