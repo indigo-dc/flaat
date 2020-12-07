@@ -21,10 +21,22 @@ else:
 from threading import Thread
 import logging
 
-from flask import request
-from aiohttp import web
-import asyncio
-from fastapi.responses import JSONResponse
+# Gracefully load modules:
+available_web_frameworks = ['flask', 'aiohttp', 'fastapi']
+try:
+    from flask import request
+except ModuleNotFoundError:
+    available_web_frameworks.remove('flask')
+try:
+    from aiohttp import web
+except ModuleNotFoundError:
+    available_web_frameworks.remove('aiohttp')
+try:
+    import asyncio
+    from fastapi.responses import JSONResponse
+except ModuleNotFoundError:
+    available_web_frameworks.remove('fastapi')
+
 from aarc_g002_entitlement import Aarc_g002_entitlement
 from . import tokentools
 from . import issuertools
@@ -72,8 +84,15 @@ class Flaat():
         # unknown:
         # 'https://login.elixir-czech.org/oidc/',
         # 'https://services.humanbrainproject.eu/oidc/',
-        self.supported_web_frameworks = ['flask', 'aiohttp', 'fastapi']
-        self.web_framework = 'flask'
+        # self.supported_web_frameworks = ['flask', 'aiohttp', 'fastapi']
+        self.supported_web_frameworks = available_web_frameworks 
+        if 'flask' in available_web_frameworks:
+            self.web_framework = 'flask'
+        elif 'aiohttp' in available_web_frameworks:
+            self.web_framework = 'aiohttp'
+        elif 'fastapi' in available_web_frameworks:
+            self.web_framework = 'fastapi'
+
         self.raise_error_on_return = True # else just return an error
     def set_cache_lifetime(self, lifetime):
         '''Set cache lifetime of requests_cache zn seconds, default: 300s'''

@@ -24,33 +24,47 @@
 # pylint: disable=invalid-name, superfluous-parens, line-too-long
 
 import logging
-from aiohttp import web_exceptions
-from werkzeug.exceptions import HTTPException
-from fastapi import HTTPException as FastAPI_HTTPException
+
+available_web_frameworks = ['flask', 'aiohttp', 'fastapi']
+try:
+    from werkzeug.exceptions import HTTPException
+except ModuleNotFoundError:
+    available_web_frameworks.remove('flask')
+try:
+    from aiohttp import web_exceptions
+except ModuleNotFoundError:
+    available_web_frameworks.remove('aiohttp')
+try:
+    from fastapi import HTTPException as FastAPI_HTTPException
+except ModuleNotFoundError:
+    available_web_frameworks.remove('fastapi')
 
 logger = logging.getLogger(__name__)
 
-class FlaatExceptionFlask(HTTPException):
-    '''Call the corresponding web framework exception, with a custom reason'''
-    def __init__(self, status_code, reason=None, **kwargs):
-        self.code=status_code
-        if reason:
-            self.description=reason
-        super().__init__()
-class FlaatExceptionAio(web_exceptions.HTTPError):
-    '''Call the corresponding web framework exception, with a custom reason'''
-    def __init__(self, status_code, reason=None, **kwargs):
-        self.status_code=status_code
-        if reason:
-            super().__init__(text="%s: %s" %(status_code, reason))
-        else:
+if 'flask' in available_web_frameworks:
+    class FlaatExceptionFlask(HTTPException):
+        '''Call the corresponding web framework exception, with a custom reason'''
+        def __init__(self, status_code, reason=None, **kwargs):
+            self.code=status_code
+            if reason:
+                self.description=reason
             super().__init__()
-class FlaatExceptionFastapi(FastAPI_HTTPException):
-    '''Call the corresponding web framework exception, with a custom reason'''
-    def __init__(self, status_code, reason=None, **kwargs):
-        self.code = status_code
-        if reason:
-            self.description = reason
-            super().__init__(status_code=status_code, detail=reason)
-        else:
-            super().__init__(status_code=status_code)
+if 'aiohttp' in available_web_frameworks:
+    class FlaatExceptionAio(web_exceptions.HTTPError):
+        '''Call the corresponding web framework exception, with a custom reason'''
+        def __init__(self, status_code, reason=None, **kwargs):
+            self.status_code=status_code
+            if reason:
+                super().__init__(text="%s: %s" %(status_code, reason))
+            else:
+                super().__init__()
+if 'fastapi' in available_web_frameworks:
+    class FlaatExceptionFastapi(FastAPI_HTTPException):
+        '''Call the corresponding web framework exception, with a custom reason'''
+        def __init__(self, status_code, reason=None, **kwargs):
+            self.code = status_code
+            if reason:
+                self.description = reason
+                super().__init__(status_code=status_code, detail=reason)
+            else:
+                super().__init__(status_code=status_code)
