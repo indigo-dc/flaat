@@ -28,13 +28,21 @@ class, described below.
 
 
 * set_trusted_OP_file(self, filename='/etc/oidc-agent/issuer.config', hint=None):
+  Load the list of trusted OPs from a file. The file is compatible as the
+  one shipped with [oidc-agent](https://github.com/indigo-dc/oidc-agent)
 
-* set_verify_tls(self, param_verify_tls=True):
+* set_verify_tls(self, param_verify_tls=True): Whether to verify TLS
+  connections. Use **only** for debugging.
 
-* set_num_request_workers(self, num):
+* set_num_request_workers(self, num): Number of threads for collecting
+  remote information (userinfo endpoint, oidc-.wellknown endpoints),
+  Default: 10
 
-* set_client_connect_timeout(self, num):
+* set_client_connect_timeout(self, num): Timeout per remote connection.
+  Default: 1.2 seconds
 
-* set_iss_config_timeout(self, num):
+* set_iss_config_timeout(self, num): Timeout for connection to obtain
+  static issuer configuration.
+  Default: 1.2 seconds
   
-* set_timeout(self, num):
+* set_timeout(self, num): Set timeout for both of the above
