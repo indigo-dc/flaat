@@ -158,6 +158,12 @@ async def demo_groups_hdf2(request):
 async def demo_groups_hdf3(request):
     return web.Response(text='This worked: user has the required entitlement(s)')
 
+@routes.get('/role_test_egi')
+@flaat.aarc_g002_group_required(group=['urn:mace:egi.eu:group:mteam.data.kit.edu:role=member'],
+        claim='eduperson_entitlement', match='all')
+async def demo_role_egi(request):
+    return web.Response(text='This worked: user is member of the requested group and role')
+
 app.add_routes(routes)
 
 ##########

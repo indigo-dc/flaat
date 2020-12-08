@@ -161,6 +161,11 @@ async def demo_groups_hdf2(request: Request):
 async def demo_groups_hdf3(request: Request):
     return {"message": "This worked: user has the required entitlement(s)"}
 
+@app.get('/role_test_egi', dependencies=[Depends(security)])
+@flaat.aarc_g002_group_required(group=['urn:mace:egi.eu:group:mteam.data.kit.edu:role=member'],
+        claim='eduperson_entitlement', match='all')
+async def demo_role_egi(request: Request):
+    return {"message": "This worked: user is member of the requested group and role"}
 ##########
 # Main
 
