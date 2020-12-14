@@ -154,7 +154,7 @@ def demo_groups_iam():
 
 @app.route('/group_test_hdf')
 @flaat.aarc_g002_group_required(group=['urn:geant:h-df.de:group:m-team:feudal-developers',
-        'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz.de'],
+        'urn:geant:h-df.de:group:MyExampleColab#unity.helmholtz.de'],
         claim='eduperson_entitlement', match='all')
 def demo_groups_hdf():
     return('This worked: user is member of the requested group')
