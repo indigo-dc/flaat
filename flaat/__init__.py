@@ -38,6 +38,8 @@ except ModuleNotFoundError:
     available_web_frameworks.remove('fastapi')
 
 from aarc_g002_entitlement import Aarc_g002_entitlement
+from aarc_g002_entitlement import Aarc_g002_entitlement_Error
+from aarc_g002_entitlement import Aarc_g002_entitlement_ParseError
 from . import tokentools
 from . import issuertools
 from . import flaat_exceptions
@@ -587,16 +589,24 @@ class Flaat():
                     print (str(req_entitlement_list))
 
                 # generate entitlement objects from input strings
+                def e_expander(es):
+                    """Helper function to catch exceptions in list comprehension"""
+                    try:
+                        return Aarc_g002_entitlement(es, strict=False, raise_error_if_unparseable=True)
+                    except ValueError:
+                        return None
+                    except Aarc_g002_entitlement_ParseError:
+                        return None
+                    except Aarc_g002_entitlement_Error:
+                        return None
                 logger.info("Parsing entitlements")
                 try:
-                    avail_entitlements = [ Aarc_g002_entitlement(es, strict=False,
-                                            raise_error_if_unparseable=False) for es in avail_entitlement_entries ]
+                    avail_entitlements = [ e_expander(es)  for es in avail_entitlement_entries if e_expander(es) is not None]
                 except ValueError as e:
                     logger.error (F"Failed to parse available entitlements: {e}")
                     logger.error (F"    available entitlement_entries: {avail_entitlement_entries}")
                 try:
-                    req_entitlements   = [ Aarc_g002_entitlement(es, strict=False,
-                                            raise_error_if_unparseable=False) for es in req_entitlement_list ]
+                    req_entitlements   = [ e_expander(es) for es in req_entitlement_list if e_expander(es) is not None]
                 except ValueError as e:
                     logger.error (F"Failed to parse required entitlement(s): {e}")
                     logger.error (F"    required  entitlement_list:    {req_entitlement_list}")
@@ -604,12 +614,13 @@ class Flaat():
 
                 if self.verbose > 1:
                     print ('\nAvailable Entitlements:')
-                    print ('{}'.format('\n\n'.join([x.__mstr__() for x in avail_entitlements if x.__mstr__() is not None])))
+                    print ('{}'.format('\n\n'.join([x.__mstr__() for x in avail_entitlements])))
                     print ('\n\nRequired Entitlements:')
-                    print ('{}'.format('\n\n'.join([x.__mstr__() for x in req_entitlements if x.__mstr__() is not None])))
+                    print ('{}'.format('\n\n'.join([x.__mstr__() for x in req_entitlements])))
                 # now we do the actual checking
                 matches_found = 0
 
+                # for required in req_entitlements:
                 for required in req_entitlements:
                     for avail in avail_entitlements:
                         if required.is_contained_in(avail):
