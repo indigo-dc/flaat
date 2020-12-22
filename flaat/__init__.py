@@ -613,10 +613,32 @@ class Flaat():
                 logger.info("done")
 
                 if self.verbose > 1:
+                    def my_mstr(self):
+                        """Return the nicely formatted entitlement"""
+                        str_str = '\n'.join(
+                            [
+                                'namespace_id:        {namespace_id}' +
+                                '\ndelegated_namespace: {delegated_namespace}' +
+                                '\nsubnamespaces:       {subnamespaces}' +
+                                '\ngroup:               {group}' +
+                                '\nsubgroups:           {subgroups}' +
+                                '\nrole_in_subgroup     {role}' +
+                                '\ngroup_authority:     {group_authority}'
+                            ]
+                            ).format(
+                                namespace_id = self.namespace_id,
+                                delegated_namespace = self.delegated_namespace,
+                                group = self.group,
+                                group_authority = self.group_authority,
+                                subnamespaces = ','.join(['{}'.format(ns) for ns in self.subnamespaces]),
+                                subgroups = ','.join(['{}'.format(grp) for grp in self.subgroups]),
+                                role ='{}'.format(self.role) if self.role else 'n/a'
+                            )
+                        return str_str
                     print ('\nAvailable Entitlements:')
-                    print ('{}'.format('\n\n'.join([x.__mstr__() for x in avail_entitlements])))
+                    print ('{}'.format('\n\n'.join([my_mstr(x) for x in avail_entitlements])))
                     print ('\n\nRequired Entitlements:')
-                    print ('{}'.format('\n\n'.join([x.__mstr__() for x in req_entitlements])))
+                    print ('{}'.format('\n\n'.join([my_mstr(x) for x in req_entitlements])))
                 # now we do the actual checking
                 matches_found = 0
 
