@@ -79,7 +79,7 @@ flaat.set_timeout(3)
 #     1: Errors
 #     2: More info, including token info
 #     3: Max
-flaat.set_verbosity(1)
+flaat.set_verbosity(0)
 # flaat.set_verify_tls(True)
 
 
