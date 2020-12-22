@@ -55,7 +55,7 @@ for PORT in $PORTS; do
     http http://localhost:$PORT/group_test_hdf3  "Authorization: Bearer `oidc-token egi`"
 done
 
-echo -e "---------------------------------------------------------------\n/group_test_hdf3"
+echo -e "---------------------------------------------------------------\n/role_test_egi"
 for PORT in $PORTS; do 
     echo -e "\n $PORT"
     http http://localhost:$PORT/role_test_egi  "Authorization: Bearer `oidc-token egi`"
