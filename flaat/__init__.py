@@ -592,7 +592,7 @@ class Flaat():
                 def e_expander(es):
                     """Helper function to catch exceptions in list comprehension"""
                     try:
-                        return Aarc_g002_entitlement(es, strict=False, raise_error_if_unparseable=True)
+                        return Aarc_g002_entitlement(es, strict=False)
                     except ValueError:
                         return None
                     except Aarc_g002_entitlement_ParseError:
