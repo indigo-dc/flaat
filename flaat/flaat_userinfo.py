@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# vim: tw=100 foldmethod=indent
 # MIT License
 #
 # Copyright (c) 2017 - 2019 Karlsruhe Institute of Technology - Steinbuch Centre for Computing
@@ -21,7 +22,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# vim: tw=100 foldmethod=indent
 # pylint: disable=invalid-name, superfluous-parens, line-too-long
 # pylint: disable=redefined-outer-name, logging-not-lazy, logging-format-interpolation, logging-fstring-interpolation
 # pylint: disable=missing-docstring, trailing-whitespace, trailing-newlines, too-few-public-methods
@@ -32,6 +32,7 @@ import sys
 import json
 import configargparse
 from flaat import Flaat, tokentools 
+import liboidcagent as agent
 
 def parseOptions():
     '''Parse the commandline options'''
@@ -60,11 +61,13 @@ def parseOptions():
     parser.add_argument('--all',           '-a'   , default=True , action="store_true", dest='show_all')
     parser.add_argument('--quiet',         '-q'   , default=False, action="store_true")
 
+    parser.add_argument('--oidc-agent-account',  '--oidc', '--oidc-agent',   default=None)
+
 
     parser.add_argument('--issuersconf'            , default='/etc/oidc-agent/issuer.config',
                                                      help='issuer.config, e.g. from oidc-agent')
     parser.add_argument('--issuer', '--iss', '-i',   help='Specify issuer (OIDC Provider)')
-    parser.add_argument(dest='access_token'   )
+    parser.add_argument(dest='access_token',         default=None, nargs='*'   )
 
     return parser
 
@@ -102,23 +105,81 @@ def main():
     if args.show_user_info or args.show_access_token or args.show_introspection_info or args.quiet:
         args.show_all = False
 
-    accesstoken_info = flaat.get_info_thats_in_at(args.access_token)
+    ## Get hold of an accesstoken:
+    access_token = None
+    # print(F"args.access_token: {args.access_token}")
+    # print(F"Type of args.access_token: {type(args.access_token)}")
+    # print(F"length of args.access_token: {len(args.access_token)}")
+    if isinstance(args.access_token, list) and len(args.access_token) > 0:
+        # use only the first one for now:
+        access_token = args.access_token[0]
+        if access_token is not None and args.verbose > 1:
+            print("Using AccessToken from Commandline")
+
+    if access_token is None:
+        # try commandline
+        if args.oidc_agent_account is not None:
+            try:
+                access_token = agent.get_access_token(args.oidc_agent_account)
+            except agent.OidcAgentError as e:
+                print(F"Could not use oidc-agent: {e}")
+            if access_token is not None and args.verbose > 1:
+                print("Using AccessToken from oidc-agent (specified via commandline)")
+
+    if access_token is None:
+        # try environment  for config
+        env_vars_to_try = ["OIDC_AGENT_ACCOUNT"]
+        for env_var in env_vars_to_try:
+            if args.verbose > 2:
+                print(F"trying {env_var}")
+            account_name = os.getenv(env_var)
+            if account_name is not None:
+                try:
+                    access_token = agent.get_access_token(account_name)
+                except agent.OidcAgentError as e:
+                    print(F"Could not use oidc-agent: {e}")
+                    sys.exit(2)
+                if access_token is not None and args.verbose > 1:
+                    print(F"Using AccessToken from Environment variable {env_var}")
+                if access_token is not None:
+                    break
+    if access_token is None:
+        # try environment for Access Token:
+        env_vars_to_try = ["ACCESS_TOKEN", "OIDC", "OS_ACCESS_TOKEN",
+                "OIDC_ACCESS_TOKEN", "WATTS_TOKEN", "WATTSON_TOKEN"]
+        for env_var in env_vars_to_try:
+            access_token = os.getenv(env_var)
+            if access_token is not None and args.verbose > 1:
+                print(F"Using AccessToken from Environment variable {env_var}")
+            if access_token is not None:
+                break
+
+
+    if access_token is None:
+        print("No access token found")
+        sys.exit(1)
+
+    ## Get actual info from the access token:
+    accesstoken_info = flaat.get_info_thats_in_at(access_token)
     if args.show_access_token or args.show_all:
         if accesstoken_info is None:
             print ('Info: Your access token is not a JWT. I.e. it does not contain information (at least I cannot find it.)')
         else:
-            print('Information stored inside the access token:')
+            if args.verbose > 0:
+                print(F"verbose: {args.verbose}")
+                print('Information stored inside the access token:')
             print(json.dumps(accesstoken_info, sort_keys=True, indent=4, separators=(',', ': ')))
         print('')
 
 
-    user_info = flaat.get_info_from_userinfo_endpoints(args.access_token)
+    user_info = flaat.get_info_from_userinfo_endpoints(access_token)
     if args.show_user_info or args.show_all:
         if user_info is None:
             print ('The response from the userinfo endpoint does not contain information (at least I cannot find it.)\n'\
                     'Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong')
         else:
-            print('Information retrieved from userinfo endpoint:')
+            if args.verbose > 0:
+                print('Information retrieved from userinfo endpoint:')
             print(json.dumps(user_info, sort_keys=True, indent=4, separators=(',', ': ')))
         print('')
 
@@ -127,7 +188,7 @@ def main():
         flaat.set_client_id(args.client_id)
     if args.client_secret:
         flaat.set_client_secret(args.client_secret)
-    introspection_info = flaat.get_info_from_introspection_endpoints(args.access_token)
+    introspection_info = flaat.get_info_from_introspection_endpoints(access_token)
     if args.show_introspection_info:
         if introspection_info is None:
             print ('The response from the introspection endpoint does not contain information (at least I cannot find it.)\n'\
@@ -147,3 +208,5 @@ def main():
             print('Your token is already EXPIRED for %.1f seconds!' % abs(timeleft))
         print('')
 
+if __name__ == "__main__":
+    main()
