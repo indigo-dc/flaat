@@ -275,7 +275,7 @@ class Flaat():
             '''Thread worker'''
             def safe_get(q):
                 try:
-                    return param_q.get(timeout=5)
+                    return q.get(timeout=5)
                 except Empty:
                     return None
             while True:
