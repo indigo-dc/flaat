@@ -99,8 +99,13 @@ def find_issuer_config_in_string(string):
 
 def thread_worker_issuerconfig():
     '''Thread worker'''
+    def safe_get(q):
+        try:
+            return q.get(timeout=5)
+        except Empty:
+            return None
     while True:
-        item = param_q.get()
+        item = safe_get(param_q)
         if item is None:
             break
         result = get_iss_config_from_endpoint(item)
