@@ -273,8 +273,13 @@ class Flaat():
 
         def thread_worker_get_userinfo():
             '''Thread worker'''
+            def safe_get(q):
+                try:
+                    return param_q.get(timeout=5)
+                except Empty:
+                    return None
             while True:
-                item = param_q.get()
+                item = safe_get(param_q)
                 if item is None:
                     break
                 result = issuertools.get_user_info(item['access_token'], item['issuer_config'])
