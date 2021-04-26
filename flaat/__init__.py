@@ -480,7 +480,7 @@ class Flaat():
             @wraps(view_func)
             def decorated(*args, **kwargs):
                 try:
-                    if os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER'].lower() == 'yes':
+                    if os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_VALID_GROUPS'].lower() == 'yes':
                         return self._wrap_async_call(view_func, *args, **kwargs)
                 except KeyError: # i.e. the environment variable was not set
                     pass
@@ -506,6 +506,16 @@ class Flaat():
 
                 # copy entries from incoming claim
                 (avail_group_entries, user_message) = self._get_entitlements_from_claim(all_info, claim)
+
+
+                # Override the actual group membership, if environment is set.
+                try:
+                    avail_group_entries = json.loads(os.getenv('DISABLE_AUTHENTICATION_AND_ASSUME_GROUPS'), None)
+                except (TypeError, json.JSONDecodeError) as e:
+                    logger.error(F"Cannot decode JSON group list from the environment:"
+                          F"{os.getenv('DISABLE_AUTHENTICATION_AND_ASSUME_GROUPS')}\n{e}")
+
+
                 if not avail_group_entries:
                     return self._return_formatter_wf(user_message, 403)
 
@@ -584,6 +594,16 @@ class Flaat():
 
                 # copy entries from incoming claim
                 (avail_entitlement_entries, user_message) = self._get_entitlements_from_claim(all_info, claim)
+
+
+                # Override the actual group membership, if environment is set.
+                try:
+                    avail_entitlement_entries = json.loads(os.getenv('DISABLE_AUTHENTICATION_AND_ASSUME_ENTITLEMENTS'))
+                except (TypeError, json.JSONDecodeError) as e:
+                    logger.error(F"Cannot decode JSON group list from the environment:"
+                          F"{os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_GROUPS']}\n{e}")
+
+
                 if not avail_entitlement_entries:
                     return self._return_formatter_wf(user_message, 403)
 
