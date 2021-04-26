@@ -49,6 +49,16 @@ method, this part of the documentation is for you.
 
    api
 
+Development Notes
+-----------------
+
+Notes on devloping and testing applications that use flaat
+
+.. toctree::
+   :maxdepth: 2
+
+   development
+
 
 Indices and tables
 ==================
