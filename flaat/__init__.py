@@ -58,6 +58,20 @@ def ensure_is_list(item):
         return [item]
     return item
 
+def check_environment_for_override(env_key):
+    ''' Override the actual group membership, if environment is set.  '''
+    try:
+        env_val = os.getenv(env_key)
+        if env_val is not None:
+            avail_entitlement_entries = json.loads(env_val)
+    except TypeError as e:
+        logger.error(F"Cannot decode JSON group list from the environment:"
+              F"{env_val}\n{e}")
+    except json.JSONDecodeError as e:
+        logger.error(F"Cannot decode JSON group list from the environment:"
+              F"{env_val}\n{e}")
+
+
 class Flaat():
     '''FLAsk support for OIDC Access Tokens.
     Provide decorators and configuration for OIDC'''
@@ -508,12 +522,9 @@ class Flaat():
                 (avail_group_entries, user_message) = self._get_entitlements_from_claim(all_info, claim)
 
 
-                # Override the actual group membership, if environment is set.
-                try:
-                    avail_group_entries = json.loads(os.getenv('DISABLE_AUTHENTICATION_AND_ASSUME_GROUPS'), None)
-                except (TypeError, json.JSONDecodeError) as e:
-                    logger.error(F"Cannot decode JSON group list from the environment:"
-                          F"{os.getenv('DISABLE_AUTHENTICATION_AND_ASSUME_GROUPS')}\n{e}")
+                override_group_entries = check_environment_for_override('DISABLE_AUTHENTICATION_AND_ASSUME_GROUPS')
+                if override_group_entries is not None:
+                    avail_group_entries = override_group_entries
 
 
                 if not avail_group_entries:
@@ -596,12 +607,9 @@ class Flaat():
                 (avail_entitlement_entries, user_message) = self._get_entitlements_from_claim(all_info, claim)
 
 
-                # Override the actual group membership, if environment is set.
-                try:
-                    avail_entitlement_entries = json.loads(os.getenv('DISABLE_AUTHENTICATION_AND_ASSUME_ENTITLEMENTS'))
-                except (TypeError, json.JSONDecodeError) as e:
-                    logger.error(F"Cannot decode JSON group list from the environment:"
-                          F"{os.getenv('DISABLE_AUTHENTICATION_AND_ASSUME_GROUPS')}\n{e}")
+                override_entitlement_entries = check_environment_for_override('DISABLE_AUTHENTICATION_AND_ASSUME_ENTITLEMENTS')
+                if override_entitlement_entries is not None:
+                    avail_entitlement_entries = override_entitlement_entries
 
 
                 if not avail_entitlement_entries:
@@ -624,7 +632,7 @@ class Flaat():
                         return None
                     except Aarc_g002_entitlement_Error:
                         return None
-                logger.info("Parsing entitlements")
+                # logger.info("Parsing entitlements")
                 try:
                     avail_entitlements = [ e_expander(es)  for es in avail_entitlement_entries if e_expander(es) is not None]
                 except ValueError as e:
@@ -635,7 +643,7 @@ class Flaat():
                 except ValueError as e:
                     logger.error (F"Failed to parse required entitlement(s): {e}")
                     logger.error (F"    required  entitlement_list:    {req_entitlement_list}")
-                logger.info("done")
+                # logger.info("done")
 
                 if self.verbose > 1:
                     def my_mstr(self):
