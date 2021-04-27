@@ -601,7 +601,7 @@ class Flaat():
                     avail_entitlement_entries = json.loads(os.getenv('DISABLE_AUTHENTICATION_AND_ASSUME_ENTITLEMENTS'))
                 except (TypeError, json.JSONDecodeError) as e:
                     logger.error(F"Cannot decode JSON group list from the environment:"
-                          F"{os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_GROUPS']}\n{e}")
+                          F"{os.getenv('DISABLE_AUTHENTICATION_AND_ASSUME_GROUPS')}\n{e}")
 
 
                 if not avail_entitlement_entries:
