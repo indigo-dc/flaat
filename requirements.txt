@@ -1,6 +1,7 @@
 flask
 aiohttp
 fastapi>=0.61.2
+liboidcagent
 requests
 requests_cache
 aarc_g002_entitlement >= 0.3
