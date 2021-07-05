@@ -64,12 +64,14 @@ def check_environment_for_override(env_key):
         env_val = os.getenv(env_key)
         if env_val is not None:
             avail_entitlement_entries = json.loads(env_val)
+            return avail_entitlement_entries
     except TypeError as e:
         logger.error(F"Cannot decode JSON group list from the environment:"
               F"{env_val}\n{e}")
     except json.JSONDecodeError as e:
         logger.error(F"Cannot decode JSON group list from the environment:"
               F"{env_val}\n{e}")
+    return None
 
 
 class Flaat():
