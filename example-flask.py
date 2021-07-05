@@ -67,7 +67,8 @@ flaat.set_trusted_OP_list([
 'https://aai.egi.eu/oidc/',
 'https://aai-dev.egi.eu/oidc',
 'https://oidc.scc.kit.edu/auth/realms/kit/',
-'https://proxy.demo.eduteams.org'
+'https://proxy.demo.eduteams.org',
+'https://wlcg.cloud.cnaf.infn.it/'
 ])
 # flaat.set_trusted_OP_file('/etc/oidc-agent/issuer.config')
 # flaat.set_OP_hint("helmholtz")
