@@ -67,7 +67,8 @@ flaat.set_trusted_OP_list([
 'https://aai.egi.eu/oidc/',
 'https://aai-dev.egi.eu/oidc',
 'https://oidc.scc.kit.edu/auth/realms/kit/',
-'https://proxy.demo.eduteams.org'
+'https://proxy.demo.eduteams.org',
+'https://wlcg.cloud.cnaf.infn.it/'
 ])
 # flaat.set_trusted_OP_file('/etc/oidc-agent/issuer.config')
 # flaat.set_OP_hint("helmholtz")
@@ -107,6 +108,8 @@ def root():
                             ['urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
     /group_test_hdf3     Requires user to be in all groups found in "eduperson_entitlement"
                             ['urn:geant:h-df.de:group:aai-admin'],
+    /group_test_hack    A hack to use any other field for authorisation
+    /group_test_wlcg    Requires user to be in the '/wlcg' group
         '''
     return (text)
 
@@ -171,6 +174,18 @@ def demo_groups_hdf2():
         claim='eduperson_entitlement', match='all')
 def demo_groups_hdf3():
     return('This worked: user is member of the requested group')
+
+@app.route('/group_test_hack')
+@flaat.group_required(group=['Hardt'],
+        claim='family_name', match='all')
+def demo_groups_hack():
+    return {"message": "This worked: user has the required Group Membership"}
+
+@app.route('/group_test_wlcg')
+@flaat.group_required(group='/wlcg',
+        claim='wlcg.groups', match='all')
+def demo_groups_wlcg():
+    return {"message": "This worked: user has the required Group Membership"}
 
 @app.route('/role_test_egi')
 @flaat.aarc_g002_group_required(group=['urn:mace:egi.eu:group:mteam.data.kit.edu:role=member'],

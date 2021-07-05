@@ -470,7 +470,12 @@ class Flaat():
         '''extract entitlements from given claim in userinfo'''
         # copy entries from incoming claim
         try:
-            avail_group_entries = all_info[claim]
+            try:
+                avail_group_entries = all_info[claim]
+            except KeyError:
+                logger.warning (F"avail_group_entries: Not found! Trying body")
+                avail_group_entries = all_info['body'][claim]
+                logger.debug (F"avail_group_entries from body[{claim}]: {avail_group_entries}")
         except KeyError:
             user_message = 'Not authorised (claim does not exist: "%s".)' % claim
             if self.verbose:
@@ -482,8 +487,7 @@ class Flaat():
             if self.verbose:
                 print ('Claim does not point to a list: "%s".' % avail_group_entries)
                 print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
-            return (None, user_message)
-
+            avail_group_entries = [avail_group_entries]
         return (avail_group_entries, None)
     def group_required(self, group=None, claim=None, on_failure=None, match='all'):
         '''Decorator to enforce membership in a given group.
