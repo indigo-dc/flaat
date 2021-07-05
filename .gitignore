@@ -107,3 +107,6 @@ Dockerfile
 test-exeption-aio.py
 test-exeption-flask.py
 test-tokens.sh
+.vimspector.json
+install_certs.sh
+test.py
