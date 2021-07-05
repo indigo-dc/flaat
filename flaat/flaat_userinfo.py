@@ -98,7 +98,8 @@ def main():
     'https://iam.deep-hybrid-datacloud.eu/',
     'https://iam.extreme-datacloud.eu/',
     'https://oidc.scc.kit.edu/auth/realms/kit/',
-    'https://proxy.demo.eduteams.org'
+    'https://proxy.demo.eduteams.org',
+    'https://wlcg.cloud.cnaf.infn.it/'
     ])
 
     # if -in -ui or -at are specified, we set all to false:

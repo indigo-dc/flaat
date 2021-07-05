@@ -96,7 +96,9 @@ class Flaat():
                       'https://aai-dev.egi.eu/oidc',
                       'https://login-dev.helmholtz.de/oauth2/',
                       'https://login.helmholtz.de/oauth2/',
-                      'https://oidc.scc.kit.edu/auth/realms/kit/']
+                      'https://oidc.scc.kit.edu/auth/realms/kit/',
+                      'https://wlcg.cloud.cnaf.infn.it/'
+                      ]
         # unknown:
         # 'https://login.elixir-czech.org/oidc/',
         # 'https://services.humanbrainproject.eu/oidc/',
