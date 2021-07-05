@@ -101,6 +101,7 @@ class Flaat():
                       'https://oidc.scc.kit.edu/auth/realms/kit/',
                       'https://wlcg.cloud.cnaf.infn.it/'
                       ]
+        self.claim_search_precedence = ['userinfo', 'access_token']
         # unknown:
         # 'https://login.elixir-czech.org/oidc/',
         # 'https://services.humanbrainproject.eu/oidc/',
@@ -197,7 +198,13 @@ class Flaat():
         self.set_client_connect_timeout(num)
     def get_timeout(self):
         '''get global timeout for https connections'''
-        return (self.timeout)
+        return ((self.get_iss_config_timeout(), self.get_client_connect_timeout()))
+    def set_claim_search_precedence(self, a_list):
+        '''set order in which to search for specific claim'''
+        self.claim_search_precedence = a_list
+    def get_claim_search_precedence(self):
+        '''get order in which to search for specific claim'''
+        return (self.claim_search_precedence)
 
     def set_web_framework(self, framework_name):
         '''specify the web framework. Currently supported are 'flaat' and 'aiohttp' '''
@@ -469,16 +476,17 @@ class Flaat():
             print ('    required matches: {}'.format(required_matches))
         return required_matches
     def _get_entitlements_from_claim(self, all_info, claim):
-        '''extract entitlements from given claim in userinfo'''
-        # copy entries from incoming claim
-        try:
-            try:
-                avail_group_entries = all_info[claim]
-            except KeyError:
-                logger.warning (F"avail_group_entries: Not found! Trying body")
-                avail_group_entries = all_info['body'][claim]
-                logger.debug (F"avail_group_entries from body[{claim}]: {avail_group_entries}")
-        except KeyError:
+        '''extract groups / entitlements from given claim (in userinfo or access_token)'''
+        # search group / entitlement entries in specified claim (in userinfo or access_token)
+        for location in self.claim_search_precedence:
+            avail_group_entries = None
+            if location == "userinfo":
+                avail_group_entries = all_info.get(claim)
+            if location == "access_token":
+                avail_group_entries = all_info['body'].get(claim)
+            if avail_group_entries != None:
+                break
+        if avail_group_entries is None:
             user_message = 'Not authorised (claim does not exist: "%s".)' % claim
             if self.verbose:
                 print ('Claim does not exist: "%s".' % claim)
