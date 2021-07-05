@@ -106,6 +106,8 @@ async def root(request):
                             ['urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
     /group_test_hdf3     Requires user to be in all groups found in "eduperson_entitlement"
                             ['urn:geant:h-df.de:group:aai-admin'],
+    /group_test_hack    A hack to use any other field for authorisation
+    /group_test_wlcg    Requires user to be in the '/wlcg' group
         '''
     return web.Response(text=text)
 
@@ -159,6 +161,18 @@ async def demo_groups_hdf2(request):
 async def demo_groups_hdf3(request):
     return web.Response(text='This worked: user has the required entitlement(s)')
 
+@routes.get('/group_test_hack')
+@flaat.group_required(group=['Hardt'],
+        claim='family_name', match='all')
+async def demo_groups_hack(request):
+    return web.Response(text="This worked: user has the required Group Membership")
+
+@routes.get('/group_test_wlcg')
+@flaat.group_required(group='/wlcg',
+        claim='wlcg.groups', match='all')
+async def demo_groups_wlcg(request):
+    return web.Response(text="This worked: user has the required Group Membership")
+
 @routes.get('/role_test_egi')
 @flaat.aarc_g002_group_required(group=['urn:mace:egi.eu:group:mteam.data.kit.edu:role=member'],
         claim='eduperson_entitlement', match='all')
@@ -171,4 +185,4 @@ app.add_routes(routes)
 # Main
 
 if __name__ == '__main__':
-    web.run_app(app, host="0.0.0.0", port=8080)
+    web.run_app(app, host="0.0.0.0", port=8083)
