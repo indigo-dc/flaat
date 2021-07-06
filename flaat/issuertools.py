@@ -70,9 +70,8 @@ def find_issuer_config_in_at(access_token):
     '''If there is an issuer in the AT, we fetch the ISS config and return it'''
     iss_config = None
     at_iss = tokentools.get_issuer_from_accesstoken_info(access_token)
-    logger.info(F"at_iss: {at_iss}")
-    if verbose > 2:
-        logger.info('got iss from access_token: %s' % str(at_iss))
+    if verbose > 1:
+        logger.info(F"Issuer: {at_iss}")
     if at_iss is not None:
         if tokentools.is_url(at_iss):
             config_url = at_iss+'/.well-known/openid-configuration'
@@ -193,19 +192,19 @@ def get_iss_config_from_endpoint(issuer_url):
         if verbose > 2:
             logger.warning ('Getconfig: resp: %s' % resp.status_code)
     except requests.exceptions.ConnectionError as e:
-        if verbose > 0:
+        if verbose > 1:
             logger.warning ('Warning: cannot obtain iss_config from endpoint: {}'.format(config_url))
             # print ('Additional info: {}'.format (e))
         return None
     except requests.exceptions.ReadTimeout as e:
-        if verbose > 0:
+        if verbose > 1:
             logger.warning ('Warning: cannot obtain iss_config from endpoint: {}'.format(config_url))
             # print ('Additional info: {}'.format (e))
         return None
     try:
         return resp.json()
-    except:
-        print(str(resp.text))
+    except Exception as e:
+        logger.warning(F'Caught exception: {e}\n{str(resp.text)}')
         return None
 
 def get_user_info(access_token, issuer_config):
@@ -214,9 +213,9 @@ def get_user_info(access_token, issuer_config):
     headers = {'Content-type': 'application/x-www-form-urlencoded'}
     headers['Authorization'] = 'Bearer {0}'.format(access_token)
     if verbose > 2:
-        print ('using this access token: %s' % access_token)
+        logger.debug('using this access token: %s' % access_token)
     if verbose > 1:
-        print('Getting userinfo from %s' % issuer_config['userinfo_endpoint'])
+        logger.info('Getting userinfo from %s' % issuer_config['userinfo_endpoint'])
     try:
         resp = requests.get (issuer_config['userinfo_endpoint'], verify=verify_tls, headers=headers,
                 timeout=timeout)
@@ -233,11 +232,8 @@ def get_user_info(access_token, issuer_config):
         return None
 
     resp_json=resp.json()
-    if verbose:
-        logger.info('Success')
-    if verbose>1:
+    if verbose > 1:
         logger.info(json.dumps(resp_json, sort_keys=True, indent=4, separators=(',', ': ')))
-    if verbose > 2:
         logger.info('userinfo: resp: %s' % resp.status_code)
     return resp_json
 
@@ -250,7 +246,7 @@ def get_introspected_token_info(access_token, issuer_config, client_id=None, cli
 
     if client_id is None or client_secret is None:
         if verbose > 1:
-            print ('You need to specify client_id and client_secret to query the introspection endpoint')
+            logger.debug('Skipping introspection endpioint because client_id and client_secret are not configured')
         return None
 
     if client_secret in ['', None]:

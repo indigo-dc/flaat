@@ -12,6 +12,7 @@ from functools import wraps
 import json
 import os
 import sys
+from itertools import count
 is_py2 = sys.version[0] == '2'
 if is_py2:
     # pylint: disable=import-error
@@ -73,6 +74,30 @@ def check_environment_for_override(env_key):
               F"{env_val}\n{e}")
     return None
 
+def formatted_entitlements(entitlements):
+    def my_mstr(self):
+        """Return the nicely formatted entitlement"""
+        str_str = '\n'.join(
+            [
+                '    namespace_id:        {namespace_id}' +
+                '\n    delegated_namespace: {delegated_namespace}' +
+                '\n    subnamespaces:       {subnamespaces}' +
+                '\n    group:               {group}' +
+                '\n    subgroups:           {subgroups}' +
+                '\n    role_in_subgroup     {role}' +
+                '\n    group_authority:     {group_authority}'
+            ]
+            ).format(
+                namespace_id = self.namespace_id,
+                delegated_namespace = self.delegated_namespace,
+                group = self.group,
+                group_authority = self.group_authority,
+                subnamespaces = ','.join(['{}'.format(ns) for ns in self.subnamespaces]),
+                subgroups = ','.join(['{}'.format(grp) for grp in self.subgroups]),
+                role ='{}'.format(self.role) if self.role else 'n/a'
+            )
+        return str_str
+    return ('\n' + '\n\n'.join([my_mstr(x) for x in entitlements]) + '\n')
 
 class Flaat():
     '''FLAsk support for OIDC Access Tokens.
@@ -102,6 +127,7 @@ class Flaat():
                       'https://wlcg.cloud.cnaf.infn.it/'
                       ]
         self.claim_search_precedence = ['userinfo', 'access_token']
+        self.request_id = "unset"
         # unknown:
         # 'https://login.elixir-czech.org/oidc/',
         # 'https://services.humanbrainproject.eu/oidc/',
@@ -115,6 +141,25 @@ class Flaat():
             self.web_framework = 'fastapi'
 
         self.raise_error_on_return = True # else just return an error
+
+    def get_request_id(self, request_object):
+        '''Return a string identifying the request'''
+        # request_object = self._find_request_based_on_web_framework(request, args, kwargs)
+        the_id=""
+        try:
+            if self.web_framework == "flask":
+                the_id = F"{str(request_object.remote_addr)}--" \
+                    + str(request_object.base_url)
+            elif self.web_framework == "aiohttp":
+                the_id = str(request_object.remote) + "--" \
+                    + str(request_object.url)
+            elif self.web_framework == "fastapi":
+                the_id = F"{str(request_object.client.host)}:{str(request_object.client.port)}--"  \
+                    + str(request_object.url)
+        except AttributeError as e:
+            logger.error(F"Cannot identify the request: {e}\n{the_id}")
+        return(the_id)
+
     def set_cache_lifetime(self, lifetime):
         '''Set cache lifetime of requests_cache zn seconds, default: 300s'''
         issuertools.cache_options.set_lifetime(lifetime)
@@ -171,7 +216,7 @@ class Flaat():
     def get_last_error(self):
         '''Retrieve and clear the error message'''
         retval = self.last_error
-        self.last_error = ''
+        # self.last_error = ''
         return retval
     def set_num_request_workers(self, num):
         '''set number of request workers'''
@@ -238,14 +283,14 @@ class Flaat():
 
         # 2: use a provided string
         if self.verbose > 1:
-            print ('Trying to find issuer from "set_iss"')
+            logger.debug('Trying to find issuer from "set_iss"')
         iss_config = issuertools.find_issuer_config_in_string(self.iss)
         if iss_config is not None:
             return [iss_config]
 
         # 3: Try the provided list of providers:
         if self.verbose > 1:
-            print ('Trying to find issuer from trusted_op_list')
+            logger.info('Trying to find issuer from trusted_op_list')
         iss_config = issuertools.find_issuer_config_in_list(self.trusted_op_list, self.op_hint,
                 exclude_list = self.ops_that_support_jwt)
         if iss_config is not None:
@@ -253,7 +298,7 @@ class Flaat():
 
         # 4: Try oidc-agent's issuer config file
         if self.verbose > 1:
-            print ('Trying to find issuer from "set_OIDC_provider_file"')
+            logger.info('Trying to find issuer from "set_OIDC_provider_file"')
         iss_config = issuertools.find_issuer_config_in_file(self.trusted_op_file, self.op_hint,
                 exclude_list = self.ops_that_support_jwt)
         if iss_config is not None:
@@ -372,7 +417,6 @@ class Flaat():
             timeleft = tokentools.get_timeleft(accesstoken_info)
 
             if timeleft < 0:
-                # print ('\n\n: TIMELEFT: %d' % timeleft)
                 self.set_last_error('Token expired for %d seconds' % abs(timeleft))
                 return None
 
@@ -392,6 +436,8 @@ class Flaat():
         return None
     def _return_formatter_wf(self, return_value, status=200):
         '''Return the object appropriate for the chosen web framework'''
+        if status != 200:
+            logger.error(F'Incoming request [{self.request_id}] http status: {status} - {self.get_last_error()}')
         if self.raise_error_on_return:
             if self.web_framework == 'flask':
                 raise flaat_exceptions.FlaatExceptionFlask(reason=return_value, status_code=status)
@@ -432,6 +478,7 @@ class Flaat():
         if self.web_framework == 'fastapi':
             if (asyncio.iscoroutine(func) or asyncio.iscoroutinefunction(func)):
                 return get_or_create_eventloop().run_until_complete(func(*args, **kwargs))
+        logger.info(F'Incoming request [{self.request_id}] Success')
         return func(*args, **kwargs)
     def login_required(self, on_failure=None):
         '''Decorator to enforce a valid login.
@@ -440,24 +487,27 @@ class Flaat():
         def wrapper(view_func):
             @wraps(view_func)
             def decorated(*args, **kwargs):
+                
                 try:
                     if os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER'].lower() == 'yes':
                         return self._wrap_async_call(view_func, *args, **kwargs)
                 except KeyError: # i.e. the environment variable was not set
                     pass
                 request_object = self._find_request_based_on_web_framework(request, args, kwargs)
+                self.request_id = self.get_request_id(request_object)
                 all_info = self._get_all_info_from_request(request_object)
-                # logger.info (F"all info: {all_info}")
 
-                if all_info is not None:
-                    if self.verbose>1:
-                        print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
-                    return self._wrap_async_call(view_func, *args, **kwargs)
+                if all_info is None:
+                    if self.verbose > 0:
+                        self.set_last_error(F"No information about user found in {str(self.get_claim_search_precedence())}")
+                        logger.warning(self.get_last_error())
+                    return self._return_formatter_wf(\
+                            ('No valid authentication found: %s' % self.get_last_error()), 401)
                 if on_failure:
                     return self._return_formatter_wf(on_failure(self.get_last_error()), 401)
 
-                return self._return_formatter_wf(\
-                        ('No valid authentication found: %s' % self.get_last_error()), 401)
+                return self._wrap_async_call(view_func, *args, **kwargs)
+
             return decorated
         return wrapper
     def _determine_number_of_required_matches(self, match, req_group_list):
@@ -473,7 +523,7 @@ class Flaat():
         if required_matches > len(req_group_list):
             required_matches = len(req_group_list)
         if self.verbose > 1:
-            print ('    required matches: {}'.format(required_matches))
+            logger.info('    required matches: {}'.format(required_matches))
         return required_matches
     def _get_entitlements_from_claim(self, all_info, claim):
         '''extract groups / entitlements from given claim (in userinfo or access_token)'''
@@ -487,16 +537,16 @@ class Flaat():
             if avail_group_entries != None:
                 break
         if avail_group_entries is None:
-            user_message = 'Not authorised (claim does not exist: "%s".)' % claim
+            self.set_last_error('Not authorised (claim does not exist: "%s")' % claim)
             if self.verbose:
-                print ('Claim does not exist: "%s".' % claim)
-                print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
-            return (None, user_message)
+                logger.warning('Claim does not exist: "%s".' % claim)
+                logger.debug(json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+            return (None, self.get_last_error())
         if not isinstance(avail_group_entries, list):
-            user_message = 'Not authorised (claim does not point to a list: "%s".)' % avail_group_entries
+            self.set_last_error('Not authorised (claim does not point to a list: "%s")' % avail_group_entries)
             if self.verbose:
-                print ('Claim does not point to a list: "%s".' % avail_group_entries)
-                print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+                logger.debug('Claim does not point to a list: "%s".' % avail_group_entries)
+                logger.debug(json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
             avail_group_entries = [avail_group_entries]
         return (avail_group_entries, None)
     def group_required(self, group=None, claim=None, on_failure=None, match='all'):
@@ -518,6 +568,7 @@ class Flaat():
                 user_message = 'Not enough required group memberships found.'
 
                 request_object = self._find_request_based_on_web_framework(request, args, kwargs)
+                self.request_id = self.get_request_id(request_object)
                 all_info = self._get_all_info_from_request(request_object)
 
                 if all_info is None:
@@ -528,11 +579,11 @@ class Flaat():
                 req_group_list = ensure_is_list (group)
                 required_matches = self._determine_number_of_required_matches(match, req_group_list)
                 if not required_matches:
-                    print('Error interpreting the "match" parameter')
+                    logger.error('Error interpreting the "match" parameter')
                     return self._return_formatter_wf('Error interpreting the "match" parameter', 403)
 
                 if self.verbose>1:
-                    print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+                    logger.debug(json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
 
                 # copy entries from incoming claim
                 (avail_group_entries, user_message) = self._get_entitlements_from_claim(all_info, claim)
@@ -553,7 +604,10 @@ class Flaat():
                         if entry == g:
                             matches_found += 1
                 if self.verbose > 0:
-                    print('found %d of %d matches' % (matches_found, required_matches))
+                    logger.info('found %d of %d matches' % (matches_found, required_matches))
+                if self.verbose > 1:
+                    logger.info(F'Available Groups: {str(avail_group_entries)}')
+                    logger.info(F'Required Groups: {str(req_group_list)}')
                 if matches_found >= required_matches:
                     return self._wrap_async_call(view_func, *args, **kwargs)
 
@@ -562,7 +616,7 @@ class Flaat():
                 # Either we returned above or there was no matching group
                 if on_failure:
                     return self._return_formatter_wf(on_failure(user_message), 403)
-                return self._return_formatter_wf(user_message, 403)
+                return self._return_formatter_wf(user_message+ self.get_last_error(), 403)
             return decorated
         return wrapper
     def aarc_g002_entitlement_required(self, entitlement=None, claim=None, on_failure=None, match='all'):
@@ -597,6 +651,7 @@ class Flaat():
                 user_message = 'Not enough required entitlements found.'
 
                 request_object = self._find_request_based_on_web_framework(request, args, kwargs)
+                self.request_id = self.get_request_id(request_object)
                 all_info = self._get_all_info_from_request(request_object)
 
                 if all_info is None:
@@ -613,11 +668,11 @@ class Flaat():
 
                 required_matches = self._determine_number_of_required_matches(match, req_entitlement_list)
                 if not required_matches:
-                    print('Error interpreting the "match" parameter')
+                    logger.error('Error interpreting the "match" parameter')
                     return self._return_formatter_wf('Error interpreting the "match" parameter', 403)
 
                 if self.verbose>1:
-                    print (json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
+                    logger.debug(json.dumps(all_info, sort_keys=True, indent=4, separators=(',', ': ')))
 
                 # copy entries from incoming claim
                 (avail_entitlement_entries, user_message) = self._get_entitlements_from_claim(all_info, claim)
@@ -632,10 +687,8 @@ class Flaat():
                     return self._return_formatter_wf(user_message, 403)
 
                 if self.verbose > 1:
-                    print ('\nAvailable Entitlements:')
-                    print (str(avail_entitlement_entries))
-                    print ('\nRequired Entitlements:')
-                    print (str(req_entitlement_list))
+                    logger.info(F'Available Entitlements: {str(avail_entitlement_entries)}')
+                    logger.info(F'Required Entitlements: {str(req_entitlement_list)}')
 
                 # generate entitlement objects from input strings
                 def e_expander(es):
@@ -662,32 +715,12 @@ class Flaat():
                 # logger.info("done")
 
                 if self.verbose > 1:
-                    def my_mstr(self):
-                        """Return the nicely formatted entitlement"""
-                        str_str = '\n'.join(
-                            [
-                                'namespace_id:        {namespace_id}' +
-                                '\ndelegated_namespace: {delegated_namespace}' +
-                                '\nsubnamespaces:       {subnamespaces}' +
-                                '\ngroup:               {group}' +
-                                '\nsubgroups:           {subgroups}' +
-                                '\nrole_in_subgroup     {role}' +
-                                '\ngroup_authority:     {group_authority}'
-                            ]
-                            ).format(
-                                namespace_id = self.namespace_id,
-                                delegated_namespace = self.delegated_namespace,
-                                group = self.group,
-                                group_authority = self.group_authority,
-                                subnamespaces = ','.join(['{}'.format(ns) for ns in self.subnamespaces]),
-                                subgroups = ','.join(['{}'.format(grp) for grp in self.subgroups]),
-                                role ='{}'.format(self.role) if self.role else 'n/a'
-                            )
-                        return str_str
-                    print ('\nAvailable Entitlements:')
-                    print ('{}'.format('\n\n'.join([my_mstr(x) for x in avail_entitlements])))
-                    print ('\n\nRequired Entitlements:')
-                    print ('{}'.format('\n\n'.join([my_mstr(x) for x in req_entitlements])))
+                    logger.info(F'Available Entitlements: {formatted_entitlements(avail_entitlements)}')
+                    logger.info(F'Required Entitlements: {formatted_entitlements(req_entitlements)}')
+                    
+                    # logger.info('{}'.format('\n\n'.join([my_mstr(x) for x in avail_entitlements])))
+                    # logger.info('Required Entitlements:')
+                    # logger.info('{}'.format('\n\n'.join([my_mstr(x) for x in req_entitlements])))
                 # now we do the actual checking
                 matches_found = 0
 
@@ -698,7 +731,7 @@ class Flaat():
                             matches_found += 1
 
                 if self.verbose > 0:
-                    print('found %d of %d matches' % (matches_found, required_matches))
+                    logger.info('found %d of %d matches' % (matches_found, required_matches))
                 if matches_found >= required_matches:
                     return self._wrap_async_call(view_func, *args, **kwargs)
 
@@ -706,7 +739,7 @@ class Flaat():
 
                 # Either we returned above or there was no matching entitlement
                 if on_failure:
-                    return self._return_formatter_wf(on_failure(user_message), 403)
-                return self._return_formatter_wf(user_message, 403)
+                    return self._return_formatter_wf(on_failure(user_message ), 403)
+                return self._return_formatter_wf(user_message , 403)
             return decorated
         return wrapper

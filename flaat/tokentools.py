@@ -43,7 +43,8 @@ def get_access_token_from_request(request):
         elif 'access_token' in request.args:
             token = request.args['access_token']
         return token
-    except AttributeError:
+    except AttributeError as e:
+        logger.error(F"AttributeError: {e}")
         return None
 
 def base64url_encode(data):
@@ -82,17 +83,17 @@ def get_accesstoken_info(access_token):
     try:
         (header_enc, body_enc, signature_enc) = access_token.split('.')
         if verbose > 2:
-            print('header_enc: '+str(header_enc))
-            print('body_enc: '+str(body_enc))
+            logger.debug('header_enc: '+str(header_enc))
+            logger.debug('body_enc: '+str(body_enc))
 
         header = json.loads(base64url_decode(header_enc))
         body = json.loads(base64url_decode(body_enc))
 
         if verbose > 2:
-            print('header')
-            print(json.dumps(header, sort_keys=True, indent=4, separators=(',', ': ')))
-            print('body')
-            print(json.dumps(body, sort_keys=True, indent=4, separators=(',', ': ')))
+            logger.debug('header')
+            logger.debug(json.dumps(header, sort_keys=True, indent=4, separators=(',', ': ')))
+            logger.debug('body')
+            logger.debug(json.dumps(body, sort_keys=True, indent=4, separators=(',', ': ')))
         return ({'header': header, 'body': body, 'signature': signature_enc})
     except ValueError:
         # Cannot raise here, because inability to split will return None. That will trigger another
