@@ -185,5 +185,30 @@ Example for the json list:
 ```
 
 
+# Logging
+
+We use the `$LOG` environment variable to set the log level.
+In addition, using "set_verbosity" (0-3)  will trigger additional
+messages. (The latter may be removed in the future).
+
+As a general rule of thumb we log:
+
+- `DEBUG`: JSON variables
+- `INFO`:
+    - What happened for a user
+    - An authorisation did (or did not) succeed
+- `WARNING`:
+    - Something that is usally needed was not found
+    - Caught exceptions
+- `ERROR`:
+    - Unexpected behaviour
+    - Uncaught Exceptions
+    - Anything that causes an abort
+- Verbosity values:
+    - 0: Log one line per user connection with status of the authorisation
+    - 1: Log a bit more details about the authorisation
+    - 2: Log a lot more
+    - 3: Include json dumps in the logs
+
 # License
 FLAAT is provided under the [MIT License](https://opensource.org/licenses/MIT)
