@@ -80,7 +80,7 @@ flaat.set_trusted_OP_list([
 #     1: Errors
 #     2: More info, including token info
 #     3: Max
-flaat.set_verbosity(2)
+flaat.set_verbosity(0)
 # flaat.set_verify_tls(True)
 
 
