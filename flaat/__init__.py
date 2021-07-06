@@ -132,7 +132,7 @@ class Flaat():
         # 'https://login.elixir-czech.org/oidc/',
         # 'https://services.humanbrainproject.eu/oidc/',
         # self.supported_web_frameworks = ['flask', 'aiohttp', 'fastapi']
-        self.supported_web_frameworks = available_web_frameworks 
+        self.supported_web_frameworks = available_web_frameworks
         if 'flask' in available_web_frameworks:
             self.web_framework = 'flask'
         elif 'aiohttp' in available_web_frameworks:
@@ -487,7 +487,6 @@ class Flaat():
         def wrapper(view_func):
             @wraps(view_func)
             def decorated(*args, **kwargs):
-                
                 try:
                     if os.environ['DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER'].lower() == 'yes':
                         return self._wrap_async_call(view_func, *args, **kwargs)
@@ -534,7 +533,7 @@ class Flaat():
                 avail_group_entries = all_info.get(claim)
             if location == "access_token":
                 avail_group_entries = all_info['body'].get(claim)
-            if avail_group_entries != None:
+            if avail_group_entries is not None:
                 break
         if avail_group_entries is None:
             self.set_last_error('Not authorised (claim does not exist: "%s")' % claim)
@@ -660,11 +659,6 @@ class Flaat():
                     return self._return_formatter_wf('No valid authentication found. %s' % self.get_last_error(), 401)
 
                 req_entitlement_list = ensure_is_list (entitlement)
-                # # # Make sure we have a list:
-                # # if isinstance(entitlement, str):
-                # #     req_entitlement_list = [entitlement]
-                # # else:
-                # #     req_entitlement_list = entitlement
 
                 required_matches = self._determine_number_of_required_matches(match, req_entitlement_list)
                 if not required_matches:
@@ -717,10 +711,7 @@ class Flaat():
                 if self.verbose > 1:
                     logger.info(F'Available Entitlements: {formatted_entitlements(avail_entitlements)}')
                     logger.info(F'Required Entitlements: {formatted_entitlements(req_entitlements)}')
-                    
-                    # logger.info('{}'.format('\n\n'.join([my_mstr(x) for x in avail_entitlements])))
-                    # logger.info('Required Entitlements:')
-                    # logger.info('{}'.format('\n\n'.join([my_mstr(x) for x in req_entitlements])))
+
                 # now we do the actual checking
                 matches_found = 0
 
