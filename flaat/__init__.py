@@ -213,11 +213,19 @@ class Flaat():
     def set_last_error(self, error):
         '''Store an error message'''
         self.last_error = error
+    def extend_last_error(self, error):
+        if self.last_error == '':
+            self.last_error = error
+        else:
+            self.last_error = F"{self.last_error}\n{error}"
     def get_last_error(self):
         '''Retrieve and clear the error message'''
         retval = self.last_error
         # self.last_error = ''
         return retval
+    def self_clear_last_error(self):
+        '''Clear last error message'''
+        self.last_error = ''
     def set_num_request_workers(self, num):
         '''set number of request workers'''
         self.num_request_workers = num
@@ -498,7 +506,7 @@ class Flaat():
 
                 if all_info is None:
                     if self.verbose > 0:
-                        self.set_last_error(F"No information about user found in {str(self.get_claim_search_precedence())}")
+                        self.extend_last_error(F"No information about user found in {str(self.get_claim_search_precedence())}")
                         logger.warning(self.get_last_error())
                     return self._return_formatter_wf(\
                             ('No valid authentication found: %s' % self.get_last_error()), 401)
