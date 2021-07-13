@@ -86,13 +86,13 @@ def find_issuer_config_in_string(string):
         if tokentools.is_url(string):
             iss_config = get_iss_config_from_endpoint(string)
             if iss_config:
-                return [iss_config]
+                return iss_config
             iss_config = get_iss_config_from_endpoint(string+'/oauth2')
             if iss_config:
-                return [iss_config]
+                return iss_config
             iss_config = get_iss_config_from_endpoint(string+'/.well-known/openid-configuration')
             if iss_config:
-                return [iss_config]
+                return iss_config
             iss_config = get_iss_config_from_endpoint(string+'/oauth2'+'/.well-known/openid-configuration')
     return iss_config
 
