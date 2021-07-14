@@ -108,30 +108,32 @@ class Flaat():
         self.iss             = None
         self.op_hint         = None
         self.trusted_op_file = None
-        self.verbose         = 0
+        self.verbose         = verbose
         self.verify_tls      = True
         self.client_id       = None
         self.client_secret   = None
         self.last_error      = ''
+        self.issuer_configs  = None
         self.num_request_workers = 10
         self.client_connect_timeout = 1.2 # seconds
+        # No leading slash ('/') in ops_that_support_jwt !!!
         self.ops_that_support_jwt = \
-                    [ 'https://iam-test.indigo-datacloud.eu/',
-                      'https://iam.deep-hybrid-datacloud.eu/',
-                      'https://iam.extreme-datacloud.eu/',
-                      'https://aai.egi.eu/oidc/',
+                    [ 'https://iam-test.indigo-datacloud.eu',
+                      'https://iam.deep-hybrid-datacloud.eu',
+                      'https://iam.extreme-datacloud.eu',
+                      'https://wlcg.cloud.cnaf.infn.it',
+                      'https://aai.egi.eu/oidc',
                       'https://aai-dev.egi.eu/oidc',
-                      'https://login-dev.helmholtz.de/oauth2/',
-                      'https://login.helmholtz.de/oauth2/',
-                      'https://oidc.scc.kit.edu/auth/realms/kit/',
-                      'https://wlcg.cloud.cnaf.infn.it/'
+                      'https://oidc.scc.kit.edu/auth/realms/kit',
+                      'https://unity.helmholtz-data-federation.de/oauth2',
+                      'https://login.helmholtz-data-federation.de/oauth2',
+                      'https://login-dev.helmholtz.de/oauth2',
+                      'https://login.helmholtz.de/oauth2',
+                      'https://services.humanbrainproject.eu/oidc',
+                      'https://login.elixir-czech.org/oidc',
                       ]
         self.claim_search_precedence = ['userinfo', 'access_token']
         self.request_id = "unset"
-        # unknown:
-        # 'https://login.elixir-czech.org/oidc/',
-        # 'https://services.humanbrainproject.eu/oidc/',
-        # self.supported_web_frameworks = ['flask', 'aiohttp', 'fastapi']
         self.supported_web_frameworks = available_web_frameworks
         if 'flask' in available_web_frameworks:
             self.web_framework = 'flask'
@@ -270,6 +272,8 @@ class Flaat():
         '''Use many places to find issuer configs'''
 
         # 1: find info in the AT
+        if self.verbose > 0:
+            logger.info('1: Trying to find issuer in access_token')
         at_iss = tokentools.get_issuer_from_accesstoken_info(access_token)
         if at_iss is not None:
             trusted_op_list_buf = []
@@ -290,22 +294,22 @@ class Flaat():
             return [iss_config]
 
         # 2: use a provided string
-        if self.verbose > 1:
-            logger.debug('Trying to find issuer from "set_iss"')
+        if self.verbose > 0:
+            logger.info('2: Trying to find issuer from "set_iss"')
         iss_config = issuertools.find_issuer_config_in_string(self.iss)
         if iss_config is not None:
             return [iss_config]
 
         # 3: Try the provided list of providers:
-        if self.verbose > 1:
-            logger.info('Trying to find issuer from trusted_op_list')
+        if self.verbose > 0:
+            logger.info('3: Trying to find issuer from trusted_op_list')
         iss_config = issuertools.find_issuer_config_in_list(self.trusted_op_list, self.op_hint,
                 exclude_list = self.ops_that_support_jwt)
         if iss_config is not None:
             return iss_config
 
         # 4: Try oidc-agent's issuer config file
-        if self.verbose > 1:
+        if self.verbose > 0:
             logger.info('Trying to find issuer from "set_OIDC_provider_file"')
         iss_config = issuertools.find_issuer_config_in_file(self.trusted_op_file, self.op_hint,
                 exclude_list = self.ops_that_support_jwt)
@@ -339,9 +343,10 @@ class Flaat():
         # user_info = "" # return value
         user_info = None # return value
 
-        # get all possible issuer configs
-        issuer_configs = self._find_issuer_config_everywhere(access_token)
-        if issuer_configs is None or len(issuer_configs) == 0 :
+        # get a sensible issuer config. In case we don't have a jwt AT, we poll more OPs
+        if self.issuer_configs is None:
+            self.issuer_configs = self._find_issuer_config_everywhere(access_token)
+        if self.issuer_configs is None or len(self.issuer_configs) == 0 :
             logger.warning('No issuer config found, or issuer not supported')
             return None
 
@@ -370,13 +375,15 @@ class Flaat():
             t.daemon = True
             t.start()
 
-        logger.debug (F"len of issuer_configs: {len(issuer_configs)}")
-        for issuer_config in issuer_configs:
+        if self.verbose > 2:
+            logger.debug (F"len of issuer_configs: {len(self.issuer_configs)}")
+        for issuer_config in self.issuer_configs:
             # user_info = issuertools.get_user_info(access_token, issuer_config)
             params = {}
             params['access_token'] = access_token
             params['issuer_config'] = issuer_config
             param_q.put(params)
+        # Collect results from threadpool
         param_q.join()
         result_q.join()
         try:
@@ -397,12 +404,13 @@ class Flaat():
         endpoint and return the info obtained from there'''
         # get introspection_token
         introspection_info = None
-        issuer_configs = self._find_issuer_config_everywhere(access_token)
-        if issuer_configs is None:
+        if self.issuer_configs is None:
+            self.issuer_configs = self._find_issuer_config_everywhere(access_token)
+        if self.issuer_configs is None:
             logger.info("Issuer Configs yielded None")
             self.set_last_error("Issuer of Access Token is not supported")
             return None
-        for issuer_config in issuer_configs:
+        for issuer_config in self.issuer_configs:
             introspection_info = issuertools.get_introspected_token_info(access_token, issuer_config,
                 self.client_id, self.client_secret)
             if introspection_info is not None:
