@@ -33,11 +33,15 @@ from flask import request
 from flaat import tokentools
 import json
 
+import logsetup
+
 logformat='[%(levelname)s] %(message)s'
 logformat='[%(levelname)s] [%(filename)s:%(funcName)s:%(lineno)d] %(message)s'
 logging.basicConfig(level=os.environ.get("LOG", "WARNING"), format = logformat)
 
-logger = logging.getLogger(__name__)
+
+logger = logsetup.setup_logging()
+# logger = logging.getLogger(__name__)
 
 
 ##########
@@ -68,7 +72,8 @@ flaat.set_trusted_OP_list([
 'https://aai-dev.egi.eu/oidc',
 'https://oidc.scc.kit.edu/auth/realms/kit/',
 'https://proxy.demo.eduteams.org',
-'https://wlcg.cloud.cnaf.infn.it/'
+'https://wlcg.cloud.cnaf.infn.it/',
+'https://orcid.org/'
 ])
 # flaat.set_trusted_OP_file('/etc/oidc-agent/issuer.config')
 # flaat.set_OP_hint("helmholtz")
