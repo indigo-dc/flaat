@@ -59,7 +59,7 @@ cache_options.update_cache()
 
 
 # Set defaults:
-verbose = 0
+verbose = 2
 verify_tls = True
 timeout = 1.2 #(seconds)
 num_request_workers = 10
@@ -125,6 +125,8 @@ def find_issuer_config_in_list(op_list, op_hint = None, exclude_list = []):
     if op_list:
         iss_config=[]
         for issuer in op_list:
+            # if verbose>1:
+            #     logger.info('Considering issuer %s' % issuer)
             if issuer in exclude_list:
                 if verbose>1:
                     logger.info('skipping %s due to exclude list' % issuer)
@@ -133,9 +135,11 @@ def find_issuer_config_in_list(op_list, op_hint = None, exclude_list = []):
             if op_hint is None:
                 # print ('getting issuer config from {}'.format(issuer))
                 # iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))
+                # logger.debug("Trying issuer from %s" % issuer_wellknown)
                 param_q.put(issuer_wellknown)
             else:
                 if re.search(op_hint, issuer):
+                    # logger.debug("Using hint and trying issuer from %s" % issuer_wellknown)
                     # iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))
                     param_q.put(issuer_wellknown)
         param_q.join()
@@ -185,12 +189,13 @@ def get_iss_config_from_endpoint(issuer_url):
     config_url = config_url.replace('//', '/')
     config_url = 'https://'+config_url
 
-    if verbose>1:
+    if verbose>2:
         logger.info('Getting config from: %s' % config_url)
     try:
         resp = requests.get (config_url, verify=verify_tls, headers=headers, timeout=timeout)
         if verbose > 2:
-            logger.warning ('Getconfig: resp: %s' % resp.status_code)
+            if resp.status_code != 200: 
+                logger.warning ('Getconfig: resp: %s' % resp.status_code)
     except requests.exceptions.ConnectionError as e:
         if verbose > 1:
             logger.warning ('Warning: cannot obtain iss_config from endpoint: {}'.format(config_url))
@@ -214,7 +219,7 @@ def get_user_info(access_token, issuer_config):
     headers['Authorization'] = 'Bearer {0}'.format(access_token)
     if verbose > 2:
         logger.debug('using this access token: %s' % access_token)
-    if verbose > 1:
+    if verbose > 0:
         logger.info('Getting userinfo from %s' % issuer_config['userinfo_endpoint'])
     try:
         resp = requests.get (issuer_config['userinfo_endpoint'], verify=verify_tls, headers=headers,
@@ -225,16 +230,19 @@ def get_user_info(access_token, issuer_config):
         return None
     if resp.status_code != 200:
         if verbose > 2:
-            logger.warning('userinfo: Error: %s' % resp.status_code)
-            logger.warning('userinfo: Error: %s' % resp.text)
-            logger.warning('userinfo: Error: %s' % str(resp.reason))
+            logger.warning('Error getting userinfo from %s: %s / %s / %s' % (
+                    issuer_config['userinfo_endpoint'],
+                    resp.status_code,
+                    resp.text,
+                    resp.reason))
         # return ({'error': '{}: {}'.format(resp.status_code, resp.reason)})
         return None
 
     resp_json=resp.json()
-    if verbose > 1:
-        logger.info(json.dumps(resp_json, sort_keys=True, indent=4, separators=(',', ': ')))
-        logger.info('userinfo: resp: %s' % resp.status_code)
+    if verbose > 2:
+        logger.info("Actual Userinfo: from %s" % issuer_config['userinfo_endpoint'] + ": "+ json.dumps(resp_json, sort_keys=True, indent=4, separators=(',', ': ')))
+        if resp.status_code != 200:
+            logger.info('userinfo: resp: %s' % resp.status_code)
     return resp_json
 
 def get_introspected_token_info(access_token, issuer_config, client_id=None, client_secret=None):
