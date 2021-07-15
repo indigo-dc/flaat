@@ -241,6 +241,8 @@ def get_user_info(access_token, issuer_config):
         # return ({'error': '{}: {}'.format(resp.status_code, resp.reason)})
         return None
 
+    if verbose > 0:
+        logger.info('          got userinfo from %s' % issuer_config['userinfo_endpoint'])
     resp_json=resp.json()
     if verbose > 2:
         logger.info("Actual Userinfo: from %s" % issuer_config['userinfo_endpoint'] + ": "+ json.dumps(resp_json, sort_keys=True, indent=4, separators=(',', ': ')))
