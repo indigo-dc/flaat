@@ -197,7 +197,7 @@ def get_iss_config_from_endpoint(issuer_url):
             if resp.status_code != 200: 
                 logger.warning ('Getconfig: resp: %s' % resp.status_code)
     except requests.exceptions.ConnectionError as e:
-        if verbose > 1:
+        if verbose > 2:
             logger.warning ('Warning: cannot obtain iss_config from endpoint: {}'.format(config_url))
             # print ('Additional info: {}'.format (e))
         return None

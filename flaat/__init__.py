@@ -44,6 +44,7 @@ from aarc_g002_entitlement import Aarc_g002_entitlement_ParseError
 from . import tokentools
 from . import issuertools
 from . import flaat_exceptions
+from .caches import Issuer_config_cache
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +114,7 @@ class Flaat():
         self.client_id       = None
         self.client_secret   = None
         self.last_error      = ''
-        self.issuer_config_cache  = {} # maps issuer to issuer configs # formerly issuer_configs
+        self.issuer_config_cache  = Issuer_config_cache() # maps issuer to issuer configs # formerly issuer_configs
         self.accesstoken_issuer_cache = {} # maps accesstoken to issuer
         self.num_request_workers = 10
         self.client_connect_timeout = 1.2 # seconds
@@ -185,6 +186,10 @@ class Flaat():
         self.trusted_op_list = []
         for issuer in trusted_op_list:
             self.trusted_op_list.append(issuer.rstrip('/'))
+
+        # iss_config = issuertools.find_issuer_config_in_list(self.trusted_op_list, self.op_hint,
+        #         exclude_list = [])
+        # self.issuer_config_cache.add_list(iss_config)
     def set_trusted_OP_file(self, filename='/etc/oidc-agent/issuer.config', hint=None):
         '''Set filename of oidc-agent's issuer.config. Requires oidc-agent to be installed.'''
         self.trusted_op_file = filename
@@ -276,16 +281,15 @@ class Flaat():
         '''
 
         # 0: Use accesstoken_issuer cache to find issuerconfig:
-        logger.info('0: Trying to find issuer in cache')
+        if self.verbose > 0:
+            logger.info('0: Trying to find issuer in cache')
         try:
             issuer = self.accesstoken_issuer_cache[access_token]
-            for issuer in self.issuer_config_cache:
-                if self.verbose > 1:
-                    logger.info(F"issuer in cache: {issuer}")
-            iss_config = self.issuer_config_cache[issuer]
-            logger.info(F"relevant issuers for AT: {issuer} -- {iss_config['issuer']}")
+            iss_config = self.issuer_config_cache.get(issuer)
+            if self.verbose > 1:
+                logger.info(F"  0: returning {iss_config['issuer']}")
             return [iss_config]
-        except KeyError: 
+        except KeyError as e:
             # issuer not found in cache
             pass
 
@@ -382,12 +386,10 @@ class Flaat():
 
         # get a sensible issuer config. In case we don't have a jwt AT, we poll more OPs
         issuer_config_list = self._find_issuer_config_everywhere(access_token)
-        for issuer_config in issuer_config_list:
-            logger.info(F"adding {issuer_config['issuer']} to cache")
-            self.issuer_config_cache[issuer_config['issuer']] = issuer_config
+        self.issuer_config_cache.add_list(issuer_config_list)
 
         # If there is no issuer in the cache by now, we're dead
-        if self.issuer_config_cache is None or len(self.issuer_config_cache) == 0 :
+        if len(self.issuer_config_cache) == 0 :
             logger.warning('No issuer config found, or issuer not supported')
             return None
 
@@ -418,12 +420,12 @@ class Flaat():
 
         if self.verbose > 0:
             logger.debug (F"len of issuer_config_cache: {len(self.issuer_config_cache)}")
-        for issuer in self.issuer_config_cache:
-            logger.info(F"tyring to get userinfo from {issuer}")
+        for issuer_config in self.issuer_config_cache:
+            # logger.info(F"tyring to get userinfo from {issuer_config['issuer']}")
             # user_info = issuertools.get_user_info(access_token, issuer_config)
             params = {}
             params['access_token'] = access_token
-            params['issuer_config'] = self.issuer_config_cache[issuer]
+            params['issuer_config'] = issuer_config
             param_q.put(params)
         # Collect results from threadpool
         param_q.join()
@@ -436,14 +438,15 @@ class Flaat():
                     issuer = issuer_config['issuer']
                     if self.verbose > 1:
                         logger.debug(F"got issuer: {issuer}")
-                    self.issuer_config_cache[issuer] = issuer_config
+                    self.issuer_config_cache.add_config(issuer, issuer_config)
+                    # logger.info(F"storing in accesstoken cache: {issuer} -=> {access_token}")
                     self.accesstoken_issuer_cache[access_token] = issuer
                     return (user_info)
         except Empty:
             logger.info("EMPTY result in thead join")
             # pass
         except Exception as e:
-            logger.info("Error: Uncaught Exception: {}".format(str(e)))
+            logger.error("Error: Uncaught Exception: {}".format(str(e)))
         if user_info is None:
             self.set_last_error ("User Info not found or not accessible. Something may be wrong with the Access Token.")
         return(user_info)
@@ -453,11 +456,9 @@ class Flaat():
         # get introspection_token
         introspection_info = None
         issuer_config_list = self._find_issuer_config_everywhere(access_token)
-        for issuer_config in issuer_config_list:
-            logger.info(F"adding {issuer_config['issuer']} to cache")
-            self.issuer_config_cache[issuer_config['issuer']] = issuer_config
+        self.issuer_config_cache.add_list(issuer_config_list)
 
-        if self.issuer_config_cache is None:
+        if len(self.issuer_config_cache) == 0 :
             logger.info("Issuer Configs yielded None")
             self.set_last_error("Issuer of Access Token is not supported")
             return None
