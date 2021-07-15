@@ -35,13 +35,7 @@ import json
 
 import logsetup
 
-logformat='[%(levelname)s] %(message)s'
-logformat='[%(levelname)s] [%(filename)s:%(funcName)s:%(lineno)d] %(message)s'
-logging.basicConfig(level=os.environ.get("LOG", "WARNING"), format = logformat)
-
-
 logger = logsetup.setup_logging()
-# logger = logging.getLogger(__name__)
 
 
 ##########

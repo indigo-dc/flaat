@@ -31,11 +31,9 @@ from flaat import tokentools
 import json
 from aiohttp import web
 
-logformat='[%(levelname)s] %(message)s'
-logformat='[%(levelname)s] [%(filename)s:%(funcName)s:%(lineno)d] %(message)s'
-logging.basicConfig(level=os.environ.get("LOG", "WARNING"), format = logformat)
+import logsetup
 
-logger = logging.getLogger(__name__)
+logger = logsetup.setup_logging()
 
 
 ##########

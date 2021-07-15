@@ -31,12 +31,9 @@ from fastapi import FastAPI, Request, Response, Depends
 from fastapi.security import HTTPBearer
 import uvicorn
 
+import logsetup
 
-logformat='[%(levelname)s] %(message)s'
-logformat='[%(levelname)s] [%(filename)s:%(funcName)s:%(lineno)d] %(message)s'
-logging.basicConfig(level=os.environ.get("LOG", "WARNING"), format = logformat)
-
-logger = logging.getLogger(__name__)
+logger = logsetup.setup_logging()
 
 
 ##########
