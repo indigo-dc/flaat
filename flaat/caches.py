@@ -8,7 +8,7 @@ access to OIDC authenticated REST APIs.'''
 # pylint: disable=wrong-import-position, no-self-use, line-too-long
 
 import logging
-import logsetup
+
 logger = logging.getLogger(__name__)
 
 class Issuer_config_cache():
