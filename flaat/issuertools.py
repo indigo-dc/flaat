@@ -128,8 +128,8 @@ def find_issuer_config_in_list(op_list, op_hint = None, exclude_list = []):
             # if verbose>1:
             #     logger.info('Considering issuer %s' % issuer)
             if issuer in exclude_list:
-                if verbose>1:
-                    logger.info('skipping %s due to exclude list' % issuer)
+                if verbose > 1:
+                    logger.debug('skipping %s due to exclude list' % issuer)
                 continue
             issuer_wellknown=issuer + '/.well-known/openid-configuration'
             if op_hint is None:
