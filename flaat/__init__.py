@@ -130,6 +130,8 @@ class Flaat():
                       'https://login.helmholtz-data-federation.de/oauth2',
                       'https://login-dev.helmholtz.de/oauth2',
                       'https://login.helmholtz.de/oauth2',
+                      'https://b2access.eudat.eu/oauth2',
+                      'https://b2access-integration.fz-juelich.de/oauth2',
                       'https://services.humanbrainproject.eu/oidc',
                       'https://login.elixir-czech.org/oidc',
                       ]
@@ -271,8 +273,6 @@ class Flaat():
             sys.exit (42)
     def _find_issuer_config_everywhere(self, access_token):
         '''Use many places to find issuer configs
-        Might be renamed to
-            update_issuer_config_cache
         '''
 
         # 0: Use accesstoken_issuer cache to find issuerconfig:
@@ -283,9 +283,11 @@ class Flaat():
                 if self.verbose > 1:
                     logger.info(F"issuer in cache: {issuer}")
             iss_config = self.issuer_config_cache[issuer]
+            logger.info(F"relevant issuers for AT: {issuer} -- {iss_config['issuer']}")
             return [iss_config]
-        except KeyError:
-            issuer_config = None
+        except KeyError: 
+            # issuer not found in cache
+            pass
 
         # 1: find info in the AT
         if self.verbose > 0:
@@ -384,8 +386,7 @@ class Flaat():
             logger.info(F"adding {issuer_config['issuer']} to cache")
             self.issuer_config_cache[issuer_config['issuer']] = issuer_config
 
-        # logger.info(F"len of issuer configs: {len(issuer_config_list)}")
-        # logger.info(F"len of issuer config cache {len(self.issuer_config_cache)}")
+        # If there is no issuer in the cache by now, we're dead
         if self.issuer_config_cache is None or len(self.issuer_config_cache) == 0 :
             logger.warning('No issuer config found, or issuer not supported')
             return None
@@ -415,9 +416,10 @@ class Flaat():
             t.daemon = True
             t.start()
 
-        if self.verbose > 2:
+        if self.verbose > 0:
             logger.debug (F"len of issuer_config_cache: {len(self.issuer_config_cache)}")
         for issuer in self.issuer_config_cache:
+            logger.info(F"tyring to get userinfo from {issuer}")
             # user_info = issuertools.get_user_info(access_token, issuer_config)
             params = {}
             params['access_token'] = access_token
