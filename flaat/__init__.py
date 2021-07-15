@@ -113,8 +113,8 @@ class Flaat():
         self.client_id       = None
         self.client_secret   = None
         self.last_error      = ''
-        self.issuer_configs  = None
-        self.accesstoken_issuerconfig_cache = {}
+        self.issuer_config_cache  = {} # maps issuer to issuer configs # formerly issuer_configs
+        self.accesstoken_issuer_cache = {} # maps accesstoken to issuer
         self.num_request_workers = 10
         self.client_connect_timeout = 1.2 # seconds
         # No leading slash ('/') in ops_that_support_jwt !!!
@@ -275,10 +275,14 @@ class Flaat():
             update_issuer_config_cache
         '''
 
-        # 0: Use accesstoken_issuerconfig cache to find issuerconfig:
+        # 0: Use accesstoken_issuer cache to find issuerconfig:
         logger.info('0: Trying to find issuer in cache')
         try:
-            iss_config = self.accesstoken_issuerconfig_cache[access_token]
+            issuer = self.accesstoken_issuer_cache[access_token]
+            for issuer in self.issuer_config_cache:
+                if self.verbose > 1:
+                    logger.info(F"issuer in cache: {issuer}")
+            iss_config = self.issuer_config_cache[issuer]
             return [iss_config]
         except KeyError:
             issuer_config = None
@@ -349,17 +353,17 @@ class Flaat():
     def get_issuer_from_accesstoken(self, access_token):
         '''get the issuer that issued the accesstoken'''
         try:
-            issuer_config = self.accesstoken_issuerconfig_cache[access_token]
-            return(issuer_config['issuer'])
+            issuer = self.accesstoken_issuer_cache[access_token]
+            return(issuer)
         except KeyError:
-            # update the accesstoken_issuerconfig_cache:
+            # update the accesstoken_issuer_cache:
             self.get_info_from_userinfo_endpoints(access_token)
         try:
-            issuer_config = self.accesstoken_issuerconfig_cache[access_token]
-            return(issuer_config['issuer'])
+            issuer = self.accesstoken_issuer_cache[access_token]
+            return(issuer)
         except KeyError:
             return None
-                
+
     def get_info_from_userinfo_endpoints(self, access_token):
         '''Traverse all reasonable configured userinfo endpoints and query them with the
         access_token. Note: For OPs that include the iss inside the AT, they will be directly
@@ -367,14 +371,22 @@ class Flaat():
         Returns user_info object or None.  If None is returned self.last_error is set with a
         meaningful message.
 
-        Also updates the accesstoken_issuerconfig_cache
+        Also updates 
+            - accesstoken_issuer_cache
+            - issuer_config_cache
         '''
         # user_info = "" # return value
         user_info = None # return value
 
         # get a sensible issuer config. In case we don't have a jwt AT, we poll more OPs
-        self.issuer_configs = self._find_issuer_config_everywhere(access_token)
-        if self.issuer_configs is None or len(self.issuer_configs) == 0 :
+        issuer_config_list = self._find_issuer_config_everywhere(access_token)
+        for issuer_config in issuer_config_list:
+            logger.info(F"adding {issuer_config['issuer']} to cache")
+            self.issuer_config_cache[issuer_config['issuer']] = issuer_config
+
+        # logger.info(F"len of issuer configs: {len(issuer_config_list)}")
+        # logger.info(F"len of issuer config cache {len(self.issuer_config_cache)}")
+        if self.issuer_config_cache is None or len(self.issuer_config_cache) == 0 :
             logger.warning('No issuer config found, or issuer not supported')
             return None
 
@@ -404,13 +416,12 @@ class Flaat():
             t.start()
 
         if self.verbose > 2:
-            logger.debug (F"len of issuer_configs: {len(self.issuer_configs)}")
-        logger.info("Issuer Configs:\n    " + "\n    ".join([i['issuer'] for i in self.issuer_configs]))
-        for issuer_config in self.issuer_configs:
+            logger.debug (F"len of issuer_config_cache: {len(self.issuer_config_cache)}")
+        for issuer in self.issuer_config_cache:
             # user_info = issuertools.get_user_info(access_token, issuer_config)
             params = {}
             params['access_token'] = access_token
-            params['issuer_config'] = issuer_config
+            params['issuer_config'] = self.issuer_config_cache[issuer]
             param_q.put(params)
         # Collect results from threadpool
         param_q.join()
@@ -420,8 +431,11 @@ class Flaat():
                 retval = result_q.get(block=False, timeout=self.client_connect_timeout)
                 if retval is not None:
                     (user_info, issuer_config) = retval
-                    logger.debug(F"got issuer: {issuer_config['issuer']}")
-                    self.accesstoken_issuerconfig_cache[access_token] = issuer_config
+                    issuer = issuer_config['issuer']
+                    if self.verbose > 1:
+                        logger.debug(F"got issuer: {issuer}")
+                    self.issuer_config_cache[issuer] = issuer_config
+                    self.accesstoken_issuer_cache[access_token] = issuer
                     return (user_info)
         except Empty:
             logger.info("EMPTY result in thead join")
@@ -436,13 +450,16 @@ class Flaat():
         endpoint and return the info obtained from there'''
         # get introspection_token
         introspection_info = None
-        self.issuer_configs = self._find_issuer_config_everywhere(access_token)
+        issuer_config_list = self._find_issuer_config_everywhere(access_token)
+        for issuer_config in issuer_config_list:
+            logger.info(F"adding {issuer_config['issuer']} to cache")
+            self.issuer_config_cache[issuer_config['issuer']] = issuer_config
 
-        if self.issuer_configs is None:
+        if self.issuer_config_cache is None:
             logger.info("Issuer Configs yielded None")
             self.set_last_error("Issuer of Access Token is not supported")
             return None
-        for issuer_config in self.issuer_configs:
+        for issuer_config in self.issuer_config_cache:
             introspection_info = issuertools.get_introspected_token_info(access_token, issuer_config,
                 self.client_id, self.client_secret)
             if introspection_info is not None:
