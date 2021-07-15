@@ -220,21 +220,24 @@ def get_user_info(access_token, issuer_config):
     if verbose > 2:
         logger.debug('using this access token: %s' % access_token)
     if verbose > 0:
-        logger.info('Getting userinfo from %s' % issuer_config['userinfo_endpoint'])
+        logger.info('Trying to get userinfo from %s' % issuer_config['userinfo_endpoint'])
     try:
-        resp = requests.get (issuer_config['userinfo_endpoint'], verify=verify_tls, headers=headers,
+        resp = requests.get(issuer_config['userinfo_endpoint'], verify=verify_tls, headers=headers,
                 timeout=timeout)
     except requests.exceptions.ReadTimeout:
-        logger.error("ReadTimeout caught for issuer_config['userinfo_endpoint']")
-        logger.debug(F"headers were: {headers}, timeout: {timeout}")
+        logger.error("ReadTimeout caught for issuer_config['issuer']")
+        # logger.debug(F"headers were: {headers}, timeout: {timeout}")
         return None
     if resp.status_code != 200:
-        if verbose > 2:
-            logger.warning('Error getting userinfo from %s: %s / %s / %s' % (
+        if verbose > 1:
+            logger.warning('Not getting userinfo from %s: %s / %s / %s' % (
                     issuer_config['userinfo_endpoint'],
                     resp.status_code,
                     resp.text,
                     resp.reason))
+            if verbose > 2:
+                logger.warning(F"request was: get {issuer_config['userinfo_endpoint']}")
+                logger.warning(F"headers were: {headers}, timeout: {timeout}")
         # return ({'error': '{}: {}'.format(resp.status_code, resp.reason)})
         return None
 
@@ -243,7 +246,7 @@ def get_user_info(access_token, issuer_config):
         logger.info("Actual Userinfo: from %s" % issuer_config['userinfo_endpoint'] + ": "+ json.dumps(resp_json, sort_keys=True, indent=4, separators=(',', ': ')))
         if resp.status_code != 200:
             logger.info('userinfo: resp: %s' % resp.status_code)
-    return resp_json
+    return (resp_json, issuer_config)
 
 def get_introspected_token_info(access_token, issuer_config, client_id=None, client_secret=None):
     '''Query te token introspection endpoint, if there is a client_id and client_secret set'''
