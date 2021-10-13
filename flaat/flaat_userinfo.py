@@ -92,6 +92,7 @@ def main():
     'https://services.humanbrainproject.eu/oidc/',
     'https://accounts.google.com/',
     'https://aai.egi.eu/oidc/',
+    'https://aai-demo.egi.eu/oidc/',
     'https://aai-dev.egi.eu/oidc/',
     'https://login.elixir-czech.org/oidc/',
     'https://iam-test.indigo-datacloud.eu/',
