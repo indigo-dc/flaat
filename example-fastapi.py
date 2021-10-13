@@ -63,6 +63,7 @@ flaat.set_trusted_OP_list([
 'https://iam.deep-hybrid-datacloud.eu/',
 'https://iam.extreme-datacloud.eu/',
 'https://aai.egi.eu/oidc/',
+'https://aai-demo.egi.eu/oidc',
 'https://aai-dev.egi.eu/oidc',
 'https://oidc.scc.kit.edu/auth/realms/kit/',
 'https://proxy.demo.eduteams.org',
