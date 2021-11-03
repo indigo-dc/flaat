@@ -37,6 +37,28 @@ import liboidcagent as agent
 
 from flaat import Flaat, tokentools
 
+TRUSTED_OP_LIST = [
+    'https://b2access.eudat.eu/oauth2/',
+    'https://b2access-integration.fz-juelich.de/oauth2',
+    'https://unity.helmholtz-data-federation.de/oauth2/',
+    'https://login.helmholtz-data-federation.de/oauth2/',
+    'https://login-dev.helmholtz.de/oauth2/',
+    'https://login.helmholtz.de/oauth2/',
+    'https://unity.eudat-aai.fz-juelich.de/oauth2/',
+    'https://services.humanbrainproject.eu/oidc/',
+    'https://accounts.google.com/',
+    'https://aai.egi.eu/oidc/',
+    'https://aai-demo.egi.eu/oidc/',
+    'https://aai-dev.egi.eu/oidc/',
+    'https://login.elixir-czech.org/oidc/',
+    'https://iam-test.indigo-datacloud.eu/',
+    'https://iam.deep-hybrid-datacloud.eu/',
+    'https://iam.extreme-datacloud.eu/',
+    'https://oidc.scc.kit.edu/auth/realms/kit/',
+    'https://proxy.demo.eduteams.org',
+    'https://wlcg.cloud.cnaf.infn.it/'
+]
+
 
 def get_arg_parser():
     path_of_executable = os.path.realpath(sys.argv[0])
@@ -86,27 +108,7 @@ def get_flaat(args):
     flaat = Flaat()
     flaat.set_verbosity(args.verbose)
     flaat.set_cache_lifetime(120)  # seconds; default is 300
-    flaat.set_trusted_OP_list([
-        'https://b2access.eudat.eu/oauth2/',
-        'https://b2access-integration.fz-juelich.de/oauth2',
-        'https://unity.helmholtz-data-federation.de/oauth2/',
-        'https://login.helmholtz-data-federation.de/oauth2/',
-        'https://login-dev.helmholtz.de/oauth2/',
-        'https://login.helmholtz.de/oauth2/',
-        'https://unity.eudat-aai.fz-juelich.de/oauth2/',
-        'https://services.humanbrainproject.eu/oidc/',
-        'https://accounts.google.com/',
-        'https://aai.egi.eu/oidc/',
-        'https://aai-demo.egi.eu/oidc/',
-        'https://aai-dev.egi.eu/oidc/',
-        'https://login.elixir-czech.org/oidc/',
-        'https://iam-test.indigo-datacloud.eu/',
-        'https://iam.deep-hybrid-datacloud.eu/',
-        'https://iam.extreme-datacloud.eu/',
-        'https://oidc.scc.kit.edu/auth/realms/kit/',
-        'https://proxy.demo.eduteams.org',
-        'https://wlcg.cloud.cnaf.infn.it/'
-    ])
+    flaat.set_trusted_OP_list(TRUSTED_OP_LIST)
     if args.client_id:
         flaat.set_client_id(args.client_id)
     if args.client_secret:
