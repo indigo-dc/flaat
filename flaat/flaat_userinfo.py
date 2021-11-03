@@ -27,17 +27,18 @@
 # pylint: disable=missing-docstring, trailing-whitespace, trailing-newlines, too-few-public-methods
 
 
+import json
 import os
 import sys
-import json
+from dataclasses import dataclass
+
 import configargparse
-from flaat import Flaat, tokentools
 import liboidcagent as agent
 
+from flaat import Flaat, tokentools
 
-def parse_options():
-    """Parse the commandline options"""
 
+def get_arg_parser():
     path_of_executable = os.path.realpath(sys.argv[0])
     folder_of_executable = os.path.split(path_of_executable)[0]
     full_name_of_executable = os.path.split(path_of_executable)[1]
@@ -50,7 +51,7 @@ def parse_options():
         default_config_files=config_files,
         description=name_of_executable, ignore_unknown_config_file_keys=True)
 
-    parser.add_argument('-c', '--my-config', is_config_file=True, help='config file path')
+    parser.add_argument('--my-config', '-c', is_config_file=True, help='config file path')
     parser.add_argument('--verbose', '-v', action="count", default=0, help='Verbosity')
     parser.add_argument('--client_id', default="")
     parser.add_argument('--client_secret', default="")
@@ -61,6 +62,7 @@ def parse_options():
     parser.add_argument('--introspection', '-in', default=False, action="store_true", dest='show_introspection_info')
     parser.add_argument('--all', '-a', default=True, action="store_true", dest='show_all')
     parser.add_argument('--quiet', '-q', default=False, action="store_true")
+    parser.add_argument('--machine-readable', '-m', default=False, action="store_true", dest="machine_readable")
 
     parser.add_argument('--oidc-agent-account', '--oidc', '--oidc-agent', default=None)
 
@@ -68,8 +70,48 @@ def parse_options():
                         help='issuer.config, e.g. from oidc-agent')
     parser.add_argument('--issuer', '--iss', '-i', help='Specify issuer (OIDC Provider)')
     parser.add_argument(dest='access_token', default=None, nargs='*')
-
     return parser
+
+
+def get_args():
+    parser = get_arg_parser()
+    args = parser.parse_args()
+    # if -in -ui or -at are specified, we set all to false:
+    if args.show_user_info or args.show_access_token or args.show_introspection_info or args.quiet:
+        args.show_all = False
+    return args
+
+
+def get_flaat(args):
+    flaat = Flaat()
+    flaat.set_verbosity(args.verbose)
+    flaat.set_cache_lifetime(120)  # seconds; default is 300
+    flaat.set_trusted_OP_list([
+        'https://b2access.eudat.eu/oauth2/',
+        'https://b2access-integration.fz-juelich.de/oauth2',
+        'https://unity.helmholtz-data-federation.de/oauth2/',
+        'https://login.helmholtz-data-federation.de/oauth2/',
+        'https://login-dev.helmholtz.de/oauth2/',
+        'https://login.helmholtz.de/oauth2/',
+        'https://unity.eudat-aai.fz-juelich.de/oauth2/',
+        'https://services.humanbrainproject.eu/oidc/',
+        'https://accounts.google.com/',
+        'https://aai.egi.eu/oidc/',
+        'https://aai-demo.egi.eu/oidc/',
+        'https://aai-dev.egi.eu/oidc/',
+        'https://login.elixir-czech.org/oidc/',
+        'https://iam-test.indigo-datacloud.eu/',
+        'https://iam.deep-hybrid-datacloud.eu/',
+        'https://iam.extreme-datacloud.eu/',
+        'https://oidc.scc.kit.edu/auth/realms/kit/',
+        'https://proxy.demo.eduteams.org',
+        'https://wlcg.cloud.cnaf.infn.it/'
+    ])
+    if args.client_id:
+        flaat.set_client_id(args.client_id)
+    if args.client_secret:
+        flaat.set_client_secret(args.client_secret)
+    return flaat
 
 
 def get_access_token(args):
@@ -121,93 +163,76 @@ def get_access_token(args):
     return access_token
 
 
+@dataclass
+class Infos:
+    """ Infos represents infos about an access token and the user it belongs to"""
+    access_token_info: dict
+    user_info: dict
+    introspection_info: dict
+    valid_for_secs: float = 0
+
+    @staticmethod
+    def load(flaat, access_token):
+        infos = Infos(
+            flaat.get_info_thats_in_at(access_token),
+            flaat.get_info_from_userinfo_endpoints(access_token),
+            flaat.get_info_from_introspection_endpoints(access_token)
+        )
+        merged_tokens = tokentools.merge_tokens([infos.access_token_info, infos.user_info, infos.introspection_info])
+        infos.valid_for_secs = tokentools.get_timeleft(merged_tokens)
+        return infos
+
+    def print(self, args):
+        if args.machine_readable:
+            self.print_machine_readable()
+        else:
+            self.print_human_readable(args)
+
+    def print_machine_readable(self):
+        print(json.dumps(self.__dict__, sort_keys=True, indent=4))
+
+    def print_human_readable(self, args):
+        if args.show_access_token or args.show_all:
+            if self.access_token_info is None:
+                print(
+                    'Info: Your access token is not a JWT. I.e. it does not contain information (at least I cannot find it.)')
+            else:
+                if args.verbose > 0:
+                    print(F"verbose: {args.verbose}")
+                    print('Information stored inside the access token:')
+                print(json.dumps(self.access_token_info, sort_keys=True, indent=4, separators=(',', ': ')))
+            print('')
+        if args.show_user_info or args.show_all:
+            if self.user_info is None:
+                print('''The response from the userinfo endpoint does not contain information (at least I cannot find it.)
+        Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong''')
+            else:
+                if args.verbose > 0:
+                    print('Information retrieved from userinfo endpoint:')
+                print(json.dumps(self.user_info, sort_keys=True, indent=4, separators=(',', ': ')))
+            print('')
+
+        if args.show_introspection_info:
+            if self.introspection_info is None:
+                print('''The response from the introspection endpoint does not contain information (at least I cannot find it.)
+        Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong''')
+            else:
+                print('Information retrieved from introspection endpoint:')
+                print(json.dumps(self.introspection_info, sort_keys=True, indent=4, separators=(',', ': ')))
+            print('')
+
+        if self.valid_for_secs > 0:
+            print('Token valid for %.1f more seconds.' % self.valid_for_secs)
+        else:
+            print('Your token is already EXPIRED for %.1f seconds!' % abs(self.valid_for_secs))
+        print('')
+
+
 def main():
-    args = parse_options().parse_args()
-
-    flaat = Flaat()
-
-    flaat.set_verbosity(args.verbose)
-    flaat.set_cache_lifetime(120)  # seconds; default is 300
-
-    flaat.set_trusted_OP_list([
-        'https://b2access.eudat.eu/oauth2/',
-        'https://b2access-integration.fz-juelich.de/oauth2',
-        'https://unity.helmholtz-data-federation.de/oauth2/',
-        'https://login.helmholtz-data-federation.de/oauth2/',
-        'https://login-dev.helmholtz.de/oauth2/',
-        'https://login.helmholtz.de/oauth2/',
-        'https://unity.eudat-aai.fz-juelich.de/oauth2/',
-        'https://services.humanbrainproject.eu/oidc/',
-        'https://accounts.google.com/',
-        'https://aai.egi.eu/oidc/',
-        'https://aai-demo.egi.eu/oidc/',
-        'https://aai-dev.egi.eu/oidc/',
-        'https://login.elixir-czech.org/oidc/',
-        'https://iam-test.indigo-datacloud.eu/',
-        'https://iam.deep-hybrid-datacloud.eu/',
-        'https://iam.extreme-datacloud.eu/',
-        'https://oidc.scc.kit.edu/auth/realms/kit/',
-        'https://proxy.demo.eduteams.org',
-        'https://wlcg.cloud.cnaf.infn.it/'
-    ])
-
-    # if -in -ui or -at are specified, we set all to false:
-    if args.show_user_info or args.show_access_token or args.show_introspection_info or args.quiet:
-        args.show_all = False
-
-    # Get hold of an access token:
+    args = get_args()
+    flaat = get_flaat(args)
     access_token = get_access_token(args)
-    # print(F"args.access_token: {args.access_token}")
-    # print(F"Type of args.access_token: {type(args.access_token)}")
-    # print(F"length of args.access_token: {len(args.access_token)}")
-
-    # Get actual info from the access token:
-    access_token_info = flaat.get_info_thats_in_at(access_token)
-    if args.show_access_token or args.show_all:
-        if access_token_info is None:
-            print(
-                'Info: Your access token is not a JWT. I.e. it does not contain information (at least I cannot find it.)')
-        else:
-            if args.verbose > 0:
-                print(F"verbose: {args.verbose}")
-                print('Information stored inside the access token:')
-            print(json.dumps(access_token_info, sort_keys=True, indent=4, separators=(',', ': ')))
-        print('')
-
-    user_info = flaat.get_info_from_userinfo_endpoints(access_token)
-    if args.show_user_info or args.show_all:
-        if user_info is None:
-            print('''The response from the userinfo endpoint does not contain information (at least I cannot find it.)
-Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong''')
-        else:
-            if args.verbose > 0:
-                print('Information retrieved from userinfo endpoint:')
-            print(json.dumps(user_info, sort_keys=True, indent=4, separators=(',', ': ')))
-        print('')
-
-    if args.client_id:
-        flaat.set_client_id(args.client_id)
-    if args.client_secret:
-        flaat.set_client_secret(args.client_secret)
-    introspection_info = flaat.get_info_from_introspection_endpoints(access_token)
-    if args.show_introspection_info:
-        if introspection_info is None:
-            print('''The response from the introspection endpoint does not contain information (at least I cannot find it.)
-Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong''')
-        else:
-            print('Information retrieved from introspection endpoint:')
-            print(json.dumps(introspection_info, sort_keys=True, indent=4, separators=(',', ': ')))
-        print('')
-
-    timeleft = tokentools.get_timeleft(tokentools.merge_tokens([access_token_info,
-                                                                user_info, introspection_info]))
-
-    if timeleft is not None:
-        if timeleft > 0:
-            print('Token valid for %.1f more seconds.' % timeleft)
-        else:
-            print('Your token is already EXPIRED for %.1f seconds!' % abs(timeleft))
-        print('')
+    Infos.load(flaat, access_token).print(args)
 
 
 if __name__ == "__main__":
