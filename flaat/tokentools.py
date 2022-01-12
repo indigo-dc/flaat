@@ -128,9 +128,9 @@ def get_issuer_from_accesstoken_info(access_token):
         return None
 
 
-def get_timeleft(token):
+def get_timeleft(token) -> int:
     """Get the lifetime left in the token"""
-    timeleft = None
+    timeleft = -1
     if token is not None:
         now = time.time()
         try:

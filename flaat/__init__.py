@@ -11,43 +11,24 @@ access to OIDC authenticated REST APIs."""
 from functools import wraps
 import json
 import os
-import sys
-
 from queue import Queue, Empty
 from threading import Thread
 import logging
-
-# Gracefully load modules:
-available_web_frameworks = ["flask", "aiohttp", "fastapi"]
-try:
-    from flask import request
-except ModuleNotFoundError:
-    available_web_frameworks.remove("flask")
-try:
-    from aiohttp import web
-except ModuleNotFoundError:
-    available_web_frameworks.remove("aiohttp")
-try:
-    import asyncio
-    from fastapi.responses import JSONResponse
-except ModuleNotFoundError:
-    available_web_frameworks.remove("fastapi")
 
 from aarc_g002_entitlement import Aarc_g002_entitlement
 from aarc_g002_entitlement import Aarc_g002_entitlement_Error
 from aarc_g002_entitlement import Aarc_g002_entitlement_ParseError
 from . import tokentools
 from . import issuertools
-from . import flaat_exceptions
 from .caches import Issuer_config_cache
 
 logger = logging.getLogger(__name__)
 
-name = "flaat"
+NAME = "flaat"
 
 # defaults; May be overwritten per initialisation of flaat
-verbose = 0
-verify_tls = True
+VERBOSE = 0
+VERIFY_TLS = True
 
 
 def ensure_is_list(item):
@@ -108,11 +89,12 @@ class Flaat:
 
     # pylint: disable=too-many-instance-attributes
     def __init__(self):
+
         self.trusted_op_list = None
         self.iss = None
         self.op_hint = None
         self.trusted_op_file = None
-        self.verbose = verbose
+        self.verbose = VERBOSE
         self.verify_tls = True
         self.client_id = None
         self.client_secret = None
@@ -143,35 +125,11 @@ class Flaat:
         ]
         self.claim_search_precedence = ["userinfo", "access_token"]
         self.request_id = "unset"
-        self.supported_web_frameworks = available_web_frameworks
-        if "flask" in available_web_frameworks:
-            self.web_framework = "flask"
-        elif "aiohttp" in available_web_frameworks:
-            self.web_framework = "aiohttp"
-        elif "fastapi" in available_web_frameworks:
-            self.web_framework = "fastapi"
 
         self.raise_error_on_return = True  # else just return an error
 
     def get_request_id(self, request_object):
-        """Return a string identifying the request"""
-        # request_object = self._find_request_based_on_web_framework(request, args, kwargs)
-        the_id = ""
-        try:
-            if self.web_framework == "flask":
-                the_id = f"{str(request_object.remote_addr)}--" + str(
-                    request_object.base_url
-                )
-            elif self.web_framework == "aiohttp":
-                the_id = str(request_object.remote) + "--" + str(request_object.url)
-            elif self.web_framework == "fastapi":
-                the_id = (
-                    f"{str(request_object.client.host)}:{str(request_object.client.port)}--"
-                    + str(request_object.url)
-                )
-        except AttributeError as e:
-            logger.error(f"Cannot identify the request: {e}\n{the_id}")
-        return the_id
+        raise NotImplementedError("use framework specific sub class")
 
     def set_cache_lifetime(self, lifetime):
         """Set cache lifetime of requests_cache zn seconds, default: 300s"""
@@ -299,16 +257,6 @@ class Flaat:
     def get_claim_search_precedence(self):
         """get order in which to search for specific claim"""
         return self.claim_search_precedence
-
-    def set_web_framework(self, framework_name):
-        """specify the web framework. Currently supported are 'flaat' and 'aiohttp' """
-        if framework_name in self.supported_web_frameworks:
-            self.web_framework = framework_name
-        else:
-            logger.error(
-                "Specified Web Framework '%s' is not supported" % framework_name
-            )
-            sys.exit(42)
 
     def _find_issuer_config_everywhere(self, access_token):
         """Use many places to find issuer configs"""
@@ -458,7 +406,7 @@ class Flaat:
                 param_q.task_done()
                 result_q.task_done()
 
-        for i in range(self.num_request_workers):
+        for _ in range(self.num_request_workers):
             t = Thread(target=thread_worker_get_userinfo)
             t.daemon = True
             t.start()
@@ -546,44 +494,12 @@ class Flaat:
             [accesstoken_info, user_info, introspection_info]
         )
 
-    def _find_request_based_on_web_framework(self, request, args, kwargs):
-        """use configured web_framework and return the actual request object"""
-        if self.web_framework == "flask":
-            return request
-        if self.web_framework == "aiohttp":
-            return args[0]
-        if self.web_framework == "fastapi":
-            return kwargs["request"]
-        return None
+    def _find_request_based_on_web_framework(self, *args, **kwargs):
+        """overwritten in subclasses"""
+        return args[0]
 
     def _return_formatter_wf(self, return_value, status=200):
-        """Return the object appropriate for the chosen web framework"""
-        if status != 200:
-            logger.error(
-                f"Incoming request [{self.request_id}] http status: {status} - {self.get_last_error()}"
-            )
-        if self.raise_error_on_return:
-            if self.web_framework == "flask":
-                raise flaat_exceptions.FlaatExceptionFlask(
-                    reason=return_value, status_code=status
-                )
-            if self.web_framework == "aiohttp":
-                raise flaat_exceptions.FlaatExceptionAio(
-                    reason=return_value, status_code=status
-                )
-            if self.web_framework == "fastapi":
-                raise flaat_exceptions.FlaatExceptionFastapi(
-                    reason=return_value, status_code=status
-                )
-        else:
-            if self.web_framework == "flask":
-                return (return_value, status)
-            if self.web_framework == "aiohttp":
-                return web.Response(text=return_value, status=status)
-            if self.web_framework == "fastapi":
-                return JSONResponse(content=return_value, status_code=status)
-                # return return_value
-        return None
+        raise NotImplementedError("use framework specific sub class")
 
     def _get_all_info_from_request(self, param_request):
         """gather all info about the user that we can find.
@@ -596,28 +512,7 @@ class Flaat:
         return self.get_all_info_by_at(access_token)
 
     def _wrap_async_call(self, func, *args, **kwargs):
-        """wrap function call so that it is awaited when necessary,
-        depending on the web framework used.
-        """
-
-        def get_or_create_eventloop():
-            try:
-                return asyncio.get_event_loop()
-            except RuntimeError:
-                # if "There is no current event loop in thread" in str(ex):
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                return asyncio.get_event_loop()
-
-        if self.web_framework == "fastapi":
-            # TODO was this ever needed? pyright complains about func not being callable in this
-            # case
-            # if (asyncio.iscoroutine(func)):
-            #     return get_or_create_eventloop().run_until_complete(func(*args, **kwargs))
-            if asyncio.iscoroutinefunction(func):
-                return get_or_create_eventloop().run_until_complete(
-                    func(*args, **kwargs)
-                )
+        """may be overwritten in in sub class"""
         logger.info(f"Incoming request [{self.request_id}] Success")
         return func(*args, **kwargs)
 
@@ -640,7 +535,7 @@ class Flaat:
                 except KeyError:  # i.e. the environment variable was not set
                     pass
                 request_object = self._find_request_based_on_web_framework(
-                    request, args, kwargs
+                    *args, **kwargs
                 )
                 self.request_id = self.get_request_id(request_object)
                 all_info = self._get_all_info_from_request(request_object)
@@ -746,7 +641,7 @@ class Flaat:
                 user_message = "Not enough required group memberships found."
 
                 request_object = self._find_request_based_on_web_framework(
-                    request, args, kwargs
+                    *args, **kwargs
                 )
                 self.request_id = self.get_request_id(request_object)
                 all_info = self._get_all_info_from_request(request_object)
@@ -862,7 +757,7 @@ class Flaat:
                 user_message = "Not enough required entitlements found."
 
                 request_object = self._find_request_based_on_web_framework(
-                    request, args, kwargs
+                    *args, **kwargs
                 )
                 self.request_id = self.get_request_id(request_object)
                 all_info = self._get_all_info_from_request(request_object)
