@@ -47,7 +47,7 @@ flaat.set_trusted_OP_list([
 'https://login.elixir-czech.org/oidc/'
 ])
 ```
-For more OPs, please check the example-*.py files.
+For more OPs, please check the `examples/*` files.
 
 ## Usage:
 

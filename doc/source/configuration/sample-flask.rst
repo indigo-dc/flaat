@@ -13,5 +13,5 @@ the decorators provided by flaat.
    documentation is built. You must ensure your version of DEEPaaS matches the
    version of this documentation.
 
-.. literalinclude:: ../../../example-flask.py
-.. literalinclude:: ../../../example-fastapi.py
+.. literalinclude:: ../../../examples/flask.py
+
