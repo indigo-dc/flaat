@@ -1,25 +1,21 @@
 """FLAsk support for OIDC Access Tokens -- FLAAT. A set of decorators for authorising
 access to OIDC authenticated REST APIs."""
 # This code is distributed under the MIT License
-# pylint
-# vim: tw=100 foldmethod=indent
-# pylint: disable=invalid-name, superfluous-parens
-# pylint: disable=logging-not-lazy, logging-format-interpolation, logging-fstring-interpolation
-# pylint: disable=wrong-import-position, no-self-use, line-too-long
 
 
-from functools import wraps
 import json
-import os
-from queue import Queue, Empty
-from threading import Thread
 import logging
+import os
+from functools import wraps
+from queue import Empty, Queue
+from threading import Thread
+from typing import Any, Callable, List, Tuple, Union
 
-from aarc_g002_entitlement import Aarc_g002_entitlement
-from aarc_g002_entitlement import Aarc_g002_entitlement_Error
-from aarc_g002_entitlement import Aarc_g002_entitlement_ParseError
-from . import tokentools
-from . import issuertools
+from aarc_g002_entitlement import (Aarc_g002_entitlement,
+                                   Aarc_g002_entitlement_Error,
+                                   Aarc_g002_entitlement_ParseError)
+
+from . import issuertools, tokentools
 from .caches import Issuer_config_cache
 
 logger = logging.getLogger(__name__)
@@ -30,8 +26,27 @@ NAME = "flaat"
 VERBOSE = 0
 VERIFY_TLS = True
 
+# No leading slash ('/') in ops_that_support_jwt !!!
+OPS_THAT_SUPPORT_JWT = [
+    "https://iam-test.indigo-datacloud.eu",
+    "https://iam.deep-hybrid-datacloud.eu",
+    "https://iam.extreme-datacloud.eu",
+    "https://wlcg.cloud.cnaf.infn.it",
+    "https://aai.egi.eu/oidc",
+    "https://aai-dev.egi.eu/oidc",
+    "https://oidc.scc.kit.edu/auth/realms/kit",
+    "https://unity.helmholtz-data-federation.de/oauth2",
+    "https://login.helmholtz-data-federation.de/oauth2",
+    "https://login-dev.helmholtz.de/oauth2",
+    "https://login.helmholtz.de/oauth2",
+    "https://b2access.eudat.eu/oauth2",
+    "https://b2access-integration.fz-juelich.de/oauth2",
+    "https://services.humanbrainproject.eu/oidc",
+    "https://login.elixir-czech.org/oidc",
+]
 
-def ensure_is_list(item):
+
+def ensure_is_list(item: Union[list, str]) -> List[str]:
     """Make sure we have a list"""
     if isinstance(item, str):
         return [item]
@@ -83,7 +98,7 @@ def formatted_entitlements(entitlements):
     return "\n" + "\n\n".join([my_mstr(x) for x in entitlements]) + "\n"
 
 
-class Flaat:
+class BaseFlaat:
     """FLAsk support for OIDC Access Tokens.
     Provide decorators and configuration for OIDC"""
 
@@ -105,31 +120,27 @@ class Flaat:
         self.accesstoken_issuer_cache = {}  # maps accesstoken to issuer
         self.num_request_workers = 10
         self.client_connect_timeout = 1.2  # seconds
-        # No leading slash ('/') in ops_that_support_jwt !!!
-        self.ops_that_support_jwt = [
-            "https://iam-test.indigo-datacloud.eu",
-            "https://iam.deep-hybrid-datacloud.eu",
-            "https://iam.extreme-datacloud.eu",
-            "https://wlcg.cloud.cnaf.infn.it",
-            "https://aai.egi.eu/oidc",
-            "https://aai-dev.egi.eu/oidc",
-            "https://oidc.scc.kit.edu/auth/realms/kit",
-            "https://unity.helmholtz-data-federation.de/oauth2",
-            "https://login.helmholtz-data-federation.de/oauth2",
-            "https://login-dev.helmholtz.de/oauth2",
-            "https://login.helmholtz.de/oauth2",
-            "https://b2access.eudat.eu/oauth2",
-            "https://b2access-integration.fz-juelich.de/oauth2",
-            "https://services.humanbrainproject.eu/oidc",
-            "https://login.elixir-czech.org/oidc",
-        ]
+        self.ops_that_support_jwt = OPS_THAT_SUPPORT_JWT
         self.claim_search_precedence = ["userinfo", "access_token"]
         self.request_id = "unset"
 
         self.raise_error_on_return = True  # else just return an error
 
+    # SUBCLASS STUBS
     def get_request_id(self, request_object):
-        raise NotImplementedError("use framework specific sub class")
+        _ = request_object
+        # raise NotImplementedError("use framework specific sub class")
+        return object()
+
+    def _get_request(self, *args, **kwargs):
+        """overwritten in subclasses"""
+        # raise NotImplementedError("implement in subclass")
+        return object()
+
+    def _return_formatter_wf(self, return_value, status=200):
+        # raise NotImplementedError("use framework specific sub class")
+        return object()
+    # END SUBCLASS STUBS
 
     def set_cache_lifetime(self, lifetime):
         """Set cache lifetime of requests_cache zn seconds, default: 300s"""
@@ -494,13 +505,6 @@ class Flaat:
             [accesstoken_info, user_info, introspection_info]
         )
 
-    def _find_request_based_on_web_framework(self, *args, **kwargs):
-        """overwritten in subclasses"""
-        return args[0]
-
-    def _return_formatter_wf(self, return_value, status=200):
-        raise NotImplementedError("use framework specific sub class")
-
     def _get_all_info_from_request(self, param_request):
         """gather all info about the user that we can find.
         Returns a "supertoken" json structure."""
@@ -516,27 +520,58 @@ class Flaat:
         logger.info(f"Incoming request [{self.request_id}] Success")
         return func(*args, **kwargs)
 
+    def _auth_disabled(self):
+        return "yes" == os.environ.get( "DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER", "").lower()
+
+    # TODO not sure if this works
+    def _get_auth_decorator(self, auth_func: Callable[..., Tuple[Any, int]], on_failure: Callable = None):
+        def decorator(view_func):
+            @wraps(view_func)
+            def wrapper(*args, **kwargs):
+                # auth_func determines if the request is authenticated
+                if self._auth_disabled:
+                    return self._wrap_async_call(view_func, *args, **kwargs)
+
+                # notable: auth_func and view_func get the same arguments
+                try:
+                    if auth_func(self, *args, **kwargs):
+                        # auth success
+                        return self._wrap_async_call(view_func, *args, **kwargs)
+                except:
+                    pass
+
+                # auth failed
+
+            return wrapper
+
+        return decorator
+
+    # TODO i need to test if this works the same as login_required
+    def login_required_new(self, on_failure: Callable = None):
+        if on_failure is not None and not callable(on_failure):
+            raise ValueError("Invalid argument: need callable")
+
+        def auth_func(self, *args, **kwargs) -> Tuple[Any, int]:
+            request_object = self._get_request(*args, **kwargs)
+            self.request_id = self.get_request_id(request_object)
+            return self._get_all_info_from_request(request_object)
+
+
+        return self._get_auth_decorator(auth_func)
+
+
     def login_required(self, on_failure=None):
         """Decorator to enforce a valid login.
         Optional on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page"""
 
-        def wrapper(view_func):
+        def decorator(view_func):
             @wraps(view_func)
-            def decorated(*args, **kwargs):
-                try:
-                    if (
-                        os.environ[
-                            "DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER"
-                        ].lower()
-                        == "yes"
-                    ):
-                        return self._wrap_async_call(view_func, *args, **kwargs)
-                except KeyError:  # i.e. the environment variable was not set
-                    pass
-                request_object = self._find_request_based_on_web_framework(
-                    *args, **kwargs
-                )
+            def wrapper(*args, **kwargs):
+                if self._auth_disabled:
+                    return self._wrap_async_call(view_func, *args, **kwargs)
+
+                request_object = self._get_request( *args, **kwargs)
                 self.request_id = self.get_request_id(request_object)
                 all_info = self._get_all_info_from_request(request_object)
 
@@ -550,16 +585,16 @@ class Flaat:
                         ("No valid authentication found: %s" % self.get_last_error()),
                         401,
                     )
-                if on_failure:
+                if callable(on_failure):
                     return self._return_formatter_wf(
                         on_failure(self.get_last_error()), 401
                     )
 
                 return self._wrap_async_call(view_func, *args, **kwargs)
 
-            return decorated
+            return wrapper
 
-        return wrapper
+        return decorator
 
     def _determine_number_of_required_matches(self, match, req_group_list):
         """determine the number of required matches from parameters"""
@@ -589,6 +624,7 @@ class Flaat:
                 avail_group_entries = all_info["body"].get(claim)
             if avail_group_entries is not None:
                 break
+
         if avail_group_entries is None:
             self.set_last_error('Not authorised (claim does not exist: "%s")' % claim)
             if self.verbose:
@@ -624,25 +660,15 @@ class Flaat:
         on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page"""
 
-        def wrapper(view_func):
+        def decorator(view_func):
             @wraps(view_func)
-            def decorated(*args, **kwargs):
-                try:
-                    if (
-                        os.environ[
-                            "DISABLE_AUTHENTICATION_AND_ASSUME_VALID_GROUPS"
-                        ].lower()
-                        == "yes"
-                    ):
-                        return self._wrap_async_call(view_func, *args, **kwargs)
-                except KeyError:  # i.e. the environment variable was not set
-                    pass
+            def wrapper(*args, **kwargs):
+                if self._auth_disabled():
+                    return self._wrap_async_call(view_func, *args, **kwargs)
 
                 user_message = "Not enough required group memberships found."
 
-                request_object = self._find_request_based_on_web_framework(
-                    *args, **kwargs
-                )
+                request_object = self._get_request( *args, **kwargs)
                 self.request_id = self.get_request_id(request_object)
                 all_info = self._get_all_info_from_request(request_object)
 
@@ -711,23 +737,12 @@ class Flaat:
                     user_message + self.get_last_error(), 403
                 )
 
-            return decorated
+            return wrapper
 
-        return wrapper
+        return decorator
 
     def aarc_g002_entitlement_required(
-        self, entitlement=None, claim=None, on_failure=None, match="all"
-    ):
-        """Decorator to enforce membership in a given group defined according to AARC-G002.
-        entitlement is the name (or list) of the entitlement to match
-        match specifies how many of the given groups must be matched. Valid values for match are
-        'all', 'one', or an integer
-        on_failure is a function that will be invoked if there was no valid user detected.
-        Useful for redirecting to some login page"""
-        return self.aarc_g002_group_required(entitlement, claim, on_failure, match)
-
-    def aarc_g002_group_required(
-        self, group=None, claim=None, on_failure=None, match="all"
+            self, entitlement : Union[str, List[str]], claim=None, on_failure=None, match="all"
     ):
         """Decorator to enforce membership in a given group defined according to AARC-G002.
         group is the name (or list) of the entitlement to match
@@ -736,29 +751,16 @@ class Flaat:
         on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page"""
 
-        # rename for clarity, don't use group below
-        entitlement = group
-        del group
 
-        def wrapper(view_func):
+        def decorator(view_func):
             @wraps(view_func)
-            def decorated(*args, **kwargs):
-                try:
-                    if (
-                        os.environ[
-                            "DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER"
-                        ].lower()
-                        == "yes"
-                    ):
-                        return self._wrap_async_call(view_func, *args, **kwargs)
-                except KeyError:  # i.e. the environment variable was not set
-                    pass
+            def wrapper(*args, **kwargs):
+                if self._auth_disabled:
+                    return self._wrap_async_call(view_func, *args, **kwargs)
 
                 user_message = "Not enough required entitlements found."
 
-                request_object = self._find_request_based_on_web_framework(
-                    *args, **kwargs
-                )
+                request_object = self._get_request( *args, **kwargs)
                 self.request_id = self.get_request_id(request_object)
                 all_info = self._get_all_info_from_request(request_object)
 
@@ -879,6 +881,6 @@ class Flaat:
                     return self._return_formatter_wf(on_failure(user_message), 403)
                 return self._return_formatter_wf(user_message, 403)
 
-            return decorated
+            return wrapper
 
-        return wrapper
+        return decorator

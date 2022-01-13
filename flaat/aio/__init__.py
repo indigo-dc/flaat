@@ -1,15 +1,15 @@
-from .. import Flaat
+import logging
 
 # framework specific imports
 from aiohttp import web
 from aiohttp.web_exceptions import HTTPError
 
-import logging
+from .. import BaseFlaat
 
 logger = logging.getLogger(__name__)
 
 
-class FlaatAIO(Flaat):
+class Flaat(BaseFlaat):
     def _return_formatter_wf(self, return_value, status=200):
         """Return the object appropriate for the chosen web framework"""
         if status != 200:
@@ -32,6 +32,6 @@ class FlaatAIO(Flaat):
         return the_id
 
     # FIXME
-    def _find_request_based_on_web_framework(self, *args, **kwargs):
+    def _get_request(self, *args, **_):
         """overwritten in subclasses"""
         return args[0]

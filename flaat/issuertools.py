@@ -1,30 +1,18 @@
 """Tools for token handling in FLAAT"""
 # This code is distributed under the MIT License
-# pylint
-# vim: tw=100 foldmethod=indent
-# pylint: disable=invalid-name, superfluous-parens
-# pylint: disable=logging-not-lazy, logging-format-interpolation, logging-fstring-interpolation
-# pylint: disable=wrong-import-position, line-too-long
 
-import sys
-
-is_py2 = sys.version[0] == "2"
-if is_py2:
-    # pylint: disable=import-error
-    from Queue import Queue, Empty
-else:
-    from queue import Queue, Empty
-from threading import Thread
-import re
 import fileinput
-from base64 import b64encode
 import json
 import logging
+import re
+from base64 import b64encode
+from queue import Empty, Queue
+from threading import Thread
+
 import requests
 import requests_cache
 
 from flaat import tokentools
-
 
 logger = logging.getLogger(__name__)
 
@@ -184,7 +172,7 @@ def find_issuer_config_in_file(op_file, op_hint=None, exclude_list=[]):
     if op_file:
         iss_config = []
         for issuer in fileinput.input(op_file):
-            issuer_from_conf = issuer.rstrip("\n").split(" ")[0]
+            issuer_from_conf = str(issuer).rstrip("\n").split(" ")[0]
             if issuer_from_conf == "":
                 continue
             if issuer_from_conf in exclude_list:

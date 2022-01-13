@@ -1,20 +1,13 @@
 """Tools for FLAAT"""
 # This code is distributed under the MIT License
-# pylint
-# vim: tw=100 foldmethod=indent
-# pylint: disable=invalid-name, superfluous-parens
-# pylint: disable=logging-not-lazy, logging-format-interpolation, logging-fstring-interpolation
-# pylint: disable=line-too-long
-
 
 import base64
-import re
-import time
 import json
 import logging
+import re
+import time
 
 logger = logging.getLogger(__name__)
-
 verbose = 0
 
 
@@ -32,6 +25,7 @@ def merge_tokens(tokenlist):
     return supertoken
 
 
+# FIXME broken
 def get_access_token_from_request(request):
     """Helper function to obtain the OIDC AT from the flask request variable"""
     token = None

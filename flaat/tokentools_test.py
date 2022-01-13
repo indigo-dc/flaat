@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
-# pylint: disable=bad-whitespace, invalid-name, missing-docstring
-import pytest
 import json
+
+import pytest
+
 from . import tokentools
 
 

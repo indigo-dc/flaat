@@ -1,11 +1,11 @@
-from .. import Flaat
+import asyncio
+import logging
 
 # framework specific imports
-import asyncio
-from fastapi.responses import JSONResponse
 from fastapi import HTTPException
+from fastapi.responses import JSONResponse
 
-import logging
+from .. import BaseFlaat
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class FlaatExceptionFastapi(HTTPException):
             super().__init__(status_code=status_code)
 
 
-class FlaatAIO(Flaat):
+class Flaat(BaseFlaat):
     def _return_formatter_wf(self, return_value, status=200):
         """Return the object appropriate for the chosen web framework"""
         if status != 200:
@@ -66,5 +66,5 @@ class FlaatAIO(Flaat):
         return func(*args, **kwargs)
 
     # FIXME this is probably broken: kwargs and args are
-    def _find_request_based_on_web_framework(self, *args, **kwargs):
+    def _get_request(self, *args, **kwargs):
         return kwargs["request"]

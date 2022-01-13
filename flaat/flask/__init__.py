@@ -1,8 +1,10 @@
-from .. import Flaat
 import logging
 
-from flask import request
 from werkzeug.exceptions import HTTPException
+
+from flask import request
+
+from .. import BaseFlaat
 
 logger = logging.getLogger(__name__)
 
@@ -17,29 +19,21 @@ class FlaatExceptionFlask(HTTPException):
         super().__init__()
 
 
-class FlaatFlask(Flaat):
+class Flaat(BaseFlaat):
     def _return_formatter_wf(self, return_value, status=200):
         """Return the object appropriate for the chosen web framework"""
-        if status != 200:
-            logger.error(
-                f"Incoming request [{self.request_id}] http status: {status} - {self.get_last_error()}"
-            )
-        if self.raise_error_on_return:
-            raise FlaatExceptionFlask(reason=return_value, status_code=status)
+        logger.error(f"[{self.request_id}] {status} - {self.get_last_error()}")
+        if status != 200 and self.raise_error_on_return:
+            raise HTTPException(description=return_value)
         return (return_value, status)
 
     def get_request_id(self, request_object):
         """Return a string identifying the request"""
-        # request_object = self._find_request_based_on_web_framework(request, args, kwargs)
-        the_id = ""
         try:
-            the_id = f"{str(request_object.remote_addr)}--" + str(
-                request_object.base_url
-            )
+            return f"{request_object.remote_addr}--{request_object.base_url}"
         except AttributeError as e:
-            logger.error(f"Cannot identify the request: {e}\n{the_id}")
-        return the_id
+            logger.error(f"Cannot identify the request: {e}")
+            raise e
 
-    def _find_request_based_on_web_framework(self, *args, **kwargs):
-        # FIXME this is probably broken
-        return args[0]
+    def _get_request(self, *_, **__):
+        return request

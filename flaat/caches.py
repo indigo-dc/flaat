@@ -1,11 +1,6 @@
 """FLAsk support for OIDC Access Tokens -- FLAAT. A set of decorators for authorising
 access to OIDC authenticated REST APIs."""
 # This code is distributed under the MIT License
-# pylint
-# vim: tw=100 foldmethod=indent
-# pylint: disable=invalid-name, superfluous-parens
-# pylint: disable=logging-not-lazy, logging-format-interpolation, logging-fstring-interpolation
-# pylint: disable=wrong-import-position, no-self-use, line-too-long
 
 import logging
 
