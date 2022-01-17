@@ -1,4 +1,4 @@
-pytest
-pytest-cov
-pytest-aiohttp
 pylint
+pytest
+pytest-aiohttp
+pytest-cov

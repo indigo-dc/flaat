@@ -1,23 +1,31 @@
 import asyncio
 import logging
 
-# framework specific imports
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 from flaat import BaseFlaat
-from flaat.exceptions import FlaatForbidden, FlaatUnauthorized
+from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthorized
 
 logger = logging.getLogger(__name__)
 
 
 class Flaat(BaseFlaat):
-    def _map_exception(self, e):
-        if isinstance(e, FlaatUnauthorized):
-            raise HTTPException(status_code=401, detail=str(e)) from e
-        elif isinstance(e, FlaatForbidden):
-            raise HTTPException(status_code=403, detail=str(e)) from e
-        else:
-            raise HTTPException(status_code=500, detail=str(e)) from e
+    def _map_exception(self, exception):
+        framework_exception = HTTPException
+        status_code = 500
+
+        if isinstance(exception, FlaatUnauthorized):
+            status_code = 401
+        elif isinstance(exception, FlaatForbidden):
+            status_code = 403
+
+        message = str(exception)
+        logger.info(
+            "%s (Status: %d): %s", framework_exception.__name__, status_code, message
+        )
+        raise framework_exception(
+            status_code=status_code, detail=message
+        ) from exception
 
     def get_request_id(self, request_object):
         """Return a string identifying the request"""
@@ -50,4 +58,17 @@ class Flaat(BaseFlaat):
 
     # FIXME this is probably broken: kwargs and args are
     def _get_request(self, *args, **kwargs):
+        if "request" not in kwargs:
+            raise FlaatException("No request parameter in view function!")
+
         return kwargs["request"]
+
+    def get_access_token_from_request(self, request: Request) -> str:
+        if not "Authorization" in request.headers:
+            raise FlaatUnauthorized("No authorization header in request")
+
+        header = request.headers.get("Authorization")
+        if not header.startswith("Bearer "):
+            raise FlaatUnauthorized("Authorization header must contain bearer token")
+
+        return header.replace("Bearer ", "")

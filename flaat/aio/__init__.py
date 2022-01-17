@@ -10,12 +10,16 @@ logger = logging.getLogger(__name__)
 
 class Flaat(BaseFlaat):
     def _map_exception(self, e):
+        framework_exception = HTTPServerError
+
         if isinstance(e, FlaatUnauthorized):
-            raise HTTPUnauthorized(reason=str(e)) from e
+            framework_exception = HTTPUnauthorized
         elif isinstance(e, FlaatForbidden):
-            raise HTTPForbidden(reason=str(e)) from e
-        else:
-            raise HTTPServerError(reason=str(e)) from e
+            framework_exception = HTTPForbidden
+
+        message = str(e)
+        logger.info(f"{framework_exception}: {message}")
+        raise framework_exception(reason=message) from e
 
     def get_request_id(self, request_object):
         """Return a string identifying the request"""

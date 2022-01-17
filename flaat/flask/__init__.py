@@ -18,9 +18,9 @@ class Flaat(BaseFlaat):
         elif isinstance(exception, FlaatUnauthorized):
             framework_exception = Unauthorized
 
-        description = str(exception)
-        logger.error(f"{framework_exception}: {description}")
-        raise framework_exception(description=description)
+        message = str(exception)
+        logger.info("%s: %s", framework_exception, message)
+        raise framework_exception(description=message) from exception
 
     def get_request_id(self, request_object):
         """Return a string identifying the request"""
@@ -32,3 +32,14 @@ class Flaat(BaseFlaat):
 
     def _get_request(self, *_, **__):
         return request
+
+    def get_access_token_from_request(self, _) -> str:
+        # using flask global "request" here, not an argument
+        if not "Authorization" in request.headers:
+            raise FlaatUnauthorized("No authorization header in request")
+
+        header = request.headers.get("Authorization")
+        if not header.startswith("Bearer "):
+            raise FlaatUnauthorized("Authorization header must contain bearer token")
+
+        return header.replace("Bearer ", "")

@@ -131,7 +131,7 @@ def find_issuer_config_in_list(op_list, op_hint=None, exclude_list=[]):
         iss_config = []
         for issuer in op_list:
             if issuer in exclude_list:
-                logger.debug("skipping %s due to exclude list" % issuer)
+                logger.debug("skipping %s due to exclude list", issuer)
                 continue
             issuer_wellknown = issuer + "/.well-known/openid-configuration"
             if op_hint is None:
@@ -221,7 +221,7 @@ def get_user_info(access_token, issuer_config):
     """Query the userinfo endpoint, using the AT as authentication"""
     headers = {}
     headers = {"Content-type": "application/x-www-form-urlencoded"}
-    headers["Authorization"] = "Bearer {0}".format(access_token)
+    headers["Authorization"] = f"Bearer {access_token}"
     logger.debug("Using this access token: %s", access_token)
     logger.debug("Trying to get userinfo from %s", issuer_config["userinfo_endpoint"])
     try:
@@ -231,31 +231,36 @@ def get_user_info(access_token, issuer_config):
             headers=headers,
             timeout=timeout,
         )
-    except requests.exceptions.ReadTimeout:
-        logger.error("ReadTimeout caught for issuer_config['issuer']")
-        # logger.debug(F"headers were: {headers}, timeout: {timeout}")
-        return None
-    if resp.status_code != 200:
-        logger.warning(
-            "Not getting userinfo from %s: %s / %s / %s\nHeaders was: %s\nTimeout: {timeout}",
+        if resp.status_code != 200:
+            logger.warning(
+                "Failed to fetch userinfo from %s: %s / %s / %s\nHeaders was: %s\nTimeout: %s",
+                issuer_config["userinfo_endpoint"],
+                resp.status_code,
+                resp.text,
+                resp.reason,
+                headers,
+                timeout,
+            )
+            return None
+
+        resp_json = resp.json()
+        logger.debug(
+            "Got Userinfo: from %s: %s",
             issuer_config["userinfo_endpoint"],
-            resp.status_code,
-            resp.text,
-            resp.reason,
-            headers,
+            json.dumps(resp_json, sort_keys=True, indent=4, separators=(",", ": ")),
+        )
+        if resp.status_code != 200:
+            logger.info("userinfo: resp: %s", resp.status_code)
+
+        return (resp_json, issuer_config)
+
+    except requests.exceptions.ReadTimeout:
+        logger.warning(
+            "Timeout fetching userinfo from %s (timeout was %s)",
+            issuer_config["issuer"],
             timeout,
         )
         return None
-
-    resp_json = resp.json()
-    logger.debug(
-        "Got Userinfo: from %s: %s",
-        issuer_config["userinfo_endpoint"],
-        json.dumps(resp_json, sort_keys=True, indent=4, separators=(",", ": ")),
-    )
-    if resp.status_code != 200:
-        logger.info("userinfo: resp: %s" % resp.status_code)
-    return (resp_json, issuer_config)
 
 
 def get_introspected_token_info(

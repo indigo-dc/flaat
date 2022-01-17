@@ -1,3 +1,4 @@
+# pylint: disable=redefined-outer-name,wildcard-import
 import pytest
 from aiohttp import web
 
@@ -5,11 +6,7 @@ from flaat.aio import Flaat
 from flaat.test_env import *
 
 flaat = Flaat()
-flaat.set_trusted_OP_list(
-    [
-        FLAAT_ISS,
-    ]
-)
+flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
 
 
 @flaat.login_required()
@@ -39,31 +36,22 @@ async def aarc_g002_entitlement_required(_):
 def app():
     """aio web Application for testing"""
     app = web.Application()
-    app.router.add_get("/entitlement_required", aarc_g002_entitlement_required)
-    app.router.add_get("/login_required", login_required)
-    app.router.add_get("/group_required", group_required)
+    app.router.add_get(PATH_LOGIN_REQUIRED, login_required)
+    app.router.add_get(PATH_GROUP_REQUIRED, group_required)
+    app.router.add_get(PATH_ENTITLEMENT_REQUIRED, aarc_g002_entitlement_required)
     return app
 
 
 @pytest.fixture
-async def client(app, aiohttp_client):
-    """aio test client for testing"""
-    return await aiohttp_client(app)
+def cli(loop, aiohttp_client, app):
+    return loop.run_until_complete(aiohttp_client(app))
 
 
 @pytest.mark.parametrize(
     "status,kwargs",
     [(401, {}), (200, {"headers": {"Authorization": f"Bearer {FLAAT_AT}"}})],
 )
-@pytest.mark.parametrize(
-    "path",
-    # these paths correspond to the paths from the app fixture
-    [
-        "/login_required",
-        "/group_required",
-        "/entitlement_required",
-    ],
-)
-async def test_decorator(client, path, status, kwargs):
-    resp = await client.get(path, **kwargs)
+@pytest.mark.parametrize("path", TEST_PATHS)
+async def test_decorator(cli, path, status, kwargs):
+    resp = await cli.get(path, **kwargs)
     assert resp.status == status

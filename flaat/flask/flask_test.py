@@ -1,21 +1,20 @@
+from flask.app import Flask
 import pytest
-from aiohttp import web
 
-from flaat.aio import Flaat
+from flaat.flask import Flaat
 from flaat.test_env import *
+from werkzeug import Response
 
 
+# TODO shouldn't we recreate the flaat instance for every test?
+# especially thinking about caches etc.
 flaat = Flaat()
-flaat.set_trusted_OP_list(
-    [
-        FLAAT_ISS,
-    ]
-)
+flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
 
 
 @flaat.login_required()
-async def login_required(_):
-    return web.Response(text="Success")
+def login_required():
+    return Response(response="Success")
 
 
 @flaat.group_required(
@@ -23,8 +22,8 @@ async def login_required(_):
     claim=FLAAT_CLAIM_GROUP,
     match="all",
 )
-async def group_required(_):
-    return web.Response(text="Success")
+def group_required():
+    return Response(response="Success")
 
 
 @flaat.aarc_g002_entitlement_required(
@@ -32,37 +31,30 @@ async def group_required(_):
     claim=FLAAT_CLAIM_ENTITLEMENT,
     match="all",
 )
-async def aarc_g002_entitlement_required(_):
-    return web.Response(text="Success")
+def aarc_g002_entitlement_required():
+    return Response(response="Success")
 
 
 @pytest.fixture
 def app():
-    app = web.Application()
-    app.router.add_get("/entitlement_required", aarc_g002_entitlement_required)
-    app.router.add_get("/login_required", login_required)
-    app.router.add_get("/group_required", group_required)
+    """flask web app for testing"""
+    app = Flask(__name__)
+    app.route(PATH_LOGIN_REQUIRED)(login_required)
+    app.route(PATH_GROUP_REQUIRED)(group_required)
+    app.route(PATH_ENTITLEMENT_REQUIRED)(aarc_g002_entitlement_required)
     return app
 
 
 @pytest.fixture
-async def client(app, aiohttp_client):
-    return await aiohttp_client(app)
+def client(app: Flask):
+    return app.test_client()
 
 
 @pytest.mark.parametrize(
     "status,kwargs",
-    [(500, {}), (200, {"headers": {"Authorization": f"Bearer {FLAAT_AT}"}})],
+    [(401, {}), (200, {"headers": {"Authorization": f"Bearer {FLAAT_AT}"}})],
 )
-@pytest.mark.parametrize(
-    "path",
-    # these paths correspond to the paths from the app fixture
-    [
-        "/login_required",
-        "/group_required",
-        "/entitlement_required",
-    ],
-)
-async def test_decorator(client, path, status, kwargs):
-    resp = await client.get(path, **kwargs)
-    assert resp.status == status
+@pytest.mark.parametrize("path", TEST_PATHS)
+def test_decorator(client, path, status, kwargs):
+    resp = client.get(path, **kwargs)
+    assert resp.status_code == status

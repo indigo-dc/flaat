@@ -1,3 +1,4 @@
+echo Loading access token from oidc-agent. Once it expires, you have to source this script again.
 export FLAAT_AT="$(oidc-token egi)"
 export FLAAT_ISS="https://aai.egi.eu/oidc/"
 

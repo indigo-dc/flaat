@@ -12,6 +12,7 @@ from functools import wraps
 from queue import Empty, Queue
 from threading import Thread
 from typing import Any, Callable, Dict, List, Literal, Tuple, Union
+from _pytest.compat import iscoroutinefunction
 
 from aarc_g002_entitlement import Aarc_g002_entitlement, Aarc_g002_entitlement_Error
 
@@ -262,15 +263,15 @@ class BaseFlaat(FlaatConfig):
         """Use many places to find issuer configs"""
 
         # 0: Use accesstoken_issuer cache to find issuerconfig:
-        logger.debug("0: Trying to find issuer in cache")
+        logger.debug("find_issuer - 0: In cache")
         if access_token in self.accesstoken_issuer_cache:
             issuer = self.accesstoken_issuer_cache[access_token]
             iss_config = self.issuer_config_cache.get(issuer)
-            logger.debug(f"  0: returning {iss_config}")
+            logger.debug(f"find_issuer - 0: returning {iss_config}")
             return [iss_config]
 
         # 1: find info in the AT
-        logger.debug("1: Trying to find issuer in access_token")
+        logger.debug("find_issuer - 1: In access_token")
         at_iss = tokentools.get_issuer_from_accesstoken_info(access_token)
         if at_iss is not None:
             trusted_op_list_buf = []
@@ -289,13 +290,13 @@ class BaseFlaat(FlaatConfig):
             return [iss_config]
 
         # 2: use a provided string
-        logger.debug('2: Trying to find issuer from "set_iss"')
+        logger.debug('find_issuer - 2: From "set_iss"')
         iss_config = issuertools.find_issuer_config_in_string(self.iss)
         if iss_config is not None:
             return [iss_config]
 
         # 3: Try the provided list of providers:
-        logger.debug("3: Trying to find issuer from trusted_op_list")
+        logger.debug("find_issuer - 3: From trusted_op_list")
         iss_config = issuertools.find_issuer_config_in_list(
             self.trusted_op_list, self.op_hint, exclude_list=self.ops_that_support_jwt
         )
@@ -303,7 +304,7 @@ class BaseFlaat(FlaatConfig):
             return iss_config
 
         # 4: Try oidc-agent's issuer config file
-        logger.debug('Trying to find issuer from "set_OIDC_provider_file"')
+        logger.debug('find_issuer - 4: From "set_OIDC_provider_file"')
         iss_config = issuertools.find_issuer_config_in_file(
             self.trusted_op_file, self.op_hint, exclude_list=self.ops_that_support_jwt
         )
@@ -316,7 +317,7 @@ class BaseFlaat(FlaatConfig):
         # FIXME: Add here parameter verify=True, then go and verify the token
         """return the information contained inside the access_token itself"""
         accesstoken_info = None
-        if access_token:
+        if access_token != "":
             accesstoken_info = tokentools.get_accesstoken_info(access_token)
         return accesstoken_info
 
@@ -461,6 +462,7 @@ class BaseFlaat(FlaatConfig):
         """gather all info about the user that we can find.
         Returns a "supertoken" json structure."""
         access_token = self.get_access_token_from_request(param_request)
+        logger.debug("Access token: %s", access_token)
 
         return self.get_all_info_by_at(access_token)
 
@@ -594,9 +596,17 @@ class BaseFlaat(FlaatConfig):
                 try:
                     if not self._auth_disabled():
                         # auth_func raises an exception if unauthorized
+                        logger.debug("Executing sychronous auth_func")
                         auth_func(self, *args, **kwargs)
 
-                    return await view_func(*args, **kwargs)
+                    # here after auth success
+                    if iscoroutinefunction(view_func):
+                        logger.debug("Executing async view_func")
+                        return await view_func(*args, **kwargs)
+
+                    logger.debug("Executing sychronous view_func")
+                    return view_func(*args, **kwargs)
+
                 except FlaatException as e:
                     if on_failure is not None:
                         return on_failure(e)
