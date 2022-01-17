@@ -3,37 +3,21 @@ import logging
 
 # framework specific imports
 from fastapi import HTTPException
-from fastapi.responses import JSONResponse
 
-from .. import BaseFlaat
+from flaat import BaseFlaat
+from flaat.exceptions import FlaatForbidden, FlaatUnauthorized
 
 logger = logging.getLogger(__name__)
 
 
-# TODO remove these questionable custom exceptions
-class FlaatExceptionFastapi(HTTPException):
-    """Call the corresponding web framework exception, with a custom reason"""
-
-    def __init__(self, status_code, reason=None, **_):
-        self.code = status_code
-        if reason:
-            self.description = reason
-            super().__init__(status_code=status_code, detail=reason)
-        else:
-            super().__init__(status_code=status_code)
-
-
 class Flaat(BaseFlaat):
-    def _return_formatter_wf(self, return_value, status=200):
-        """Return the object appropriate for the chosen web framework"""
-        if status != 200:
-            logger.error(
-                f"Incoming request [{self.request_id}] http status: {status} - {self.get_last_error()}"
-            )
-            if self.raise_error_on_return:
-                raise FlaatExceptionFastapi(reason=return_value, status_code=status)
-
-        return JSONResponse(content=return_value, status_code=status)
+    def _map_exception(self, e):
+        if isinstance(e, FlaatUnauthorized):
+            raise HTTPException(status_code=401, detail=str(e)) from e
+        elif isinstance(e, FlaatForbidden):
+            raise HTTPException(status_code=403, detail=str(e)) from e
+        else:
+            raise HTTPException(status_code=500, detail=str(e)) from e
 
     def get_request_id(self, request_object):
         """Return a string identifying the request"""
@@ -62,7 +46,6 @@ class Flaat(BaseFlaat):
         if asyncio.iscoroutinefunction(func):
             return get_or_create_eventloop().run_until_complete(func(*args, **kwargs))
 
-        logger.info(f"Incoming request [{self.request_id}] Success")
         return func(*args, **kwargs)
 
     # FIXME this is probably broken: kwargs and args are

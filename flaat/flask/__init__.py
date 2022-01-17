@@ -1,31 +1,26 @@
 import logging
 
-from werkzeug.exceptions import HTTPException
+from werkzeug.exceptions import Unauthorized, Forbidden, InternalServerError
 
 from flask import request
 
-from .. import BaseFlaat
+from flaat import BaseFlaat, FlaatException, FlaatUnauthorized, FlaatForbidden
 
 logger = logging.getLogger(__name__)
 
 
-class FlaatExceptionFlask(HTTPException):
-    """Call the corresponding web framework exception, with a custom reason"""
-
-    def __init__(self, status_code, reason=None, **_):
-        self.code = status_code
-        if reason:
-            self.description = reason
-        super().__init__()
-
-
 class Flaat(BaseFlaat):
-    def _return_formatter_wf(self, return_value, status=200):
-        """Return the object appropriate for the chosen web framework"""
-        logger.error(f"[{self.request_id}] {status} - {self.get_last_error()}")
-        if status != 200 and self.raise_error_on_return:
-            raise HTTPException(description=return_value)
-        return (return_value, status)
+    def _map_exception(self, exception: FlaatException):
+        framework_exception = InternalServerError
+
+        if isinstance(exception, FlaatForbidden):
+            framework_exception = Forbidden
+        elif isinstance(exception, FlaatUnauthorized):
+            framework_exception = Unauthorized
+
+        description = str(exception)
+        logger.error(f"{framework_exception}: {description}")
+        raise framework_exception(description=description)
 
     def get_request_id(self, request_object):
         """Return a string identifying the request"""

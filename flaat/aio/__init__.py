@@ -1,25 +1,21 @@
 import logging
 
-# framework specific imports
-from aiohttp import web
-from aiohttp.web_exceptions import HTTPError
+from aiohttp.web_exceptions import HTTPForbidden, HTTPServerError, HTTPUnauthorized
 
-from .. import BaseFlaat
+from flaat import BaseFlaat
+from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthorized
 
 logger = logging.getLogger(__name__)
 
 
 class Flaat(BaseFlaat):
-    def _return_formatter_wf(self, return_value, status=200):
-        """Return the object appropriate for the chosen web framework"""
-        if status != 200:
-            logger.error(
-                f"Incoming request [{self.request_id}] http status: {status} - {self.get_last_error()}"
-            )
-            if self.raise_error_on_return:
-                raise HTTPError(text=str(self.get_last_error))
-
-        return web.Response(text=return_value, status=status)
+    def _map_exception(self, e):
+        if isinstance(e, FlaatUnauthorized):
+            raise HTTPUnauthorized(reason=str(e)) from e
+        elif isinstance(e, FlaatForbidden):
+            raise HTTPForbidden(reason=str(e)) from e
+        else:
+            raise HTTPServerError(reason=str(e)) from e
 
     def get_request_id(self, request_object):
         """Return a string identifying the request"""
@@ -31,7 +27,16 @@ class Flaat(BaseFlaat):
             logger.error(f"Cannot identify the request: {e}\n{the_id}")
         return the_id
 
-    # FIXME
     def _get_request(self, *args, **_):
-        """overwritten in subclasses"""
-        return args[0]
+        if len(args) < 2:
+            raise FlaatException("Need argument 'request' for framework 'aio'")
+        return args[1]
+
+    def get_access_token_from_request(self, request) -> str:
+        logger.debug("Request headers: %s", request.headers)
+        if request.headers.get("Authorization", "").startswith("Bearer "):
+            temp = request.headers["Authorization"].split("authorization header: ")[0]
+            token = temp.split(" ")[1]
+            return token
+
+        raise FlaatUnauthorized("No access token")

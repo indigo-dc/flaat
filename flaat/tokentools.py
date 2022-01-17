@@ -6,43 +6,21 @@ import json
 import logging
 import re
 import time
+from typing import List, Union
+from flaat.exceptions import FlaatUnauthorized
 
 logger = logging.getLogger(__name__)
-verbose = 0
 
 
-def merge_tokens(tokenlist):
+def merge_tokens(tokenlist: List[Union[dict, None]]) -> dict:
     """put all provided tokens into one token."""
     supertoken = {}
     for entry in tokenlist:
-        try:
+        if entry is not None:
             for key in entry.keys():
                 supertoken[key] = entry[key]
-        except AttributeError:
-            pass
-    if supertoken == {}:
-        return None
+
     return supertoken
-
-
-# FIXME broken
-def get_access_token_from_request(request):
-    """Helper function to obtain the OIDC AT from the flask request variable"""
-    token = None
-    try:
-        if "Authorization" in request.headers and request.headers[
-            "Authorization"
-        ].startswith("Bearer "):
-            temp = request.headers["Authorization"].split("authorization header: ")[0]
-            token = temp.split(" ")[1]
-        elif "access_token" in request.form:
-            token = request.form["access_token"]
-        elif "access_token" in request.args:
-            token = request.args["access_token"]
-        return token
-    except AttributeError as e:
-        logger.error(f"AttributeError: {e}")
-        return None
 
 
 def base64url_encode(data):
@@ -85,22 +63,20 @@ def get_accesstoken_info(access_token):
     """Return information contained in the access token. Maybe None"""
     try:
         (header_enc, body_enc, signature_enc) = access_token.split(".")
-        if verbose > 2:
-            logger.debug("header_enc: " + str(header_enc))
-            logger.debug("body_enc: " + str(body_enc))
+        logger.debug("header_enc: " + str(header_enc))
+        logger.debug("body_enc: " + str(body_enc))
 
         header = json.loads(base64url_decode(header_enc))
         body = json.loads(base64url_decode(body_enc))
 
-        if verbose > 2:
-            logger.debug("header")
-            logger.debug(
-                json.dumps(header, sort_keys=True, indent=4, separators=(",", ": "))
-            )
-            logger.debug("body")
-            logger.debug(
-                json.dumps(body, sort_keys=True, indent=4, separators=(",", ": "))
-            )
+        logger.debug(
+            "header: %s",
+            json.dumps(header, sort_keys=True, indent=4, separators=(",", ": ")),
+        )
+        logger.debug(
+            "body: %s",
+            json.dumps(body, sort_keys=True, indent=4, separators=(",", ": ")),
+        )
         return {"header": header, "body": body, "signature": signature_enc}
     except ValueError:
         # Cannot raise here, because inability to split will return None. That will trigger another

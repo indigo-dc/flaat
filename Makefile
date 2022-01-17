@@ -12,7 +12,11 @@ upload: dist
 
 .PHONY: coverage
 coverage:
-	tox -e py310
+	pytest --cov=flaat --cov-report=term-missing --show-capture=log
+
+.PHONY: test
+test:
+	pytest --show-capture=log --log-cli-level=debug
 
 .PHONY: clean
 clean:

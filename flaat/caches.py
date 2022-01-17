@@ -52,9 +52,10 @@ class Issuer_config_cache:
         return self
 
     def __next__(self):
-        my_length = len(self.entries.keys())
+        keys = self.entries.keys()
+        my_length = len(keys)
         if self.n < my_length:
-            retval = self.entries[list(self.entries.keys())[self.n]]
+            retval = self.entries[list(keys)[self.n]]
             self.n += 1
             return retval
         raise StopIteration
@@ -65,9 +66,7 @@ class Issuer_config_cache:
 
     def has(self, iss):
         """do we have an entry"""
-        if iss in self.entries.keys():
-            return True
-        return False
+        return iss in self.entries.keys()
 
 
 if __name__ == "__main__":
@@ -92,7 +91,7 @@ if __name__ == "__main__":
 
     print(f"length: {len(ic)}")
 
-    print(f"testing in")
+    print("testing in")
     if ic.has("first issuer1"):
         print("Yes")
     else:
