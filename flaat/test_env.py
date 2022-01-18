@@ -30,3 +30,7 @@ TEST_PATHS = [
     PATH_GROUP_REQUIRED,
     PATH_ENTITLEMENT_REQUIRED,
 ]
+
+STATUS_KWARGS_LIST = (
+    [(401, {}), (200, {"headers": {"Authorization": f"Bearer {FLAAT_AT}"}})],
+)

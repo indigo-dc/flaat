@@ -11,7 +11,7 @@ import os
 from functools import wraps
 from queue import Empty, Queue
 from threading import Thread
-from typing import Any, Callable, Dict, List, Literal, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 from _pytest.compat import iscoroutinefunction
 
 from aarc_g002_entitlement import Aarc_g002_entitlement, Aarc_g002_entitlement_Error
@@ -244,17 +244,8 @@ class BaseFlaat(FlaatConfig):
     # FIXME broken! this expects the request from flask, but we support other frameworks as well
     def get_access_token_from_request(self, request) -> str:
         """Helper function to obtain the OIDC AT from the flask request variable"""
+        _ = request
         return ""
-        # if request.headers.get("Authorization", "").startswith("Bearer "):
-        #     temp = request.headers["Authorization"].split("authorization header: ")[0]
-        #     token = temp.split(" ")[1]
-        #     return token
-        # elif "access_token" in request.form:
-        #     return request.form["access_token"]
-        # elif "access_token" in request.args:
-        #     return request.args["access_token"]
-
-        # raise FlaatUnauthorized("No access token")
 
     # END SUBCLASS STUBS
 
@@ -536,7 +527,7 @@ class BaseFlaat(FlaatConfig):
         required: Union[str, List[str]],
         claim: str,
         *args,
-        match: Union[Literal["all"], Literal["one"], int] = "all",
+        match: Union[str, int] = "all",
         # parse an entitlement
         parser: Callable[[str], Any] = None,
         # compare two parsed entitlements
@@ -591,7 +582,7 @@ class BaseFlaat(FlaatConfig):
     ):
         def decorator(view_func):
             @wraps(view_func)
-            async def wrapper(*args, **kwargs):
+            async def async_wrapper(*args, **kwargs):
                 # notable: auth_func and view_func get the same arguments
                 try:
                     if not self._auth_disabled():
@@ -599,10 +590,22 @@ class BaseFlaat(FlaatConfig):
                         logger.debug("Executing sychronous auth_func")
                         auth_func(self, *args, **kwargs)
 
-                    # here after auth success
-                    if iscoroutinefunction(view_func):
-                        logger.debug("Executing async view_func")
-                        return await view_func(*args, **kwargs)
+                    logger.debug("Executing async view_func")
+                    return await view_func(*args, **kwargs)
+
+                except FlaatException as e:
+                    if on_failure is not None:
+                        return on_failure(e)
+                    self._map_exception(e)
+
+            @wraps(view_func)
+            def wrapper(*args, **kwargs):
+                # notable: auth_func and view_func get the same arguments
+                try:
+                    if not self._auth_disabled():
+                        # auth_func raises an exception if unauthorized
+                        logger.debug("Executing sychronous auth_func")
+                        auth_func(self, *args, **kwargs)
 
                     logger.debug("Executing sychronous view_func")
                     return view_func(*args, **kwargs)
@@ -613,6 +616,8 @@ class BaseFlaat(FlaatConfig):
 
                     self._map_exception(e)
 
+            if iscoroutinefunction(view_func):
+                return async_wrapper
             return wrapper
 
         return decorator
@@ -628,7 +633,9 @@ class BaseFlaat(FlaatConfig):
         group: Union[str, List[str]],
         claim: str,
         on_failure: Callable = None,
-        match: Union[Literal["all"], Literal["one"], int] = "all",
+        # python >= 3.8= could use:
+        # match: Union[Literal["all"], Literal["one"], int] = "all",
+        match: Union[str, int] = "all",
     ):
         """Decorator to enforce membership in a given group.
         group is the name (or list) of the group to match
@@ -663,11 +670,11 @@ class BaseFlaat(FlaatConfig):
         entitlement: Union[str, List[str]],
         claim: str,
         on_failure: Callable = None,
-        match: Union[Literal["all"], Literal["one"], int] = "all",
+        match: Union[str, int] = "all",
     ):
         """Decorator to enforce membership in a given group defined according to AARC-G002.
 
-        group is the name (or list) of the entitlement to match
+        entitlement is the name (or list) of the entitlement to match
         match specifies how many of the given groups must be matched. Valid values for match are
         'all', 'one', or an integer
         on_failure is a function that will be invoked if there was no valid user detected.

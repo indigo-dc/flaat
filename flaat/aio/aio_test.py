@@ -42,6 +42,7 @@ def app():
     return app
 
 
+# from: https://docs.aiohttp.org/en/stable/testing.html#pytest-example
 @pytest.fixture
 def cli(loop, aiohttp_client, app):
     return loop.run_until_complete(aiohttp_client(app))
