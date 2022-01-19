@@ -10,30 +10,12 @@ from flaat.test_env import *
 flaat = Flaat()
 flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
 
+DECORATORS = Decorators(flaat).get_named_decorators()
 
-@flaat.login_required()
-def login_required(request: Request):
+
+def view_func(request: Request, user_infos=None):
     _ = request
-    return {"message": "Success"}
-
-
-@flaat.group_required(
-    group=FLAAT_GROUP,
-    claim=FLAAT_CLAIM_GROUP,
-    match="all",
-)
-def group_required(request: Request):
-    _ = request
-    return {"message": "Success"}
-
-
-@flaat.aarc_g002_entitlement_required(
-    entitlement=FLAAT_ENTITLEMENT,
-    claim=FLAAT_CLAIM_ENTITLEMENT,
-    match="all",
-)
-def aarc_g002_entitlement_required(request: Request):
-    _ = request
+    _ = user_infos
     return {"message": "Success"}
 
 
@@ -41,14 +23,8 @@ def aarc_g002_entitlement_required(request: Request):
 def app():
     """fastapi app testing fixture"""
     app = FastAPI()
-    # security = HTTPBearer()
-    # deps = [Depends(security)]
-    deps = []
-    app.get(PATH_LOGIN_REQUIRED, dependencies=deps)(login_required)
-    app.get(PATH_GROUP_REQUIRED, dependencies=deps)(group_required)
-    app.get(PATH_ENTITLEMENT_REQUIRED, dependencies=deps)(
-        aarc_g002_entitlement_required
-    )
+    for decorator in DECORATORS:
+        app.get(f"/{decorator.name}")(decorator.decorator(view_func))
     return app
 
 
@@ -58,7 +34,7 @@ def client(app):
 
 
 @pytest.mark.parametrize("status,kwargs", STATUS_KWARGS_LIST)
-@pytest.mark.parametrize("path", TEST_PATHS)
-def test_decorator(client, path, status, kwargs):
-    resp = client.get(path, **kwargs)
+@pytest.mark.parametrize("decorator", DECORATORS)
+def test_decorator(client, decorator, status, kwargs):
+    resp = client.get(f"/{decorator.name}", **kwargs)
     assert resp.status_code == status

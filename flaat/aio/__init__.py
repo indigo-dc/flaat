@@ -31,7 +31,8 @@ class Flaat(BaseFlaat):
             logger.error("Cannot identify the request: %s\n%s", e, the_id)
         return the_id
 
-    def _get_request(self, *args, **_):
+    def _get_request(self, *args, **kwargs):
+        logger.debug("args: %s - kwargs: %s", args, kwargs)
         if len(args) < 2:
             raise FlaatException("Need argument 'request' for framework 'aio'")
         return args[1]

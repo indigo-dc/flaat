@@ -12,27 +12,10 @@ from flaat.test_env import *
 flaat = Flaat()
 flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
 
-
-@flaat.login_required()
-def login_required():
-    return Response(response="Success")
+DECORATORS = Decorators(flaat).get_named_decorators()
 
 
-@flaat.group_required(
-    group=FLAAT_GROUP,
-    claim=FLAAT_CLAIM_GROUP,
-    match="all",
-)
-def group_required():
-    return Response(response="Success")
-
-
-@flaat.aarc_g002_entitlement_required(
-    entitlement=FLAAT_ENTITLEMENT,
-    claim=FLAAT_CLAIM_ENTITLEMENT,
-    match="all",
-)
-def aarc_g002_entitlement_required():
+def view_func(user_infos=None):
     return Response(response="Success")
 
 
@@ -40,9 +23,14 @@ def aarc_g002_entitlement_required():
 def app():
     """flask web app for testing"""
     app = Flask(__name__)
-    app.route(PATH_LOGIN_REQUIRED)(login_required)
-    app.route(PATH_GROUP_REQUIRED)(group_required)
-    app.route(PATH_ENTITLEMENT_REQUIRED)(aarc_g002_entitlement_required)
+    for decorator in DECORATORS:
+
+        decorated_view_func = decorator.decorator(view_func)
+        # rename to decorator name, as flask does not allow duplicate view_func names
+        decorated_view_func.__name__ = f"{decorator.name}-view_func"
+
+        app.route(f"/{decorator.name}")(decorated_view_func)
+
     return app
 
 
@@ -52,7 +40,7 @@ def client(app: Flask):
 
 
 @pytest.mark.parametrize("status,kwargs", STATUS_KWARGS_LIST)
-@pytest.mark.parametrize("path", TEST_PATHS)
-def test_decorator(client, path, status, kwargs):
-    resp = client.get(path, **kwargs)
+@pytest.mark.parametrize("decorator", DECORATORS)
+def test_decorator(client, decorator, status, kwargs):
+    resp = client.get(f"/{decorator.name}", **kwargs)
     assert resp.status_code == status

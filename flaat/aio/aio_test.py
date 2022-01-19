@@ -1,35 +1,21 @@
 # pylint: disable=redefined-outer-name,wildcard-import,unused-wildcard-import
 
+import logging
 from aiohttp import web
 import pytest
 
 from flaat.aio import Flaat
-from flaat.test_env import *
+from flaat.test_env import Decorators, STATUS_KWARGS_LIST, FLAAT_TRUSTED_OPS_LIST
 
 flaat = Flaat()
 flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
 
+DECORATORS = Decorators(flaat).get_named_decorators()
 
-@flaat.login_required()
-async def login_required(_):
-    return web.Response(text="Success")
-
-
-@flaat.group_required(
-    group=FLAAT_GROUP,
-    claim=FLAAT_CLAIM_GROUP,
-    match="all",
-)
-async def group_required(_):
-    return web.Response(text="Success")
+logger = logging.getLogger(__name__)
 
 
-@flaat.aarc_g002_entitlement_required(
-    entitlement=FLAAT_ENTITLEMENT,
-    claim=FLAAT_CLAIM_ENTITLEMENT,
-    match="all",
-)
-async def aarc_g002_entitlement_required(_):
+async def view_func(request, user_infos=None):
     return web.Response(text="Success")
 
 
@@ -37,9 +23,9 @@ async def aarc_g002_entitlement_required(_):
 def app():
     """aio web Application for testing"""
     app = web.Application()
-    app.router.add_get(PATH_LOGIN_REQUIRED, login_required)
-    app.router.add_get(PATH_GROUP_REQUIRED, group_required)
-    app.router.add_get(PATH_ENTITLEMENT_REQUIRED, aarc_g002_entitlement_required)
+    logger.debug("decos: %s", DECORATORS)
+    for decorator in DECORATORS:
+        app.router.add_get(f"/{decorator.name}", decorator.decorator(view_func))
     return app
 
 
@@ -50,7 +36,7 @@ def cli(loop, aiohttp_client, app):
 
 
 @pytest.mark.parametrize("status,kwargs", STATUS_KWARGS_LIST)
-@pytest.mark.parametrize("path", TEST_PATHS)
-async def test_decorator(cli, path, status, kwargs):
-    resp = await cli.get(path, **kwargs)
+@pytest.mark.parametrize("decorator", DECORATORS)
+async def test_decorator(cli, decorator, status, kwargs):
+    resp = await cli.get(f"/{decorator.name}", **kwargs)
     assert resp.status == status

@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import List, Optional
 
@@ -29,6 +30,9 @@ class UserInfos:
             flaat.client_id,
             flaat.client_secret,
         )
+
+    def __repr__(self):
+        return json.dumps(self.__dict__)
 
     def get_entitlements_from_claim(
         self, claim: str, search_precedence: Optional[List[str]] = None

@@ -187,6 +187,17 @@ class FlaatConfig:
         return self.claim_search_precedence
 
 
+def map_exceptions(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except FlaatException as e:
+            self._map_exception(e)
+
+    return wrapper
+
+
 class BaseFlaat(FlaatConfig):
     """FLAsk support for OIDC Access Tokens.
     Provide decorators and configuration for OIDC"""
@@ -287,7 +298,8 @@ class BaseFlaat(FlaatConfig):
 
         raise FlaatUnauthorized("Could not determine issuer config")
 
-    def _get_all_info_from_request(self, param_request):
+    @map_exceptions
+    def get_all_info_from_request(self, param_request):
         access_token = self.get_access_token_from_request(param_request)
         logger.debug("Access token: %s", access_token)
 
@@ -303,7 +315,7 @@ class BaseFlaat(FlaatConfig):
 
     def _auth_get_all_info(self, *args, **kwargs):
         request_object = self._get_request(*args, **kwargs)
-        return self._get_all_info_from_request(request_object)
+        return self.get_all_info_from_request(request_object)
 
     def _determine_number_of_required_matches(self, match, req_group_list) -> int:
         """determine the number of required matches from parameters"""
@@ -347,7 +359,7 @@ class BaseFlaat(FlaatConfig):
         **kwargs,
     ):
         request_object = self._get_request(*args, **kwargs)
-        all_info = self._get_all_info_from_request(request_object)
+        all_info = self.get_all_info_from_request(request_object)
 
         avail_raw = self._get_effective_entitlements_from_claim(all_info, claim)
         if avail_raw is None:
@@ -382,7 +394,7 @@ class BaseFlaat(FlaatConfig):
         self,
         auth_func: Callable,
         on_failure: Callable[[FlaatException], Any] = None,
-    ):
+    ) -> Callable:
         def authenticate(*args, **kwargs):
             if not self._auth_disabled():
                 # auth_func raises an exception if unauthorized
@@ -395,7 +407,9 @@ class BaseFlaat(FlaatConfig):
             else:
                 self._map_exception(e)
 
-        def decorator(view_func):
+        def decorator(view_func: Callable) -> Callable:
+
+            # asychronous case
             @wraps(view_func)
             async def async_wrapper(*args, **kwargs):
                 # notable: auth_func and view_func get the same arguments
@@ -408,6 +422,7 @@ class BaseFlaat(FlaatConfig):
                 except FlaatException as e:
                     return handle_exception(e)
 
+            # sychronous case
             @wraps(view_func)
             def wrapper(*args, **kwargs):
                 # notable: auth_func and view_func get the same arguments
@@ -425,6 +440,19 @@ class BaseFlaat(FlaatConfig):
             return wrapper
 
         return decorator
+
+    def inject_user_infos(self, view_func):
+        @wraps(view_func)
+        def wrapper(*args, **kwargs):
+            request_object = self._get_request(self, *args, **kwargs)
+            logger.debug("Request object: %s", request_object)
+            infos = self.get_all_info_from_request(request_object)
+            logger.debug("Injecting: %s", infos)
+            kwargs["user_infos"] = infos
+
+            return view_func(*args, **kwargs)
+
+        return wrapper
 
     def login_required(self, on_failure: Callable = None):
         if on_failure is not None and not callable(on_failure):
@@ -460,7 +488,7 @@ class BaseFlaat(FlaatConfig):
         entitlement: str,
     ):
         try:
-            return Aarc_g002_entitlement(entitlement)
+            return Aarc_g002_entitlement(entitlement, strict=False)
         except Aarc_g002_entitlement_Error as e:
             logger.error("Error parsing aarc entitlement: %s", e)
             return None
