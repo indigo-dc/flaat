@@ -31,10 +31,10 @@ class TestBase64:
         [
             ("simple", "this is a static teststring without strange chars"),
             ("newline", "this is a static teststring with\nnewline\rand\tstuff"),
-            ("evil", u"this is a static\nteststring\rwith mäni€ strange characters"),
+            ("evil", "this is a static\nteststring\rwith mäni€ strange characters"),
             (
                 "evil_unicode",
-                u"this is a static\nteststring\rwith mäni€ strange characters",
+                "this is a static\nteststring\rwith mäni€ strange characters",
             ),
         ],
     )

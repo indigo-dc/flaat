@@ -1,6 +1,7 @@
-# pylint: disable=redefined-outer-name,wildcard-import
-import pytest
+# pylint: disable=redefined-outer-name,wildcard-import,unused-wildcard-import
+
 from aiohttp import web
+import pytest
 
 from flaat.aio import Flaat
 from flaat.test_env import *
@@ -48,10 +49,7 @@ def cli(loop, aiohttp_client, app):
     return loop.run_until_complete(aiohttp_client(app))
 
 
-@pytest.mark.parametrize(
-    "status,kwargs",
-    [(401, {}), (200, {"headers": {"Authorization": f"Bearer {FLAAT_AT}"}})],
-)
+@pytest.mark.parametrize("status,kwargs", STATUS_KWARGS_LIST)
 @pytest.mark.parametrize("path", TEST_PATHS)
 async def test_decorator(cli, path, status, kwargs):
     resp = await cli.get(path, **kwargs)

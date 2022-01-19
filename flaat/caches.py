@@ -1,8 +1,10 @@
-"""FLAsk support for OIDC Access Tokens -- FLAAT. A set of decorators for authorising
-access to OIDC authenticated REST APIs."""
 # This code is distributed under the MIT License
 
+# pylint: disable=consider-using-dict-items,consider-iterating-dictionary
+
 import logging
+
+from flaat import issuertools
 
 logger = logging.getLogger(__name__)
 
@@ -16,23 +18,22 @@ class Issuer_config_cache:
 
     def add_config(self, iss, issuer_config):
         """add entry"""
-        # if self.get(iss) is not None:
-        #     logger.info(F"updating: {iss}")
-        # else:
-        #     logger.info(F"adding: {iss}")
+        logger.info("Adding: %s", iss)
         self.entries[iss] = issuer_config
-
-    def add_list(self, issuer_configs):
-        """add entry"""
-        for issuer_config in issuer_configs:
-            self.add_config(issuer_config["issuer"], issuer_config)
 
     def get(self, iss):
         """get entry"""
         try:
             return self.entries[iss]
         except KeyError:
-            # logger.warning(F"cannot return issuer config for {iss}")
+            logger.debug("No issuer config for issuer in cache: %s", iss)
+
+            # try to fetch it now
+            issuer_config = issuertools.find_issuer_config_in_string(iss)
+            if issuer_config is not None:
+                self.add_config(iss, issuer_config)
+                return issuer_config
+
             return None
 
     def remove(self, iss):
@@ -44,7 +45,9 @@ class Issuer_config_cache:
         logger.info("Issuer Cache:")
         for iss in self.entries:
             logger.info(
-                f"  {self.entries[iss]['issuer']:30} -> {self.entries[iss]['userinfo_endpoint']}"
+                "%s -> %s",
+                self.entries[iss]["issuer"],
+                self.entries[iss]["userinfo_endpoint"],
             )
 
     def __iter__(self):
@@ -67,32 +70,3 @@ class Issuer_config_cache:
     def has(self, iss):
         """do we have an entry"""
         return iss in self.entries.keys()
-
-
-if __name__ == "__main__":
-    ic = Issuer_config_cache()
-    print(f"is none: {ic is None}")
-    ic.add_config(
-        "first_issuer1", {"issuer": "first issuer1", "userinfo_endpoint": "userinfo1"}
-    )
-    ic.add_config(
-        "sencodnd issuer2",
-        {"issuer": "sencodnd issuer2", "userinfo_endpoint": "userinfo2"},
-    )
-
-    print("--")
-    print(f"test: {ic.get('test2')}")
-    print("--")
-
-    # ic.dump_to_log()
-
-    for x in ic:
-        print(f"iterating: {x}")
-
-    print(f"length: {len(ic)}")
-
-    print("testing in")
-    if ic.has("first issuer1"):
-        print("Yes")
-    else:
-        print("NOPE")

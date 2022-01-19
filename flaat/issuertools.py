@@ -8,6 +8,7 @@ import re
 from base64 import b64encode
 from queue import Empty, Queue
 from threading import Thread
+from typing import Optional
 
 import requests
 import requests_cache
@@ -66,40 +67,36 @@ result_q = Queue(num_request_workers * 2)
 def find_issuer_config_in_at(access_token):
     """If there is an issuer in the AT, we fetch the ISS config and return it"""
     iss_config = None
-    at_iss = tokentools.get_issuer_from_accesstoken_info(access_token)
-    logger.debug(f"Issuer: {at_iss}")
+    at_iss = tokentools.get_issuer_from_access_token_info(access_token)
+    logger.debug("Issuer: %s", at_iss)
     if at_iss is not None:
         if tokentools.is_url(at_iss):
             config_url = at_iss + "/.well-known/openid-configuration"
-            iss_config = get_iss_config_from_endpoint(config_url)
+            iss_config = get_iss_config_from_url(config_url)
     return iss_config
 
 
-def find_issuer_config_in_string(string):
+def find_issuer_config_in_string(string: str) -> Optional[dict]:
     """If the string provided is a URL: try several well known endpoints until the ISS config is
     found"""
-    iss_config = None
     if string is not None:
         if tokentools.is_url(string):
-            iss_config = get_iss_config_from_endpoint(string)
-            if iss_config:
-                return iss_config
-            iss_config = get_iss_config_from_endpoint(string + "/oauth2")
-            if iss_config:
-                return iss_config
-            iss_config = get_iss_config_from_endpoint(
-                string + "/.well-known/openid-configuration"
-            )
-            if iss_config:
-                return iss_config
-            iss_config = get_iss_config_from_endpoint(
-                string + "/oauth2" + "/.well-known/openid-configuration"
-            )
-    return iss_config
+            for url in [
+                string + "/.well-known/openid-configuration",
+                string,
+                string + "/oauth2",
+                string + "/oauth2" + "/.well-known/openid-configuration",
+            ]:
+                iss_config = get_iss_config_from_url(url)
+                if iss_config is not None:
+                    return iss_config
+
+    return None
 
 
 def thread_worker_issuerconfig():
     """Thread worker"""
+    logger.debug("thread_worker_issuerconfig starting")
 
     def safe_get(q):
         try:
@@ -111,16 +108,19 @@ def thread_worker_issuerconfig():
         item = safe_get(param_q)
         if item is None:
             break
-        result = get_iss_config_from_endpoint(item)
+        result = get_iss_config_from_url(item)
         result_q.put(result)
         param_q.task_done()
         result_q.task_done()
 
+    logger.debug("thread_worker_issuerconfig stopping")
 
-def find_issuer_config_in_list(op_list, op_hint=None, exclude_list=[]):
+
+def find_issuer_config_in_list(
+    op_list, op_hint=None, exclude_list=[]
+) -> Optional[dict]:
     """find the hinted issuer in configured op_list"""
 
-    iss_config = None
     for _ in range(num_request_workers):
         t = Thread(target=thread_worker_issuerconfig)
         # t = Thread(target=worker)
@@ -128,7 +128,6 @@ def find_issuer_config_in_list(op_list, op_hint=None, exclude_list=[]):
         t.start()
 
     if op_list:
-        iss_config = []
         for issuer in op_list:
             if issuer in exclude_list:
                 logger.debug("skipping %s due to exclude list", issuer)
@@ -136,13 +135,13 @@ def find_issuer_config_in_list(op_list, op_hint=None, exclude_list=[]):
             issuer_wellknown = issuer + "/.well-known/openid-configuration"
             if op_hint is None:
                 # print ('getting issuer config from {}'.format(issuer))
-                # iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))
+                # iss_config.append(get_iss_config_from_url(issuer_wellknown))
                 # logger.debug("Trying issuer from %s" % issuer_wellknown)
                 param_q.put(issuer_wellknown)
             else:
                 if re.search(op_hint, issuer):
                     # logger.debug("Using hint and trying issuer from %s" % issuer_wellknown)
-                    # iss_config.append(get_iss_config_from_endpoint(issuer_wellknown))
+                    # iss_config.append(get_iss_config_from_url(issuer_wellknown))
                     param_q.put(issuer_wellknown)
         param_q.join()
         result_q.join()
@@ -150,13 +149,14 @@ def find_issuer_config_in_list(op_list, op_hint=None, exclude_list=[]):
             while not result_q.empty():
                 entry = result_q.get(block=False, timeout=timeout)
                 if entry is not None:
-                    iss_config.append(entry)
+                    return entry
+                    # iss_config.append(entry)
             # for entry in iter(result_q.get_nowait, None):
             # iss_config.append(entry)
         except Empty:
             logger.info("exception: Empty value")
 
-    return iss_config
+    return None
 
 
 def find_issuer_config_in_file(op_file, op_hint=None, exclude_list=[]):
@@ -165,64 +165,59 @@ def find_issuer_config_in_file(op_file, op_hint=None, exclude_list=[]):
     iss_config = None
     op_list = []
     if op_file:
-        iss_config = []
         for issuer in fileinput.input(op_file):
-            issuer_from_conf = str(issuer).rstrip("\n").split(" ")[0]
+            issuer_from_conf = str(issuer).rstrip("\n").split(" ", maxsplit=1)[0]
             if issuer_from_conf == "":
                 continue
             if issuer_from_conf in exclude_list:
-                logger.info("skipping %s due to exclude list" % issuer)
+                logger.info("skipping %s due to exclude list", issuer)
                 continue
             op_list.append(issuer_from_conf)
         return find_issuer_config_in_list(op_list, op_hint, exclude_list)
     return iss_config
 
 
-def get_iss_config_from_endpoint(issuer_url):
+def get_iss_config_from_url(url) -> Optional[dict]:
     """Get issuer_wellknown/configuration from url; return json if true, None otherwise.
     Note that this endpoint is called more often than necessary. We rely on requests_cache to keep
     this efficient"""
     # If requests_cache is not wanted. Here would be one place to implement caching
+    logger.debug("Trying to fetch issuer config from: %s", url)
 
     headers = {"Content-type": "application/x-www-form-urlencoded"}
-    config_url = issuer_url
+    config_url = url
+
     # remove slashes:
     config_url = re.sub("^https?://", "", config_url)
-    config_url = config_url.replace("//", "/")
-    config_url = config_url.replace("//", "/")
+    config_url = config_url.replace("//+", "/")
     config_url = "https://" + config_url
-
-    logger.info("Getting config from: %s" % config_url)
+    logger.debug("Issuer URL: %s\nComputed config URL: %s", url, config_url)
+    logger.info("Getting config from: %s", config_url)
     try:
         resp = requests.get(
             config_url, verify=verify_tls, headers=headers, timeout=timeout
         )
         if resp.status_code != 200:
-            logger.warning("Getconfig: resp: %s" % resp.status_code)
-    except requests.exceptions.ConnectionError as e:
-        logger.warning(
-            "Warning: cannot obtain iss_config from endpoint: {}".format(config_url)
-        )
-        # print ('Additional info: {}'.format (e))
+            logger.warning("Getconfig: resp: %s", resp.status_code)
+    except requests.exceptions.ConnectionError:
+        logger.warning("Cannot obtain iss_config from endpoint: %s", config_url)
         return None
-    except requests.exceptions.ReadTimeout as e:
-        logger.warning(
-            "Warning: cannot obtain iss_config from endpoint: %s", config_url
-        )
+    except requests.exceptions.ReadTimeout:
+        logger.warning("Timeout fetching issuer config from endpoint: %s", config_url)
         return None
+
     try:
         return resp.json()
-    except Exception as e:
-        logger.warning(f"Caught exception: {e}\n{str(resp.text)}")
+    except requests.exceptions.JSONDecodeError:
+        logger.debug("URL did not return JSON: %s", url)
         return None
 
 
-def get_user_info(access_token, issuer_config):
+def get_user_info(access_token, issuer_config) -> Optional[dict]:
     """Query the userinfo endpoint, using the AT as authentication"""
     headers = {}
     headers = {"Content-type": "application/x-www-form-urlencoded"}
     headers["Authorization"] = f"Bearer {access_token}"
-    logger.debug("Using this access token: %s", access_token)
     logger.debug("Trying to get userinfo from %s", issuer_config["userinfo_endpoint"])
     try:
         resp = requests.get(
@@ -245,14 +240,11 @@ def get_user_info(access_token, issuer_config):
 
         resp_json = resp.json()
         logger.debug(
-            "Got Userinfo: from %s: %s",
+            "Got Userinfo from %s: %s",
             issuer_config["userinfo_endpoint"],
             json.dumps(resp_json, sort_keys=True, indent=4, separators=(",", ": ")),
         )
-        if resp.status_code != 200:
-            logger.info("userinfo: resp: %s", resp.status_code)
-
-        return (resp_json, issuer_config)
+        return resp_json
 
     except requests.exceptions.ReadTimeout:
         logger.warning(
@@ -279,14 +271,14 @@ def get_introspected_token_info(
         return None
 
     if client_secret in ["", None]:
-        basic_auth_string = "%s" % (client_id)
+        basic_auth_string = str(client_id)
     else:
-        basic_auth_string = "%s:%s" % (client_id, client_secret)
+        basic_auth_string = f"{client_id:client_secret}"
     basic_auth_bytes = bytearray(basic_auth_string, "utf-8")
 
-    headers["Authorization"] = "Basic %s" % b64encode(basic_auth_bytes).decode("utf-8")
+    headers["Authorization"] = f'Basic {b64encode(basic_auth_bytes).decode("utf-8")}'
 
-    logger.info("Getting introspection from %s" % issuer_config["userinfo_endpoint"])
+    logger.info("Getting introspection from %s", issuer_config["userinfo_endpoint"])
 
     if not "introspection_endpoint" in issuer_config:
         return None
@@ -299,7 +291,7 @@ def get_introspected_token_info(
         timeout=timeout,
     )
     if resp.status_code != 200:
-        logger.debug("introspect: resp: %s" % resp.status_code)
+        logger.debug("introspect: resp: %s", resp.status_code)
         return None
 
     return dict(resp.json())

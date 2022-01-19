@@ -1,4 +1,5 @@
-# pylint: disable=redefined-outer-name,wildcard-import
+# pylint: disable=redefined-outer-name,wildcard-import,unused-wildcard-import
+
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 import pytest
@@ -22,6 +23,7 @@ def login_required(request: Request):
     match="all",
 )
 def group_required(request: Request):
+    _ = request
     return {"message": "Success"}
 
 
@@ -31,6 +33,7 @@ def group_required(request: Request):
     match="all",
 )
 def aarc_g002_entitlement_required(request: Request):
+    _ = request
     return {"message": "Success"}
 
 
@@ -54,10 +57,7 @@ def client(app):
     return TestClient(app)
 
 
-@pytest.mark.parametrize(
-    "status,kwargs",
-    [(401, {}), (200, {"headers": {"Authorization": f"Bearer {FLAAT_AT}"}})],
-)
+@pytest.mark.parametrize("status,kwargs", STATUS_KWARGS_LIST)
 @pytest.mark.parametrize("path", TEST_PATHS)
 def test_decorator(client, path, status, kwargs):
     resp = client.get(path, **kwargs)

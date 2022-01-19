@@ -3,13 +3,12 @@
 import json
 import os
 import sys
-from dataclasses import dataclass
 
 import configargparse
 import liboidcagent as agent
 
-from flaat import tokentools
-from flaat.flask import Flaat
+from flaat import BaseFlaat
+from flaat.user_infos import UserInfos
 
 TRUSTED_OP_LIST = [
     "https://b2access.eudat.eu/oauth2/",
@@ -41,9 +40,9 @@ def get_arg_parser():
     name_of_executable = full_name_of_executable.rstrip(".py")
 
     config_files = [
-        os.environ["HOME"] + "/.config/%sconf" % name_of_executable,
-        folder_of_executable + "/%s.conf" % name_of_executable,
-        "/root/configs/%s.conf" % name_of_executable,
+        f"{os.environ['HOME']}/.config/{name_of_executable}conf",
+        f"{folder_of_executable}/{name_of_executable}.conf",
+        f"/root/configs/{name_of_executable}.conf",
     ]
     parser = configargparse.ArgumentParser(
         default_config_files=config_files,
@@ -119,9 +118,9 @@ def get_args():
 
 
 def get_flaat(args):
-    flaat = Flaat()
+    flaat = BaseFlaat()
     flaat.set_verbosity(args.verbose)
-    flaat.set_cache_lifetime(120)  # seconds; default is 300
+    flaat.set_cache_lifetime(300)  # seconds; default is 300
     flaat.set_trusted_OP_list(TRUSTED_OP_LIST)
     if args.client_id:
         flaat.set_client_id(args.client_id)
@@ -185,28 +184,7 @@ def get_access_token(args):
     return access_token
 
 
-@dataclass
-class Infos:
-    """Infos represents infos about an access token and the user it belongs to"""
-
-    access_token_info: dict
-    user_info: dict
-    introspection_info: dict
-    valid_for_secs: float = 0
-
-    @staticmethod
-    def load(flaat, access_token):
-        infos = Infos(
-            flaat.get_info_thats_in_at(access_token),
-            flaat.get_info_from_userinfo_endpoints(access_token),
-            flaat.get_info_from_introspection_endpoints(access_token),
-        )
-        merged_tokens = tokentools.merge_tokens(
-            [infos.access_token_info, infos.user_info, infos.introspection_info]
-        )
-        infos.valid_for_secs = tokentools.get_timeleft(merged_tokens)
-        return infos
-
+class PrintableUserInfos(UserInfos):
     def print(self, args):
         if args.machine_readable:
             self.print_machine_readable()
@@ -214,7 +192,18 @@ class Infos:
             self.print_human_readable(args)
 
     def print_machine_readable(self):
-        print(json.dumps(self.__dict__, sort_keys=True, indent=4))
+        printDict = {}
+        for attr_name in [
+            "valid_for_secs",
+            "access_token_info",
+            "user_info",
+            "introspection_info",
+        ]:
+            val = getattr(self, attr_name)
+            if val is not None:
+                printDict[attr_name] = val
+
+        print(json.dumps(printDict, sort_keys=True, indent=4))
 
     def print_human_readable(self, args):
         if args.show_access_token or args.show_all:
@@ -270,11 +259,10 @@ class Infos:
             print("")
 
         if self.valid_for_secs > 0:
-            print("Token valid for %.1f more seconds." % self.valid_for_secs)
+            print(f"Token valid for {self.valid_for_secs:.1f} more seconds.")
         else:
             print(
-                "Your token is already EXPIRED for %.1f seconds!"
-                % abs(self.valid_for_secs)
+                f"Your token is already EXPIRED for {self.valid_for_secs:.1f} seconds!"
             )
         print("")
 
@@ -283,7 +271,7 @@ def main():
     args = get_args()
     flaat = get_flaat(args)
     access_token = get_access_token(args)
-    Infos.load(flaat, access_token).print(args)
+    PrintableUserInfos(flaat, access_token).print(args)
 
 
 if __name__ == "__main__":

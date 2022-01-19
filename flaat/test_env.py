@@ -31,6 +31,14 @@ TEST_PATHS = [
     PATH_ENTITLEMENT_REQUIRED,
 ]
 
-STATUS_KWARGS_LIST = (
-    [(401, {}), (200, {"headers": {"Authorization": f"Bearer {FLAAT_AT}"}})],
-)
+STATUS_KWARGS_LIST = [
+    # no token -> unauthorized
+    (401, {}),
+    # invalid access token -> unauthorized
+    (
+        401,
+        {"headers": {"Authorization": "Bearer invalid_at"}},
+    ),
+    # good access token with the right entitlements
+    (200, {"headers": {"Authorization": f"Bearer {FLAAT_AT}"}}),
+]

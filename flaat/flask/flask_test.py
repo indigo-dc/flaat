@@ -1,9 +1,10 @@
+# pylint: disable=redefined-outer-name,wildcard-import,unused-wildcard-import
 from flask.app import Flask
 import pytest
+from werkzeug import Response
 
 from flaat.flask import Flaat
 from flaat.test_env import *
-from werkzeug import Response
 
 
 # TODO shouldn't we recreate the flaat instance for every test?
@@ -50,10 +51,7 @@ def client(app: Flask):
     return app.test_client()
 
 
-@pytest.mark.parametrize(
-    "status,kwargs",
-    [(401, {}), (200, {"headers": {"Authorization": f"Bearer {FLAAT_AT}"}})],
-)
+@pytest.mark.parametrize("status,kwargs", STATUS_KWARGS_LIST)
 @pytest.mark.parametrize("path", TEST_PATHS)
 def test_decorator(client, path, status, kwargs):
     resp = client.get(path, **kwargs)

@@ -2,23 +2,19 @@
 access to OIDC authenticated REST APIs."""
 # This code is distributed under the MIT License
 
-# pylint: disable=logging-fstring-interpolation,fixme
-# TODO remove these disables
-
+from functools import wraps
 import json
 import logging
 import os
-from functools import wraps
-from queue import Empty, Queue
-from threading import Thread
-from typing import Any, Callable, Dict, List, Tuple, Union
-from _pytest.compat import iscoroutinefunction
+from typing import Any, Callable, Dict, List, Optional, Union
 
+from _pytest.compat import iscoroutinefunction
 from aarc_g002_entitlement import Aarc_g002_entitlement, Aarc_g002_entitlement_Error
 
 from flaat import issuertools, tokentools
 from flaat.caches import Issuer_config_cache
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthorized
+from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
 
@@ -59,42 +55,11 @@ def check_environment_for_override(env_key):
         if env_val is not None:
             avail_entitlement_entries = json.loads(env_val)
             return avail_entitlement_entries
-    except TypeError as e:
+    except (TypeError, json.JSONDecodeError) as e:
         logger.error(
-            f"Cannot decode JSON group list from the environment:" f"{env_val}\n{e}"
-        )
-    except json.JSONDecodeError as e:
-        logger.error(
-            f"Cannot decode JSON group list from the environment:" f"{env_val}\n{e}"
+            "Cannot decode JSON group list from the environment: %s\n%s", env_val, e
         )
     return None
-
-
-def formatted_entitlements(entitlements):
-    def my_mstr(self):
-        """Return the nicely formatted entitlement"""
-        str_str = "\n".join(
-            [
-                "    namespace_id:        {namespace_id}"
-                + "\n    delegated_namespace: {delegated_namespace}"
-                + "\n    subnamespaces:       {subnamespaces}"
-                + "\n    group:               {group}"
-                + "\n    subgroups:           {subgroups}"
-                + "\n    role_in_subgroup     {role}"
-                + "\n    group_authority:     {group_authority}"
-            ]
-        ).format(
-            namespace_id=self.namespace_id,
-            delegated_namespace=self.delegated_namespace,
-            group=self.group,
-            group_authority=self.group_authority,
-            subnamespaces=",".join([f"{ns}" for ns in self.subnamespaces]),
-            subgroups=",".join([f"{grp}" for grp in self.subgroups]),
-            role=f"{self.role}" if self.role else "n/a",
-        )
-        return str_str
-
-    return "\n" + "\n\n".join([my_mstr(x) for x in entitlements]) + "\n"
 
 
 class FlaatConfig:
@@ -111,6 +76,18 @@ class FlaatConfig:
         self.ops_that_support_jwt: List[str] = OPS_THAT_SUPPORT_JWT
         self.claim_search_precedence: List[str] = ["userinfo", "access_token"]
         self.raise_error_on_return = True  # else just return an error
+
+    def set_verbosity(self, verbosity: int):
+        if verbosity < 0 or verbosity > 3:
+            raise ValueError("Verbosity needs to be [0-3]")
+        level = {
+            0: logging.ERROR,
+            1: logging.WARN,
+            2: logging.INFO,
+            3: logging.DEBUG,
+        }[verbosity]
+        # TODO also set the framework specific loggers
+        logger.setLevel(level)
 
     def set_cache_lifetime(self, lifetime):
         """Set cache lifetime of requests_cache zn seconds, default: 300s"""
@@ -241,7 +218,6 @@ class BaseFlaat(FlaatConfig):
         """may be overwritten in in sub class"""
         return func(*args, **kwargs)
 
-    # FIXME broken! this expects the request from flask, but we support other frameworks as well
     def get_access_token_from_request(self, request) -> str:
         """Helper function to obtain the OIDC AT from the flask request variable"""
         _ = request
@@ -249,42 +225,49 @@ class BaseFlaat(FlaatConfig):
 
     # END SUBCLASS STUBS
 
+    def _issuer_is_trusted(self, issuer):
+        return issuer.rstrip("/") in self.trusted_op_list
+
     # TODO this method is way too long
-    def _find_issuer_config_everywhere(self, access_token):
-        """Use many places to find issuer configs"""
+    def _find_issuer_config_everywhere(
+        self, access_token, access_token_info: Optional[dict]
+    ) -> dict:
 
         # 0: Use accesstoken_issuer cache to find issuerconfig:
         logger.debug("find_issuer - 0: In cache")
         if access_token in self.accesstoken_issuer_cache:
             issuer = self.accesstoken_issuer_cache[access_token]
             iss_config = self.issuer_config_cache.get(issuer)
-            logger.debug(f"find_issuer - 0: returning {iss_config}")
-            return [iss_config]
+
+            if iss_config is None:
+                raise FlaatUnauthorized(
+                    f"Issuer config in cache but None for: {issuer}"
+                )
+
+            return iss_config
 
         # 1: find info in the AT
         logger.debug("find_issuer - 1: In access_token")
-        at_iss = tokentools.get_issuer_from_accesstoken_info(access_token)
-        if at_iss is not None:
-            trusted_op_list_buf = []
-            if self.trusted_op_list is not None:
-                if len(self.trusted_op_list) > 0:
-                    trusted_op_list_buf = self.trusted_op_list
-            if self.iss is not None:
-                trusted_op_list_buf.append(self.iss)
-            if at_iss.rstrip("/") not in trusted_op_list_buf:
-                raise FlaatForbidden(
-                    f"The issuer {at_iss} of the received access_token is not trusted"
-                )
+        if access_token_info is not None:
+            at_iss = tokentools.get_issuer_from_access_token_info(access_token_info)
+            if at_iss is not None:
+                if not self._issuer_is_trusted(at_iss):
+                    raise FlaatUnauthorized(f"Issuer is not trusted: {at_iss}")
 
-        iss_config = issuertools.find_issuer_config_in_at(access_token)
-        if iss_config is not None:
-            return [iss_config]
+                iss_config = self.issuer_config_cache.get(at_iss)
+
+                if iss_config is None:
+                    raise FlaatUnauthorized(
+                        f"Unable to fetch issuer config for: {at_iss}"
+                    )
+
+                return iss_config
 
         # 2: use a provided string
         logger.debug('find_issuer - 2: From "set_iss"')
         iss_config = issuertools.find_issuer_config_in_string(self.iss)
         if iss_config is not None:
-            return [iss_config]
+            return iss_config
 
         # 3: Try the provided list of providers:
         logger.debug("find_issuer - 3: From trusted_op_list")
@@ -302,160 +285,13 @@ class BaseFlaat(FlaatConfig):
         if iss_config is not None:
             return iss_config
 
-        raise FlaatForbidden("Issuer config not found")
-
-    def get_info_thats_in_at(self, access_token):
-        # FIXME: Add here parameter verify=True, then go and verify the token
-        """return the information contained inside the access_token itself"""
-        accesstoken_info = None
-        if access_token != "":
-            accesstoken_info = tokentools.get_accesstoken_info(access_token)
-        return accesstoken_info
-
-    def get_issuer_from_accesstoken(self, access_token: str):
-        """get the issuer that issued the accesstoken"""
-        if access_token in self.accesstoken_issuer_cache:
-            issuer = self.accesstoken_issuer_cache[access_token]
-            return issuer
-
-        # this also updates the cache
-        (_, issuer_config) = self._get_info_from_userinfo_endpoints(access_token)
-        return issuer_config["issuer"]
-
-    def _get_info_from_userinfo_endpoints(self, access_token: str) -> Tuple[dict, dict]:
-        """Traverse all reasonable configured userinfo endpoints and query them with the
-        access_token. Note: For OPs that include the iss inside the AT, they will be directly
-        queried, and are not included in the search (because that makes no sense).
-
-        Also updates
-            - accesstoken_issuer_cache
-            - issuer_config_cache
-        """
-        user_info = None  # return value
-
-        # get a sensible issuer config. In case we don't have a jwt AT, we poll more OPs
-        issuer_config_list = self._find_issuer_config_everywhere(access_token)
-        self.issuer_config_cache.add_list(issuer_config_list)
-
-        # If there is no issuer in the cache by now, we're dead
-        if len(self.issuer_config_cache) == 0:
-            raise FlaatUnauthorized("No issuer config found, or issuer not supported")
-
-        # get userinfo
-        param_q = Queue(self.num_request_workers * 2)
-        result_q = Queue(self.num_request_workers * 2)
-
-        def thread_worker_get_userinfo():
-            """Thread worker"""
-
-            def safe_get(q):
-                try:
-                    return q.get(timeout=5)
-                except Empty:
-                    return None
-
-            while True:
-                item = safe_get(param_q)
-                if item is None:
-                    break
-                result = issuertools.get_user_info(
-                    item["access_token"], item["issuer_config"]
-                )
-                result_q.put(result)
-                param_q.task_done()
-                result_q.task_done()
-
-        for _ in range(self.num_request_workers):
-            t = Thread(target=thread_worker_get_userinfo)
-            t.daemon = True
-            t.start()
-
-        for issuer_config in self.issuer_config_cache:
-            # logger.info(F"tyring to get userinfo from {issuer_config['issuer']}")
-            # user_info = issuertools.get_user_info(access_token, issuer_config)
-            params = {}
-            params["access_token"] = access_token
-            params["issuer_config"] = issuer_config
-            param_q.put(params)
-
-        # Collect results from threadpool
-        param_q.join()
-        result_q.join()
-        try:
-            while not result_q.empty():
-                retval = result_q.get(block=False, timeout=self.client_connect_timeout)
-                if retval is not None:
-                    (user_info, issuer_config) = retval
-                    issuer = issuer_config["issuer"]
-                    self.issuer_config_cache.add_config(issuer, issuer_config)
-                    # logger.info(F"storing in accesstoken cache: {issuer} -=> {access_token}")
-                    self.accesstoken_issuer_cache[access_token] = issuer
-                    return (user_info, issuer_config)
-        except Empty:
-            logger.info("EMPTY result in thead join")
-
-        raise FlaatUnauthorized(
-            "User Info not found or not accessible. Something may be wrong with the Access Token."
-        )
-
-    def get_info_from_userinfo_endpoints(self, access_token: str) -> dict:
-        (userinfo, _) = self._get_info_from_userinfo_endpoints(access_token)
-        return userinfo
-
-    def get_info_from_introspection_endpoints(
-        self, access_token: str
-    ) -> Union[dict, None]:
-        """If there's a client_id and client_secret defined, we access the token introspection
-        endpoint and return the info obtained from there"""
-        # get introspection_token
-        introspection_info = None
-
-        # TODO this looks totaly broken
-        issuer_config_list = self._find_issuer_config_everywhere(access_token)
-        self.issuer_config_cache.add_list(issuer_config_list)
-
-        if len(self.issuer_config_cache) == 0:
-            logger.info("Issuer Configs yielded None")
-            # self.set_last_error("Issuer of Access Token is not supported")
-            return None
-        for issuer_config in self.issuer_config_cache:
-            introspection_info = issuertools.get_introspected_token_info(
-                access_token, issuer_config, self.client_id, self.client_secret
-            )
-            if introspection_info is not None:
-                break
-        return introspection_info
-
-    def get_all_info_by_at(self, access_token: str):
-        """Collect all possible user info and return them as one json
-        object."""
-
-        accesstoken_info = self.get_info_thats_in_at(access_token)
-        user_info = self.get_info_from_userinfo_endpoints(access_token)
-        introspection_info = self.get_info_from_introspection_endpoints(access_token)
-        # FIXME: We have to verify the accesstoken
-        # And verify that it comes from a trusted issuer!!
-
-        if accesstoken_info is not None:
-            timeleft = tokentools.get_timeleft(accesstoken_info)
-
-            if timeleft is not None and timeleft < 0:
-                raise FlaatUnauthorized("Token expired for {abs(timeleft)} seconds")
-
-        if user_info is None:
-            return None
-
-        return tokentools.merge_tokens(
-            [accesstoken_info, user_info, introspection_info]
-        )
+        raise FlaatUnauthorized("Could not determine issuer config")
 
     def _get_all_info_from_request(self, param_request):
-        """gather all info about the user that we can find.
-        Returns a "supertoken" json structure."""
         access_token = self.get_access_token_from_request(param_request)
         logger.debug("Access token: %s", access_token)
 
-        return self.get_all_info_by_at(access_token)
+        return UserInfos(self, access_token)
 
     def _auth_disabled(self):
         return (
@@ -471,47 +307,23 @@ class BaseFlaat(FlaatConfig):
 
     def _determine_number_of_required_matches(self, match, req_group_list) -> int:
         """determine the number of required matches from parameters"""
-        # How many matches do we need?
-        required_matches = None
+
         if match == "all":
-            required_matches = len(req_group_list)
+            return len(req_group_list)
         elif match == "one":
-            required_matches = 1
+            return 1
         elif isinstance(match, int):
             required_matches = match
             if required_matches > len(req_group_list):
                 required_matches = len(req_group_list)
+            return required_matches
         else:
             raise FlaatException(
                 "Argument 'match' has invalid value: Must be 'all', 'one' or int"
             )
 
-        return required_matches
-
-    def _get_entitlements_from_claim(self, all_info: dict, claim: str) -> List[str]:
-        """extract groups / entitlements from given claim (in userinfo or access_token)"""
-        # search group / entitlement entries in specified claim (in userinfo or access_token)
-        avail_group_entries = None
-        for location in self.claim_search_precedence:
-            avail_group_entries = None
-            if location == "userinfo":
-                avail_group_entries = all_info.get(claim)
-            if location == "access_token":
-                avail_group_entries = all_info["body"].get(claim)
-            if avail_group_entries is not None:
-                break
-
-        if avail_group_entries is None:
-            raise FlaatUnauthorized(f"Not authorised (claim does not exist: {claim})")
-        if not isinstance(avail_group_entries, list):
-            raise FlaatUnauthorized(
-                f"Not authorised (claim does not point to a list: {avail_group_entries})"
-            )
-
-        return avail_group_entries
-
     def _get_effective_entitlements_from_claim(
-        self, all_info: dict, claim: str
+        self, user_infos: UserInfos, claim: str
     ) -> List[str]:
         override_entitlement_entries = check_environment_for_override(
             "DISABLE_AUTHENTICATION_AND_ASSUME_ENTITLEMENTS"
@@ -520,11 +332,11 @@ class BaseFlaat(FlaatConfig):
             logger.info("Using entitlement override: %s", override_entitlement_entries)
             return override_entitlement_entries
 
-        return self._get_entitlements_from_claim(all_info, claim)
+        return user_infos.get_entitlements_from_claim(claim)
 
     def _required_auth_func(
         self,
-        required: Union[str, List[str]],
+        required: list,
         claim: str,
         *args,
         match: Union[str, int] = "all",
@@ -537,84 +349,76 @@ class BaseFlaat(FlaatConfig):
         request_object = self._get_request(*args, **kwargs)
         all_info = self._get_all_info_from_request(request_object)
 
-        if all_info is None:
-            raise FlaatUnauthorized("No valid authentication found.")
-
-        req_raw = ensure_is_list(required)
         avail_raw = self._get_effective_entitlements_from_claim(all_info, claim)
         if avail_raw is None:
             raise FlaatUnauthorized("No group memberships found")
 
-        req_parsed = []
         avail_parsed = []
 
         if parser is None:
-            req_parsed = req_raw
             avail_parsed = avail_raw
         else:
-            req_parsed = [parser(r) for r in req_raw]
             avail_parsed = [parser(r) for r in avail_raw]
 
-        required_matches = self._determine_number_of_required_matches(match, req_parsed)
+        required_matches = self._determine_number_of_required_matches(match, required)
         matches_found = 0
         if comparator is None:
             comparator = lambda r, a: r == a
 
-        for req in req_parsed:
+        for req in required:
             for avail in avail_parsed:
                 if comparator(req, avail):
                     matches_found += 1
 
         logger.info("Found %d of %d matches", matches_found, required_matches)
-        logger.debug("Required: %s", req_parsed)
-        logger.debug("Available: %s", avail_parsed)
+        logger.debug("Required: %s - Available: %s", required, avail_parsed)
 
         if matches_found < required_matches:
             raise FlaatForbidden(
                 f"Matched {matches_found} groups, but needed {required_matches}"
             )
 
-    # TODO test this
     def _get_auth_decorator(
         self,
         auth_func: Callable,
         on_failure: Callable[[FlaatException], Any] = None,
     ):
+        def authenticate(*args, **kwargs):
+            if not self._auth_disabled():
+                # auth_func raises an exception if unauthorized
+                logger.debug("Executing auth_func")
+                auth_func(self, *args, **kwargs)
+
+        def handle_exception(e: FlaatException):
+            if on_failure is not None:
+                on_failure(e)
+            else:
+                self._map_exception(e)
+
         def decorator(view_func):
             @wraps(view_func)
             async def async_wrapper(*args, **kwargs):
                 # notable: auth_func and view_func get the same arguments
                 try:
-                    if not self._auth_disabled():
-                        # auth_func raises an exception if unauthorized
-                        logger.debug("Executing sychronous auth_func")
-                        auth_func(self, *args, **kwargs)
+                    authenticate(*args, **kwargs)
 
                     logger.debug("Executing async view_func")
                     return await view_func(*args, **kwargs)
 
                 except FlaatException as e:
-                    if on_failure is not None:
-                        return on_failure(e)
-                    self._map_exception(e)
+                    return handle_exception(e)
 
             @wraps(view_func)
             def wrapper(*args, **kwargs):
                 # notable: auth_func and view_func get the same arguments
                 try:
-                    if not self._auth_disabled():
-                        # auth_func raises an exception if unauthorized
-                        logger.debug("Executing sychronous auth_func")
-                        auth_func(self, *args, **kwargs)
+                    authenticate(*args, **kwargs)
 
                     logger.debug("Executing sychronous view_func")
                     return view_func(*args, **kwargs)
 
                 except FlaatException as e:
-                    if on_failure is not None:
-                        return on_failure(e)
-
-                    self._map_exception(e)
+                    return handle_exception(e)
 
             if iscoroutinefunction(view_func):
                 return async_wrapper
@@ -633,7 +437,7 @@ class BaseFlaat(FlaatConfig):
         group: Union[str, List[str]],
         claim: str,
         on_failure: Callable = None,
-        # python >= 3.8= could use:
+        # python >= 3.8 could use:
         # match: Union[Literal["all"], Literal["one"], int] = "all",
         match: Union[str, int] = "all",
     ):
@@ -644,8 +448,10 @@ class BaseFlaat(FlaatConfig):
         on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page"""
 
+        required = self._parse(group)
+
         def auth_func(self, *args, **kwargs):
-            self._required_auth_func(group, claim, match, *args, **kwargs)
+            self._required_auth_func(required, claim, match, *args, **kwargs)
 
         return self._get_auth_decorator(auth_func, on_failure)
 
@@ -658,6 +464,22 @@ class BaseFlaat(FlaatConfig):
         except Aarc_g002_entitlement_Error as e:
             logger.error("Error parsing aarc entitlement: %s", e)
             return None
+
+    @staticmethod
+    def _parse(raw_ents: Union[str, List[str]], parser: Callable = None) -> list:
+        """parses groups or entitlements"""
+        raw_ents_list = ensure_is_list(raw_ents)
+        if parser is None:
+            return raw_ents_list
+
+        parsed_ents = []
+        for raw_ent in raw_ents_list:
+            parsed = parser(raw_ent)
+            if parsed is None:
+                raise FlaatException(f"Can not parse entitelment: {raw_ent}")
+            parsed_ents.append(parsed)
+
+        return parsed_ents
 
     @staticmethod
     def _aarc_entitlement_comparator(
@@ -680,10 +502,11 @@ class BaseFlaat(FlaatConfig):
         on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page
         """
+        parsed_ents = self._parse(entitlement, parser=self._aarc_entitlement_parser)
 
         def auth_func(self, *args, **kwargs):
             self._required_auth_func(
-                entitlement,
+                parsed_ents,
                 claim,
                 match,
                 parser=self._aarc_entitlement_parser,

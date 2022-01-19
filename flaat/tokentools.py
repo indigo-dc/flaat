@@ -6,8 +6,8 @@ import json
 import logging
 import re
 import time
-from typing import List, Union
-from flaat.exceptions import FlaatUnauthorized
+from typing import List, Optional, Union
+
 
 logger = logging.getLogger(__name__)
 
@@ -61,14 +61,18 @@ def is_url(string):
 
 def get_accesstoken_info(access_token):
     """Return information contained in the access token. Maybe None"""
-    try:
-        (header_enc, body_enc, signature_enc) = access_token.split(".")
-        logger.debug("header_enc: " + str(header_enc))
-        logger.debug("body_enc: " + str(body_enc))
+    # FIXME: Add a parameter verify=True, then go and verify the token
 
+    splits = access_token.split(".")
+    if len(splits) != 3:
+        logger.info("Access token is not a JWT")
+        return None
+
+    (header_enc, body_enc, signature_enc) = splits
+
+    try:
         header = json.loads(base64url_decode(header_enc))
         body = json.loads(base64url_decode(body_enc))
-
         logger.debug(
             "header: %s",
             json.dumps(header, sort_keys=True, indent=4, separators=(",", ": ")),
@@ -78,23 +82,23 @@ def get_accesstoken_info(access_token):
             json.dumps(body, sort_keys=True, indent=4, separators=(",", ": ")),
         )
         return {"header": header, "body": body, "signature": signature_enc}
-    except ValueError:
-        # Cannot raise here, because inability to split will return None. That will trigger another
-        # issuer to be used
-        # raise
+    except ValueError as e:
+        logger.debug("Unable to decode JWT: %s", e)
         return None
 
 
-def get_issuer_from_accesstoken_info(access_token):
+def get_issuer_from_access_token_info(
+    access_token_info: Optional[dict],
+) -> Optional[str]:
     """Return the issuer of the AT, if it can be found, otherwise None"""
-    try:
-        token_info = get_accesstoken_info(access_token)
-        if token_info is None:
-            return None
-        return token_info["body"]["iss"]
-    except ValueError:
+
+    if access_token_info is None:
         return None
-    except TypeError:
+
+    try:
+        return access_token_info["body"]["iss"]
+    except ValueError as e:
+        logger.error("Error accessing access_token_info: %s", e)
         return None
 
 
