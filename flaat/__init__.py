@@ -1,14 +1,15 @@
-"""FLAsk support for OIDC Access Tokens -- FLAAT. A set of decorators for authorising
-access to OIDC authenticated REST APIs."""
+"""FLAsk support for OIDC Access Tokens -- FLAAT.
+Use decorators for authorising access to OIDC authenticated REST APIs.
+"""
 # This code is distributed under the MIT License
 
+from asyncio import iscoroutinefunction
 from functools import wraps
 import json
 import logging
 import os
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from _pytest.compat import iscoroutinefunction
 from aarc_g002_entitlement import Aarc_g002_entitlement, Aarc_g002_entitlement_Error
 
 from flaat import issuertools, tokentools
@@ -437,6 +438,17 @@ class BaseFlaat(FlaatConfig):
             kwargs["user_infos"] = infos
 
             return view_func(*args, **kwargs)
+
+        @wraps(view_func)
+        async def async_wrapper(*args, **kwargs):
+            request_object = self._get_request(self, *args, **kwargs)
+            infos = self.get_all_info_from_request(request_object)
+            kwargs["user_infos"] = infos
+
+            return await view_func(*args, **kwargs)
+
+        if iscoroutinefunction(view_func):
+            return async_wrapper
 
         return wrapper
 

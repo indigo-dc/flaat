@@ -24,14 +24,15 @@ def app():
     """aio web Application for testing"""
     app = web.Application()
     for decorator in DECORATORS:
-        app.router.add_get(f"/{decorator.name}", decorator.decorator(view_func))
+        decorated = decorator.decorator(view_func)
+        app.router.add_get(f"/{decorator.name}", decorated)
     return app
 
 
 # from: https://docs.aiohttp.org/en/stable/testing.html#pytest-example
 @pytest.fixture
-def cli(loop, aiohttp_client, app):
-    return loop.run_until_complete(aiohttp_client(app))
+def cli(event_loop, aiohttp_client, app):
+    return event_loop.run_until_complete(aiohttp_client(app))
 
 
 @pytest.mark.parametrize("status,kwargs", STATUS_KWARGS_LIST)
