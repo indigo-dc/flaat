@@ -288,14 +288,6 @@ class BaseFlaat(FlaatConfig):
         if iss_config is not None:
             return iss_config
 
-        # 4: Try oidc-agent's issuer config file
-        logger.debug('find_issuer - 4: From "set_OIDC_provider_file"')
-        iss_config = issuertools.find_issuer_config_in_file(
-            self.trusted_op_file, self.op_hint, exclude_list=self.ops_that_support_jwt
-        )
-        if iss_config is not None:
-            return iss_config
-
         raise FlaatUnauthorized("Could not determine issuer config")
 
     @map_exceptions
@@ -437,7 +429,7 @@ class BaseFlaat(FlaatConfig):
 
         return decorator
 
-    def inject_user_infos(self, view_func):
+    def inject_user_infos(self, view_func: Callable) -> Callable:
         @wraps(view_func)
         def wrapper(*args, **kwargs):
             request_object = self._get_request(self, *args, **kwargs)
