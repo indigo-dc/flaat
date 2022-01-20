@@ -1,12 +1,12 @@
 import json
 
-import logsetup
 from aiohttp import web
 
-from flaat import tokentools
+from examples.logsetup import setup_logging
 from flaat.aio import Flaat
+from flaat.user_infos import UserInfos
 
-logger = logsetup.setup_logging()
+setup_logging()
 
 
 ##########
@@ -50,7 +50,7 @@ flaat.set_trusted_OP_list(
 #     1: Errors
 #     2: More info, including token info
 #     3: Max
-flaat.set_verbosity(0)
+# flaat.set_verbosity(0)
 # flaat.set_verify_tls(True)
 
 
@@ -87,11 +87,21 @@ async def root(request):
 
 @routes.get("/info")
 async def info(request):
-    access_token = tokentools.get_access_token_from_request(request)
-    info = flaat.get_info_thats_in_at(access_token)
-    # FIXME: Also display info from userinfo endpoint
-    x = json.dumps(info, sort_keys=True, indent=4, separators=(",", ": "))
+    infos = flaat.get_all_info_from_request(request)
+    x = json.dumps(infos.__dict__, sort_keys=True, indent=4, separators=(",", ": "))
     return web.Response(text=str(x))
+
+
+@routes.get("/info2")
+@flaat.inject_user_infos
+async def info2(request, user_infos: UserInfos = None):
+    if user_infos is not None:
+        message = json.dumps(
+            user_infos.__dict__, sort_keys=True, indent=4, separators=(",", ": ")
+        )
+        return web.Response(text=message)
+
+    return web.Response(text="No userinfo")
 
 
 @routes.get("/valid_user")

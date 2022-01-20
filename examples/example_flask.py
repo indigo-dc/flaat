@@ -1,10 +1,9 @@
 import json
 
-import logsetup
 from flask import Flask, request
 from werkzeug import Response
 
-from flaat import tokentools
+from examples import logsetup
 from flaat.flask import Flaat
 
 logger = logsetup.setup_logging()
@@ -52,7 +51,7 @@ flaat.set_timeout(3)
 #     1: Errors
 #     2: More info, including token info
 #     3: Max
-flaat.set_verbosity(0)
+# flaat.set_verbosity(0)
 # flaat.set_verify_tls(True)
 
 
@@ -88,16 +87,17 @@ def root():
 
 
 @app.route("/info")
-def info():
-    access_token = tokentools.get_access_token_from_request(request)
-    info = flaat.get_info_thats_in_at(access_token)
-    # FIXME: Also display info from userinfo endpoint
-    x = json.dumps(info, sort_keys=True, indent=4, separators=(",", ": "))
-    return str(x)
+@flaat.inject_user_infos
+def info(user_infos=None):
+    if user_infos is not None:
+        return json.dumps(
+            user_infos.__dict__, sort_keys=True, indent=4, separators=(",", ": ")
+        )
+    return "No user infos"
 
 
 @app.route("/valid_user/<int:id>", methods=["POST", "GET"])
-@flaat.login_required_new()
+@flaat.login_required()
 def valid_user_id(id):
     retval = ""
     if request.method == "POST":

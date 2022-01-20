@@ -1,16 +1,9 @@
-# vim: tw=100 foldmethod=marker
-# pylint
-# pylint: disable=bad-continuation, invalid-name, superfluous-parens
-# pylint: disable=bad-whitespace, missing-docstring
-#
-import json
-
-import logsetup
-import uvicorn
 from fastapi import Depends, FastAPI, Request
 from fastapi.security import HTTPBearer
+from starlette.responses import PlainTextResponse
+import uvicorn
 
-from flaat import tokentools
+from examples import logsetup
 from flaat.fastapi import Flaat
 
 logger = logsetup.setup_logging()
@@ -58,7 +51,7 @@ flaat.set_trusted_OP_list(
 #     1: Errors
 #     2: More info, including token info
 #     3: Max
-flaat.set_verbosity(0)
+# flaat.set_verbosity(0)
 # flaat.set_verify_tls(True)
 
 
@@ -92,16 +85,16 @@ async def root(request: Request):
     /group_test_hack    A hack to use any other field for authorisation
     /group_test_wlcg    Requires user to be in the '/wlcg' group
         """
-    return text
+    return PlainTextResponse(text)
 
 
-@app.get("/info", dependencies=[Depends(security)])
-async def info(request: Request):
-    access_token = tokentools.get_access_token_from_request(request)
-    info = flaat.get_info_thats_in_at(access_token)
-    # FIXME: Also display info from userinfo endpoint
-    x = json.dumps(info, sort_keys=True, indent=4, separators=(",", ": "))
-    return {"message": str(x)}
+@app.get("/info")
+@flaat.inject_user_infos
+async def info(request: Request, user_infos=None):
+    if user_infos is not None:
+        return {"data": user_infos.__dict__}
+
+    return {"message": "no userinfo"}
 
 
 @app.get("/valid_user", dependencies=[Depends(security)])
@@ -191,7 +184,9 @@ async def demo_role_egi(request: Request):
 # Main
 
 if __name__ == "__main__":
-    uvicorn.run("example-fastapi:app", host="0.0.0.0", port=8082, log_level="info")
+    uvicorn.run(
+        "examples.example_fastapi:app", host="0.0.0.0", port=8082, log_level="info"
+    )
 
 # start with:
 #   python3 example-fastapi.py

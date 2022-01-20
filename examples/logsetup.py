@@ -10,7 +10,7 @@ class PathTruncatingFormatter(logging.Formatter):
     def format(self, record):
         pathname = record.pathname
         if len(pathname) > 23:
-            pathname = "...{}".format(pathname[-19:])
+            pathname = f"...{pathname[-19:]}"
         record.pathname = pathname
         return super(PathTruncatingFormatter, self).format(record)
 
@@ -37,7 +37,7 @@ def setup_logging():
     logger.setLevel(loglevel)
 
     # turn off other logging:
-    for other in ["werkzeug", "urllib3"]:
+    for other in ["werkzeug", "urllib3", "requests_cache"]:
         other_log = logging.getLogger(other)
         other_log.setLevel(logging.CRITICAL)
         other_log.addHandler(handler)
