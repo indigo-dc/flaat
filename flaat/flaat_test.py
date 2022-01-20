@@ -15,13 +15,13 @@ def test_invalid_aarc_entitlements():
 
     flaat = BaseFlaat()
     with pytest.raises(FlaatException):
-        flaat.aarc_g002_entitlement_required(
+        flaat.aarc_entitlement_required(
             entitlement=INVALID_ENTITLEMENT,
             claim=CLAIM,
         )
 
     with pytest.raises(FlaatException):
-        flaat.aarc_g002_entitlement_required(
+        flaat.aarc_entitlement_required(
             entitlement=[
                 INVALID_ENTITLEMENT,
                 VALID_ENTITLEMENT,

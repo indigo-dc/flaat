@@ -106,8 +106,8 @@ class Decorators:
             )
             decorators.append(
                 NamedDecorator(
-                    f"aarc_g002_entitlement_required-match={match}",
-                    self.flaat.aarc_g002_entitlement_required(
+                    f"aarc_entitlement_required-match={match}",
+                    self.flaat.aarc_entitlement_required(
                         entitlement=self.entitlements,
                         claim=self.claim_entitlements,
                         match=match,

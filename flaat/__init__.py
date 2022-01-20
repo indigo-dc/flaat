@@ -10,7 +10,7 @@ import logging
 import os
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from aarc_g002_entitlement import Aarc_g002_entitlement, Aarc_g002_entitlement_Error
+import aarc_entitlement
 
 from flaat import issuertools, tokentools
 from flaat.caches import Issuer_config_cache
@@ -486,13 +486,15 @@ class BaseFlaat(FlaatConfig):
         entitlement: str,
     ):
         try:
-            return Aarc_g002_entitlement(entitlement, strict=False)
-        except Aarc_g002_entitlement_Error as e:
+            return aarc_entitlement.G069(entitlement)
+        except aarc_entitlement.Error as e:
             logger.error("Error parsing aarc entitlement: %s", e)
             return None
 
     @staticmethod
-    def _parse(raw_ents: Union[str, List[str]], parser: Callable = None) -> list:
+    def _parse(
+        raw_ents: Union[str, List[str]], parser: Optional[Callable] = None
+    ) -> list:
         """parses groups or entitlements"""
         raw_ents_list = ensure_is_list(raw_ents)
         if parser is None:
@@ -509,11 +511,11 @@ class BaseFlaat(FlaatConfig):
 
     @staticmethod
     def _aarc_entitlement_comparator(
-        req: Aarc_g002_entitlement, avail: Aarc_g002_entitlement
+        req: aarc_entitlement.Base, avail: aarc_entitlement.Base
     ) -> bool:
-        return req.is_contained_in(avail)
+        return avail.satisfies(req)
 
-    def aarc_g002_entitlement_required(
+    def aarc_entitlement_required(
         self,
         entitlement: Union[str, List[str]],
         claim: str,
@@ -524,7 +526,7 @@ class BaseFlaat(FlaatConfig):
 
         entitlement is the name (or list) of the entitlement to match
         match specifies how many of the given groups must be matched. Valid values for match are
-        'all', 'one', or an integer
+        'all', or an integer
         on_failure is a function that will be invoked if there was no valid user detected.
         Useful for redirecting to some login page
         """
