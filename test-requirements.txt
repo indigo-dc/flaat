@@ -2,3 +2,7 @@ pylint
 pytest
 pytest-aiohttp
 pytest-cov
+
+flask
+aiohttp
+fastapi>=0.61.2
