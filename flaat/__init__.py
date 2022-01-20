@@ -317,22 +317,18 @@ class BaseFlaat(FlaatConfig):
         request_object = self._get_request(*args, **kwargs)
         return self.get_all_info_from_request(request_object)
 
-    def _determine_number_of_required_matches(self, match, req_group_list) -> int:
+    def _determine_number_of_required_matches(
+        self, match: Union[str, int], req_group_list: list
+    ) -> int:
         """determine the number of required matches from parameters"""
 
         if match == "all":
             return len(req_group_list)
-        elif match == "one":
-            return 1
-        elif isinstance(match, int):
-            required_matches = match
-            if required_matches > len(req_group_list):
-                required_matches = len(req_group_list)
-            return required_matches
-        else:
-            raise FlaatException(
-                "Argument 'match' has invalid value: Must be 'all', 'one' or int"
-            )
+
+        if isinstance(match, int):
+            return min(match, len(req_group_list))
+
+        raise FlaatException("Argument 'match' has invalid value: Must be 'all' or int")
 
     def _get_effective_entitlements_from_claim(
         self, user_infos: UserInfos, claim: str
@@ -350,8 +346,8 @@ class BaseFlaat(FlaatConfig):
         self,
         required: list,
         claim: str,
+        match: Union[str, int],
         *args,
-        match: Union[str, int] = "all",
         # parse an entitlement
         parser: Callable[[str], Any] = None,
         # compare two parsed entitlements
@@ -372,6 +368,7 @@ class BaseFlaat(FlaatConfig):
         else:
             avail_parsed = [parser(r) for r in avail_raw]
 
+        logger.debug("Required: %s - Available: %s", required, avail_parsed)
         required_matches = self._determine_number_of_required_matches(match, required)
         matches_found = 0
         if comparator is None:
@@ -383,7 +380,6 @@ class BaseFlaat(FlaatConfig):
                     matches_found += 1
 
         logger.info("Found %d of %d matches", matches_found, required_matches)
-        logger.debug("Required: %s - Available: %s", required, avail_parsed)
 
         if matches_found < required_matches:
             raise FlaatForbidden(
@@ -445,9 +441,7 @@ class BaseFlaat(FlaatConfig):
         @wraps(view_func)
         def wrapper(*args, **kwargs):
             request_object = self._get_request(self, *args, **kwargs)
-            logger.debug("Request object: %s", request_object)
             infos = self.get_all_info_from_request(request_object)
-            logger.debug("Injecting: %s", infos)
             kwargs["user_infos"] = infos
 
             return view_func(*args, **kwargs)
@@ -468,7 +462,7 @@ class BaseFlaat(FlaatConfig):
         # python >= 3.8 could use:
         # match: Union[Literal["all"], Literal["one"], int] = "all",
         match: Union[str, int] = "all",
-    ):
+    ) -> Callable:
         """Decorator to enforce membership in a given group.
         group is the name (or list) of the group to match
         match specifies how many of the given groups must be matched. Valid values for match are
@@ -481,7 +475,7 @@ class BaseFlaat(FlaatConfig):
         def auth_func(self, *args, **kwargs):
             self._required_auth_func(required, claim, match, *args, **kwargs)
 
-        return self._get_auth_decorator(auth_func, on_failure)
+        return self._get_auth_decorator(auth_func, on_failure=on_failure)
 
     @staticmethod
     def _aarc_entitlement_parser(
@@ -521,7 +515,7 @@ class BaseFlaat(FlaatConfig):
         claim: str,
         on_failure: Callable = None,
         match: Union[str, int] = "all",
-    ):
+    ) -> Callable:
         """Decorator to enforce membership in a given group defined according to AARC-G002.
 
         entitlement is the name (or list) of the entitlement to match
