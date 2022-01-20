@@ -1,25 +1,32 @@
 import os
-from typing import Callable, List, Tuple
+from typing import Callable, List
 
 from attr import dataclass
+import liboidcagent
 
 from flaat.exceptions import FlaatException
 from flaat.user_infos import UserInfos
 
 
 def _mandatory_env_var(name):
-    env_var = f"FLAAT_{name}"
-    val = os.environ.get(env_var, "")
+    val = os.environ.get(name, "")
     if val == "":
-        raise ValueError(f"Environment variable is empty: {env_var}")
+        raise ValueError(f"Environment variable is empty: {name}")
 
     return val
 
 
-FLAAT_AT = _mandatory_env_var("AT")
-FLAAT_CLAIM_ENTITLEMENT = _mandatory_env_var("CLAIM_ENTITLEMENT")
-FLAAT_CLAIM_GROUP = _mandatory_env_var("CLAIM_GROUP")
-FLAAT_ISS = _mandatory_env_var("ISS")
+_oidc_agent_account_name = _mandatory_env_var("OIDC_AGENT_ACCOUNT")
+
+FLAAT_AT = ""
+try:
+    FLAAT_AT = liboidcagent.get_access_token(_oidc_agent_account_name)
+except liboidcagent.OidcAgentError as e:
+    raise FlaatException(f"Unable to load access token for testing: {e}") from e
+
+FLAAT_CLAIM_ENTITLEMENT = _mandatory_env_var("FLAAT_CLAIM_ENTITLEMENT")
+FLAAT_CLAIM_GROUP = _mandatory_env_var("FLAAT_CLAIM_GROUP")
+FLAAT_ISS = _mandatory_env_var("FLAAT_ISS")
 FLAAT_TRUSTED_OPS_LIST = [FLAAT_ISS]
 
 STATUS_KWARGS_LIST = [
@@ -35,7 +42,7 @@ STATUS_KWARGS_LIST = [
 ]
 
 
-def on_failure(e):
+def on_failure(_):
     pass
 
 
