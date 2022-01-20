@@ -93,7 +93,7 @@ class Decorators:
             ),
         ]
 
-        for match in ["one", "all", 2]:
+        for match in [1, "all"]:
             decorators.append(
                 NamedDecorator(
                     f"group_required-match={match}",

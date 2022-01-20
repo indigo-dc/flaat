@@ -1,6 +1,7 @@
 import logging
 
 from aiohttp.web_exceptions import HTTPForbidden, HTTPServerError, HTTPUnauthorized
+from aiohttp.web import Request
 
 from flaat import BaseFlaat
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthorized
@@ -32,10 +33,14 @@ class Flaat(BaseFlaat):
         return the_id
 
     def _get_request(self, *args, **kwargs):
+        for arg in list(args) + list(kwargs.values()):
+            if isinstance(arg, Request):
+                return arg
+
         logger.debug("args: %s - kwargs: %s", args, kwargs)
-        if len(args) < 2:
-            raise FlaatException("Need argument 'request' for framework 'aio'")
-        return args[1]
+        raise FlaatException(
+            f"Need argument 'request' for framework 'aio': Got args={args} kwargs={kwargs}"
+        )
 
     def get_access_token_from_request(self, request) -> str:
         logger.debug("Request headers: %s", request.headers)

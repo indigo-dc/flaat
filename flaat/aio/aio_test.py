@@ -23,7 +23,6 @@ async def view_func(request, user_infos=None):
 def app():
     """aio web Application for testing"""
     app = web.Application()
-    logger.debug("decos: %s", DECORATORS)
     for decorator in DECORATORS:
         app.router.add_get(f"/{decorator.name}", decorator.decorator(view_func))
     return app
@@ -38,5 +37,6 @@ def cli(loop, aiohttp_client, app):
 @pytest.mark.parametrize("status,kwargs", STATUS_KWARGS_LIST)
 @pytest.mark.parametrize("decorator", DECORATORS)
 async def test_decorator(cli, decorator, status, kwargs):
+    logger.debug("Decorator: %s", decorator.name)
     resp = await cli.get(f"/{decorator.name}", **kwargs)
     assert resp.status == status
