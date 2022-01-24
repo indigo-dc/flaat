@@ -336,60 +336,85 @@ class BaseFlaat(FlaatConfig):
 
         return user_infos.get_entitlements_from_claim(claim)
 
-    def _required_auth_func(
+    def authenticate_user(self, *args, **kwargs) -> UserInfos:
+        """authenticate user needs the same arguments as the view_func it is called from."""
+
+        request_object = self._get_request(*args, **kwargs)
+        access_token = self.get_access_token_from_request(request_object)
+        logger.debug("Access token: %s", access_token)
+
+        infos = UserInfos(self, access_token)
+        logger.info("Authenticated user: %s @ %s", infos.subject, infos.issuer)
+
+        return infos
+
+    def _get_required_authz_func(
         self,
+        # list of required claim values
         required: list,
         claim: str,
         match: Union[str, int],
-        *args,
         # parse an entitlement
         parser: Callable[[str], Any] = None,
         # compare two parsed entitlements
         comparator: Callable[[Any, Any], bool] = None,
-        **kwargs,
-    ):
-        request_object = self._get_request(*args, **kwargs)
-        all_info = self.get_all_info_from_request(request_object)
+    ) -> Callable[[UserInfos], bool]:
 
-        avail_raw = self._get_effective_entitlements_from_claim(all_info, claim)
-        if avail_raw is None:
-            raise FlaatForbidden("No group memberships found")
+        inner_comparator = comparator
+        if inner_comparator is None:
+            inner_comparator = lambda r, a: r == a
 
-        avail_parsed = []
+        def authz_func(user_infos: UserInfos):
+            avail_raw = self._get_effective_entitlements_from_claim(user_infos, claim)
+            if avail_raw is None:
+                raise FlaatForbidden("No group memberships found")
 
-        if parser is None:
-            avail_parsed = avail_raw
-        else:
-            avail_parsed = [parser(r) for r in avail_raw]
+            avail_parsed = []
 
-        logger.debug("Required: %s - Available: %s", required, avail_parsed)
-        required_matches = self._determine_number_of_required_matches(match, required)
-        matches_found = 0
-        if comparator is None:
-            comparator = lambda r, a: r == a
+            if parser is None:
+                avail_parsed = avail_raw
+            else:
+                avail_parsed = [parser(r) for r in avail_raw]
 
-        for req in required:
-            for avail in avail_parsed:
-                if comparator(req, avail):
-                    matches_found += 1
-
-        logger.info("Found %d of %d matches", matches_found, required_matches)
-
-        if matches_found < required_matches:
-            raise FlaatForbidden(
-                f"Matched {matches_found} groups, but needed {required_matches}"
+            logger.debug("Required: %s - Available: %s", required, avail_parsed)
+            required_matches = self._determine_number_of_required_matches(
+                match, required
             )
+            matches_found = 0
+
+            for req in required:
+                for avail in avail_parsed:
+                    if inner_comparator(req, avail):
+                        matches_found += 1
+
+            logger.info("Found %d of %d matches", matches_found, required_matches)
+
+            if matches_found < required_matches:
+                raise FlaatForbidden(
+                    f"Matched {matches_found} groups, but needed {required_matches}"
+                )
+
+            return True
+
+        return authz_func
 
     def _get_auth_decorator(
         self,
-        auth_func: Callable,
+        authn_func: Callable,  # authenticate the user
+        authz_func: Callable[[UserInfos], bool],  # has the user authorization?
         on_failure: Callable[[FlaatException], Any] = None,
-    ) -> Callable:
-        def authenticate(*args, **kwargs):
+    ) -> Callable[[Callable], Callable]:
+        @map_exceptions
+        def authenticate(self, *args, **kwargs):
             if not self._auth_disabled():
                 # auth_func raises an exception if unauthorized
-                logger.debug("Executing auth_func")
-                auth_func(self, *args, **kwargs)
+                logger.debug("Executing authn_func")
+                user_infos = authn_func(self, *args, **kwargs)
+                if user_infos is None:
+                    raise FlaatUnauthenticated("Could not determine identity of user")
+                logger.debug("Executing authz_func")
+                if not authz_func(user_infos):
+                    raise FlaatForbidden("User is not permitted to use service")
 
         def handle_exception(e: FlaatException):
             if on_failure is not None:
@@ -404,7 +429,7 @@ class BaseFlaat(FlaatConfig):
             async def async_wrapper(*args, **kwargs):
                 # notable: auth_func and view_func get the same arguments
                 try:
-                    authenticate(*args, **kwargs)
+                    authenticate(self, *args, **kwargs)
 
                     logger.debug("Executing async view_func")
                     return await view_func(*args, **kwargs)
@@ -417,7 +442,7 @@ class BaseFlaat(FlaatConfig):
             def wrapper(*args, **kwargs):
                 # notable: auth_func and view_func get the same arguments
                 try:
-                    authenticate(*args, **kwargs)
+                    authenticate(self, *args, **kwargs)
 
                     logger.debug("Executing sychronous view_func")
                     return view_func(*args, **kwargs)
@@ -453,11 +478,26 @@ class BaseFlaat(FlaatConfig):
 
         return wrapper
 
-    def login_required(self, on_failure: Callable = None):
+    def login_required(
+        self,
+        # manually check the user infos for a login condition
+        check_user: Callable[[UserInfos], bool] = None,
+        on_failure: Callable = None,
+    ):
         if on_failure is not None and not callable(on_failure):
             raise ValueError("Invalid argument: need callable")
 
-        return self._get_auth_decorator(auth_func=self._auth_get_all_info)
+        def hasIssuerAndSub(infos: UserInfos) -> bool:
+            return infos.issuer != "" and infos.subject != ""
+
+        if check_user is None:
+            check_user = hasIssuerAndSub
+
+        return self._get_auth_decorator(
+            authn_func=self.authenticate_user,
+            authz_func=check_user,
+            on_failure=on_failure,
+        )
 
     def group_required(
         self,
@@ -477,10 +517,11 @@ class BaseFlaat(FlaatConfig):
 
         required = self._parse(group)
 
-        def auth_func(self, *args, **kwargs):
-            self._required_auth_func(required, claim, match, *args, **kwargs)
-
-        return self._get_auth_decorator(auth_func, on_failure=on_failure)
+        return self._get_auth_decorator(
+            authn_func=self.authenticate_user,
+            authz_func=self._get_required_authz_func(required, claim, match),
+            on_failure=on_failure,
+        )
 
     @staticmethod
     def _aarc_entitlement_parser(
@@ -533,15 +574,14 @@ class BaseFlaat(FlaatConfig):
         """
         parsed_ents = self._parse(entitlement, parser=self._aarc_entitlement_parser)
 
-        def auth_func(self, *args, **kwargs):
-            self._required_auth_func(
+        return self._get_auth_decorator(
+            authn_func=self.authenticate_user,
+            authz_func=self._get_required_authz_func(
                 parsed_ents,
                 claim,
                 match,
                 parser=self._aarc_entitlement_parser,
                 comparator=self._aarc_entitlement_comparator,
-                *args,
-                **kwargs,
-            )
-
-        return self._get_auth_decorator(auth_func, on_failure)
+            ),
+            on_failure=on_failure,
+        )

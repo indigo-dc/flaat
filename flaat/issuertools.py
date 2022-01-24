@@ -195,7 +195,7 @@ def find_issuer_config_in_file(op_file, op_hint=None, exclude_list=None):
             if issuer_from_conf == "":
                 continue
             if issuer_from_conf in exclude_list:
-                logger.info("skipping %s due to exclude list", issuer)
+                logger.debug("skipping %s due to exclude list", issuer)
                 continue
             op_list.append(issuer_from_conf)
         return find_issuer_config_in_list(op_list, op_hint, exclude_list)
@@ -303,20 +303,20 @@ def get_introspected_token_info(
 
     headers["Authorization"] = f'Basic {b64encode(basic_auth_bytes).decode("utf-8")}'
 
-    logger.info("Getting introspection from %s", issuer_config["userinfo_endpoint"])
-
-    if not "introspection_endpoint" in issuer_config:
+    introspection_endpoint = issuer_config.get("introspection_endpoint", "")
+    if introspection_endpoint != "":
         return None
 
+    logger.debug("Getting introspection from %s", introspection_endpoint)
     resp = requests.post(
-        issuer_config["introspection_endpoint"],
+        introspection_endpoint,
         verify=verify_tls,
         headers=headers,
         data=post_data,
         timeout=timeout,
     )
     if resp.status_code != 200:
-        logger.debug("introspect: resp: %s", resp.status_code)
+        logger.debug("Introspection response: %s - %s", resp.status_code, resp.text)
         return None
 
     return dict(resp.json())
