@@ -2,25 +2,14 @@
 # This code is distributed under the MIT License
 
 import base64
+from dataclasses import dataclass
 import json
 import logging
-import re
 import time
-from typing import List, Optional, Union
+from typing import Optional
 
 
 logger = logging.getLogger(__name__)
-
-
-def merge_tokens(tokenlist: List[Union[dict, None]]) -> dict:
-    """put all provided tokens into one token."""
-    supertoken = {}
-    for entry in tokenlist:
-        if entry is not None:
-            for key in entry.keys():
-                supertoken[key] = entry[key]
-
-    return supertoken
 
 
 def base64url_encode(data):
@@ -43,23 +32,29 @@ def base64url_decode(data):
     return base64.urlsafe_b64decode(data).decode()
 
 
-def is_url(string):
-    """Return True if parameter is a URL, otherwise False"""
-    regex = re.compile(
-        r"^(?:http|ftp)s?://"  # http:// or https://
-        r"(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|"  # domain...
-        r"localhost|"  # localhost...
-        r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"  # ...or ip
-        r"(?::\d+)?"  # optional port
-        r"(?:/?|[/?]\S+)$",
-        re.IGNORECASE,
-    )
-    if re.match(regex, string):
-        return True
-    return False
+@dataclass
+class AccessTokenInfo:
+    header: dict
+    body: dict
+    signature: str
+
+    @property
+    def issuer(self) -> str:
+        return self.body.get("iss", "")
+
+    @property
+    def timeleft(self) -> int:
+        """Get the lifetime left in the token"""
+        timeleft = -1
+        now = time.time()
+        try:
+            timeleft = self.body["exp"] - now
+        except KeyError:  # no 'exp' claim
+            pass
+        return timeleft
 
 
-def get_accesstoken_info(access_token):
+def get_access_token_info(access_token) -> Optional[AccessTokenInfo]:
     """Return information contained in the access token. Maybe None"""
     # FIXME: Add a parameter verify=True, then go and verify the token
 
@@ -81,42 +76,7 @@ def get_accesstoken_info(access_token):
             "body: %s",
             json.dumps(body, sort_keys=True, indent=4, separators=(",", ": ")),
         )
-        return {"header": header, "body": body, "signature": signature_enc}
+        return AccessTokenInfo(header, body, signature_enc)
     except ValueError as e:
         logger.debug("Unable to decode JWT: %s", e)
         return None
-
-
-def get_issuer_from_access_token_info(
-    access_token_info: Optional[dict],
-) -> Optional[str]:
-    """Return the issuer of the AT, if it can be found, otherwise None"""
-
-    if access_token_info is None:
-        return None
-
-    try:
-        return access_token_info["body"]["iss"]
-    except ValueError as e:
-        logger.error("Error accessing access_token_info: %s", e)
-        return None
-
-
-def get_timeleft(token) -> int:
-    """Get the lifetime left in the token"""
-    timeleft = -1
-    if token is not None:
-        now = time.time()
-        try:
-            timeleft = token["exp"] - now
-        except KeyError:  # no 'exp' claim
-            pass
-        try:
-            timeleft = token["body"]["exp"] - now
-        except KeyError:  # no 'exp' claim
-            pass
-        try:
-            timeleft = token["access_token"]["body"]["exp"] - now
-        except KeyError:  # no 'exp' claim
-            pass
-    return timeleft

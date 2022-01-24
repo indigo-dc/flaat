@@ -12,7 +12,8 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 import aarc_entitlement
 
-from flaat import issuertools, tokentools
+from flaat import issuertools
+from flaat.tokentools import AccessTokenInfo
 from flaat.caches import Issuer_config_cache
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthorized
 from flaat.user_infos import UserInfos
@@ -242,7 +243,7 @@ class BaseFlaat(FlaatConfig):
 
     # TODO this method is way too long
     def _find_issuer_config_everywhere(
-        self, access_token, access_token_info: Optional[dict]
+        self, access_token, access_token_info: Optional[AccessTokenInfo]
     ) -> dict:
 
         # 0: Use accesstoken_issuer cache to find issuerconfig:
@@ -261,7 +262,7 @@ class BaseFlaat(FlaatConfig):
         # 1: find info in the AT
         logger.debug("find_issuer - 1: In access_token")
         if access_token_info is not None:
-            at_iss = tokentools.get_issuer_from_access_token_info(access_token_info)
+            at_iss = access_token_info.issuer
             if at_iss is not None:
                 if not self._issuer_is_trusted(at_iss):
                     raise FlaatUnauthorized(f"Issuer is not trusted: {at_iss}")

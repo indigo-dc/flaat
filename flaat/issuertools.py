@@ -17,6 +17,23 @@ from flaat import tokentools
 
 logger = logging.getLogger(__name__)
 
+
+def is_url(string):
+    """Return True if parameter is a URL, otherwise False"""
+    regex = re.compile(
+        r"^(?:http|ftp)s?://"  # http:// or https://
+        r"(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|"  # domain...
+        r"localhost|"  # localhost...
+        r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"  # ...or ip
+        r"(?::\d+)?"  # optional port
+        r"(?:/?|[/?]\S+)$",
+        re.IGNORECASE,
+    )
+    if re.match(regex, string):
+        return True
+    return False
+
+
 # default cache values:
 class Cache_options:
     """capture options for requests_cache"""
@@ -64,32 +81,36 @@ param_q = Queue(num_request_workers * 2)
 result_q = Queue(num_request_workers * 2)
 
 
-def find_issuer_config_in_at(access_token):
+def find_issuer_config_in_at(access_token) -> Optional[dict]:
     """If there is an issuer in the AT, we fetch the ISS config and return it"""
-    iss_config = None
-    at_iss = tokentools.get_issuer_from_access_token_info(access_token)
+    at_info = tokentools.get_access_token_info(access_token)
+    if at_info is None:
+        return None
+
+    at_iss = at_info.issuer
     logger.debug("Issuer: %s", at_iss)
-    if at_iss is not None:
-        if tokentools.is_url(at_iss):
-            config_url = at_iss + "/.well-known/openid-configuration"
-            iss_config = get_iss_config_from_url(config_url)
-    return iss_config
+    if at_iss is None or not is_url(at_iss):
+        return None
+
+    config_url = at_iss + "/.well-known/openid-configuration"
+    return get_iss_config_from_url(config_url)
 
 
 def find_issuer_config_in_string(string: str) -> Optional[dict]:
     """If the string provided is a URL: try several well known endpoints until the ISS config is
     found"""
-    if string is not None:
-        if tokentools.is_url(string):
-            for url in [
-                string + "/.well-known/openid-configuration",
-                string,
-                string + "/oauth2",
-                string + "/oauth2" + "/.well-known/openid-configuration",
-            ]:
-                iss_config = get_iss_config_from_url(url)
-                if iss_config is not None:
-                    return iss_config
+    if string is None or not is_url(string):
+        return None
+
+    for url in [
+        string + "/.well-known/openid-configuration",
+        string,
+        string + "/oauth2",
+        string + "/oauth2" + "/.well-known/openid-configuration",
+    ]:
+        iss_config = get_iss_config_from_url(url)
+        if iss_config is not None:
+            return iss_config
 
     return None
 

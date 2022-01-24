@@ -201,7 +201,10 @@ class PrintableUserInfos(UserInfos):
         ]:
             val = getattr(self, attr_name)
             if val is not None:
-                printDict[attr_name] = val
+                if hasattr(val, "__dict__"):
+                    printDict[attr_name] = val.__dict__
+                else:
+                    printDict[attr_name] = val
 
         print(json.dumps(printDict, sort_keys=True, indent=4))
 
@@ -217,7 +220,7 @@ class PrintableUserInfos(UserInfos):
                     print("Information stored inside the access token:")
                 print(
                     json.dumps(
-                        self.access_token_info,
+                        self.access_token_info.__dict__,
                         sort_keys=True,
                         indent=4,
                         separators=(",", ": "),
