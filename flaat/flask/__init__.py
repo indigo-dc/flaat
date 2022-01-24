@@ -4,7 +4,7 @@ from werkzeug.exceptions import Unauthorized, Forbidden, InternalServerError
 
 from flask import request
 
-from flaat import BaseFlaat, FlaatException, FlaatUnauthorized, FlaatForbidden
+from flaat import BaseFlaat, FlaatException, FlaatUnauthenticated, FlaatForbidden
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ class Flaat(BaseFlaat):
 
         if isinstance(exception, FlaatForbidden):
             framework_exception = Forbidden
-        elif isinstance(exception, FlaatUnauthorized):
+        elif isinstance(exception, FlaatUnauthenticated):
             framework_exception = Unauthorized
 
         message = str(exception)
@@ -36,10 +36,10 @@ class Flaat(BaseFlaat):
     def get_access_token_from_request(self, _) -> str:
         # using flask global "request" here, not an argument
         if not "Authorization" in request.headers:
-            raise FlaatUnauthorized("No authorization header in request")
+            raise FlaatUnauthenticated("No authorization header in request")
 
         header = request.headers.get("Authorization")
         if not header.startswith("Bearer "):
-            raise FlaatUnauthorized("Authorization header must contain bearer token")
+            raise FlaatUnauthenticated("Authorization header must contain bearer token")
 
         return header.replace("Bearer ", "")

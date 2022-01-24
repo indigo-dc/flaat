@@ -6,5 +6,5 @@ class FlaatForbidden(FlaatException):
     """403"""
 
 
-class FlaatUnauthorized(FlaatException):
+class FlaatUnauthenticated(FlaatException):
     """401"""

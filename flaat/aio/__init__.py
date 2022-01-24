@@ -4,7 +4,7 @@ from aiohttp.web_exceptions import HTTPForbidden, HTTPServerError, HTTPUnauthori
 from aiohttp.web import Request
 
 from flaat import BaseFlaat
-from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthorized
+from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ class Flaat(BaseFlaat):
     def _map_exception(self, exception):
         framework_exception = HTTPServerError
 
-        if isinstance(exception, FlaatUnauthorized):
+        if isinstance(exception, FlaatUnauthenticated):
             framework_exception = HTTPUnauthorized
         elif isinstance(exception, FlaatForbidden):
             framework_exception = HTTPForbidden
@@ -49,4 +49,4 @@ class Flaat(BaseFlaat):
             token = temp.split(" ")[1]
             return token
 
-        raise FlaatUnauthorized("No access token")
+        raise FlaatUnauthenticated("No access token")

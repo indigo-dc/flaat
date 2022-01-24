@@ -138,9 +138,11 @@ def thread_worker_issuerconfig():
 
 
 def find_issuer_config_in_list(
-    op_list, op_hint=None, exclude_list=[]
+    op_list, op_hint=None, exclude_list: Optional[list] = None
 ) -> Optional[dict]:
     """find the hinted issuer in configured op_list"""
+    if exclude_list is None:
+        exclude_list = []
 
     for _ in range(num_request_workers):
         t = Thread(target=thread_worker_issuerconfig)
@@ -180,9 +182,11 @@ def find_issuer_config_in_list(
     return None
 
 
-def find_issuer_config_in_file(op_file, op_hint=None, exclude_list=[]):
+def find_issuer_config_in_file(op_file, op_hint=None, exclude_list=None):
     """find the hinted issuer in a configured, oidc-agent compatible issuers.conf file
     we only use the first (space separated) entry of that file."""
+    if exclude_list is None:
+        exclude_list = []
     iss_config = None
     op_list = []
     if op_file:

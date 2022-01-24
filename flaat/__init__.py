@@ -15,7 +15,7 @@ import aarc_entitlement
 from flaat import issuertools
 from flaat.tokentools import AccessTokenInfo
 from flaat.caches import Issuer_config_cache
-from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthorized
+from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
@@ -253,7 +253,7 @@ class BaseFlaat(FlaatConfig):
             iss_config = self.issuer_config_cache.get(issuer)
 
             if iss_config is None:
-                raise FlaatUnauthorized(
+                raise FlaatUnauthenticated(
                     f"Issuer config in cache but None for: {issuer}"
                 )
 
@@ -265,12 +265,12 @@ class BaseFlaat(FlaatConfig):
             at_iss = access_token_info.issuer
             if at_iss is not None:
                 if not self._issuer_is_trusted(at_iss):
-                    raise FlaatUnauthorized(f"Issuer is not trusted: {at_iss}")
+                    raise FlaatUnauthenticated(f"Issuer is not trusted: {at_iss}")
 
                 iss_config = self.issuer_config_cache.get(at_iss)
 
                 if iss_config is None:
-                    raise FlaatUnauthorized(
+                    raise FlaatUnauthenticated(
                         f"Unable to fetch issuer config for: {at_iss}"
                     )
 
@@ -290,7 +290,7 @@ class BaseFlaat(FlaatConfig):
         if iss_config is not None:
             return iss_config
 
-        raise FlaatUnauthorized("Could not determine issuer config")
+        raise FlaatUnauthenticated("Could not determine issuer config")
 
     @map_exceptions
     def get_all_info_from_request(self, param_request):
@@ -353,7 +353,7 @@ class BaseFlaat(FlaatConfig):
 
         avail_raw = self._get_effective_entitlements_from_claim(all_info, claim)
         if avail_raw is None:
-            raise FlaatUnauthorized("No group memberships found")
+            raise FlaatForbidden("No group memberships found")
 
         avail_parsed = []
 

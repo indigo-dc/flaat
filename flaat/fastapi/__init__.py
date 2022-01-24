@@ -4,7 +4,7 @@ import logging
 from fastapi import HTTPException, Request
 
 from flaat import BaseFlaat
-from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthorized
+from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ class Flaat(BaseFlaat):
         framework_exception = HTTPException
         status_code = 500
 
-        if isinstance(exception, FlaatUnauthorized):
+        if isinstance(exception, FlaatUnauthenticated):
             status_code = 401
         elif isinstance(exception, FlaatForbidden):
             status_code = 403
@@ -65,10 +65,10 @@ class Flaat(BaseFlaat):
 
     def get_access_token_from_request(self, request: Request) -> str:
         if not "Authorization" in request.headers:
-            raise FlaatUnauthorized("No authorization header in request")
+            raise FlaatUnauthenticated("No authorization header in request")
 
         header = request.headers.get("Authorization")
         if not header.startswith("Bearer "):
-            raise FlaatUnauthorized("Authorization header must contain bearer token")
+            raise FlaatUnauthenticated("Authorization header must contain bearer token")
 
         return header.replace("Bearer ", "")
