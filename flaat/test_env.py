@@ -2,16 +2,22 @@ import os
 from typing import Callable, List
 
 from attr import dataclass
+from dotenv import dotenv_values
 import liboidcagent
 
 from flaat.exceptions import FlaatException
 from flaat.user_infos import UserInfos
 
+config = {
+    **dotenv_values(".env"),
+    **os.environ,
+}
+
 
 def _mandatory_env_var(name):
-    val = os.environ.get(name, "")
+    val = config.get(name, "")
     if val == "":
-        raise ValueError(f"Environment variable is empty: {name}")
+        raise ValueError(f"Set '{name}' in environment or .env file")
 
     return val
 
