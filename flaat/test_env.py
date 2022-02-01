@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Callable, List
 
@@ -7,6 +8,8 @@ import liboidcagent
 
 from flaat.exceptions import FlaatException
 from flaat.user_infos import UserInfos
+
+logger = logging.getLogger(__name__)
 
 config = {
     **dotenv_values(".env"),
@@ -48,8 +51,17 @@ STATUS_KWARGS_LIST = [
 ]
 
 
-def on_failure(_):
-    pass
+def on_failure(e):
+    logger.info("TEST on_failure called")
+    raise e
+
+
+class User:
+    def __init__(self, user_infos: UserInfos):
+        self.user_infos = user_infos
+
+    def __str__(self) -> str:
+        return f"User {self.user_infos.subject} @ {self.user_infos.issuer}"
 
 
 @dataclass
@@ -97,8 +109,10 @@ class Decorators:
     def get_named_decorators(self):
         """constructs (nearly) all options of using our decorators for testing them
         against the frameworks"""
+
         decorators = [
             NamedDecorator("inject_user_infos", self.flaat.inject_user_infos),
+            NamedDecorator("inject_user", self.flaat.inject_user(infos_to_user=User)),
             NamedDecorator("login_required-none", self.flaat.login_required()),
             NamedDecorator(
                 "login_required-on_failure",

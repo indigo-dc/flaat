@@ -20,9 +20,6 @@ from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
 
-# defaults; May be overwritten per initialisation of flaat
-VERIFY_TLS = True
-
 # No leading slash ('/') in ops_that_support_jwt !!!
 OPS_THAT_SUPPORT_JWT = [
     "https://iam-test.indigo-datacloud.eu",
@@ -189,17 +186,6 @@ class FlaatConfig:
         return self.claim_search_precedence
 
 
-def map_exceptions(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        try:
-            return func(self, *args, **kwargs)
-        except FlaatException as e:
-            self._map_exception(e)
-
-    return wrapper
-
-
 class BaseFlaat(FlaatConfig):
     """FLAsk support for OIDC Access Tokens.
     Provide decorators and configuration for OIDC"""
@@ -292,12 +278,13 @@ class BaseFlaat(FlaatConfig):
 
         raise FlaatUnauthenticated("Could not determine issuer config")
 
-    @map_exceptions
     def get_all_info_from_request(self, param_request):
-        access_token = self.get_access_token_from_request(param_request)
-        logger.debug("Access token: %s", access_token)
-
-        return UserInfos(self, access_token)
+        try:
+            access_token = self.get_access_token_from_request(param_request)
+            logger.debug("Access token: %s", access_token)
+            return UserInfos(self, access_token)
+        except FlaatException as e:
+            return self._map_exception(e)
 
     def _auth_disabled(self):
         return (
@@ -398,79 +385,39 @@ class BaseFlaat(FlaatConfig):
 
         return authz_func
 
-    def _get_auth_decorator(
+    def _wrap_view_func(
         self,
-        authn_func: Callable,  # authenticate the user
-        authz_func: Callable[[UserInfos], bool],  # has the user authorization?
-        on_failure: Callable[[FlaatException], Any] = None,
-    ) -> Callable[[Callable], Callable]:
-        @map_exceptions
-        def authenticate(self, *args, **kwargs):
-            if not self._auth_disabled():
-                # auth_func raises an exception if unauthorized
-                logger.debug("Executing authn_func")
-                user_infos = authn_func(self, *args, **kwargs)
-                if user_infos is None:
-                    raise FlaatUnauthenticated("Could not determine identity of user")
-                logger.debug("Executing authz_func")
-                if not authz_func(user_infos):
-                    raise FlaatForbidden("User is not permitted to use service")
-
-        def handle_exception(e: FlaatException):
-            if on_failure is not None:
-                on_failure(e)
-            else:
-                self._map_exception(e)
-
-        def decorator(view_func: Callable) -> Callable:
-
-            # asychronous case
-            @wraps(view_func)
-            async def async_wrapper(*args, **kwargs):
-                # notable: auth_func and view_func get the same arguments
+        view_func: Callable,
+        process_kwargs: Callable[[tuple, dict], dict],
+        handle_exception=None,
+    ) -> Callable:
+        def _handle_exception(self, e):
+            if handle_exception is not None:
+                logger.debug("Passing exception to provided handler: %s", e)
                 try:
-                    authenticate(self, *args, **kwargs)
-
-                    logger.debug("Executing async view_func")
-                    return await view_func(*args, **kwargs)
-
-                except FlaatException as e:
                     return handle_exception(e)
-
-            # sychronous case
-            @wraps(view_func)
-            def wrapper(*args, **kwargs):
-                # notable: auth_func and view_func get the same arguments
-                try:
-                    authenticate(self, *args, **kwargs)
-
-                    logger.debug("Executing sychronous view_func")
-                    return view_func(*args, **kwargs)
-
                 except FlaatException as e:
-                    return handle_exception(e)
+                    return self._map_exception(e)
 
-            if iscoroutinefunction(view_func):
-                return async_wrapper
-            return wrapper
+            return self._map_exception(e)
 
-        return decorator
+        def _process_kwargs(*args, **kwargs):
+            try:
+                return process_kwargs(*args, **kwargs)
+            except FlaatException as e:
+                _handle_exception(self, e)
+                return kwargs
 
-    def inject_user_infos(self, view_func: Callable) -> Callable:
         @wraps(view_func)
         def wrapper(*args, **kwargs):
-            request_object = self._get_request(self, *args, **kwargs)
-            infos = self.get_all_info_from_request(request_object)
-            kwargs["user_infos"] = infos
-
+            logger.debug("wrapper: view_func args=%s kwargs=%s", args, kwargs)
+            kwargs = _process_kwargs(*args, **kwargs)
             return view_func(*args, **kwargs)
 
         @wraps(view_func)
         async def async_wrapper(*args, **kwargs):
-            request_object = self._get_request(self, *args, **kwargs)
-            infos = self.get_all_info_from_request(request_object)
-            kwargs["user_infos"] = infos
-
+            kwargs = _process_kwargs(*args, **kwargs)
+            logger.debug("async_wrapper: view_func args=%s kwargs=%s", args, kwargs)
             return await view_func(*args, **kwargs)
 
         if iscoroutinefunction(view_func):
@@ -478,15 +425,81 @@ class BaseFlaat(FlaatConfig):
 
         return wrapper
 
+    def _get_auth_decorator(
+        self,
+        authn_func: Callable,  # authenticate the user
+        authz_func: Callable[[UserInfos], bool],  # has the user authorization?
+        on_failure: Callable[[FlaatException], Any] = None,
+    ) -> Callable[[Callable], Callable]:
+        def _authenticate(*args, **kwargs):
+            if not self._auth_disabled():
+                # auth_func raises an exception if unauthorized
+                logger.debug("Executing authn_func")
+                user_infos = authn_func(self, *args, **kwargs)
+                if user_infos is None:
+                    raise FlaatUnauthenticated("Could not determine identity of user")
+
+                logger.debug("Executing authz_func")
+                if not authz_func(user_infos):
+                    raise FlaatForbidden("User is not permitted to use service")
+
+            return kwargs
+
+        def decorator(view_func: Callable) -> Callable:
+            return self._wrap_view_func(
+                view_func,
+                process_kwargs=_authenticate,
+                handle_exception=on_failure,
+            )
+
+        return decorator
+
+    @staticmethod
+    def _add_value_to_kwargs(kwargs, key, value):
+        if key in kwargs:
+            logger.warning("Overwriting already existing kwarg: %s", kwargs[key])
+
+        kwargs[key] = value
+        return kwargs
+
+    def inject_user_infos(self, view_func: Callable, key="user_infos") -> Callable:
+        def _add_user_infos(*args, **kwargs):
+            request_object = self._get_request(self, *args, **kwargs)
+            infos = self.get_all_info_from_request(request_object)
+            kwargs = self._add_value_to_kwargs(kwargs, key, infos)
+            return kwargs
+
+        return self._wrap_view_func(view_func, process_kwargs=_add_user_infos)
+
+    def inject_user(
+        self,
+        infos_to_user: Callable[[UserInfos], Any],
+        key="user",
+    ) -> Callable:
+        """Injects a user into a view function given a method to translate a UserInfos instance into the user"""
+
+        def _inject_user(*args, **kwargs):
+            request_object = self._get_request(self, *args, **kwargs)
+            infos = self.get_all_info_from_request(request_object)
+            user = None
+
+            if infos is not None:
+                user = infos_to_user(infos)
+                kwargs = self._add_value_to_kwargs(kwargs, key, user)
+
+            return kwargs
+
+        def decorator(view_func: Callable) -> Callable:
+            return self._wrap_view_func(view_func, process_kwargs=_inject_user)
+
+        return decorator
+
     def login_required(
         self,
         # manually check the user infos for a login condition
         check_user: Callable[[UserInfos], bool] = None,
         on_failure: Callable = None,
     ):
-        if on_failure is not None and not callable(on_failure):
-            raise ValueError("Invalid argument: need callable")
-
         def hasIssuerAndSub(infos: UserInfos) -> bool:
             return infos.issuer != "" and infos.subject != ""
 

@@ -1,4 +1,4 @@
-import json
+import jsonpickle
 import logging
 from typing import List, Optional
 
@@ -34,7 +34,7 @@ class UserInfos:
         )
 
     def __repr__(self):
-        return json.dumps(self.__dict__)
+        return jsonpickle.encode(self)
 
     @property
     def issuer(self) -> str:
