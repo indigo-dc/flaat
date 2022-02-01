@@ -10,13 +10,13 @@ import logging
 import os
 from typing import Any, Callable, Dict, List, Optional, Union
 
-import aarc_entitlement
 
 from flaat import issuertools
 from flaat.tokentools import AccessTokenInfo
 from flaat.caches import Issuer_config_cache
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.user_infos import UserInfos
+from flaat.requirements import Requirement
 
 logger = logging.getLogger(__name__)
 
@@ -38,27 +38,6 @@ OPS_THAT_SUPPORT_JWT = [
     "https://services.humanbrainproject.eu/oidc",
     "https://login.elixir-czech.org/oidc",
 ]
-
-
-def ensure_is_list(item: Union[list, str]) -> List[str]:
-    """Make sure we have a list"""
-    if isinstance(item, str):
-        return [item]
-    return item
-
-
-def check_environment_for_override(env_key):
-    """Override the actual group membership, if environment is set."""
-    env_val = os.getenv(env_key)
-    try:
-        if env_val is not None:
-            avail_entitlement_entries = json.loads(env_val)
-            return avail_entitlement_entries
-    except (TypeError, json.JSONDecodeError) as e:
-        logger.error(
-            "Cannot decode JSON group list from the environment: %s\n%s", env_val, e
-        )
-    return None
 
 
 class FlaatConfig:
@@ -298,31 +277,6 @@ class BaseFlaat(FlaatConfig):
         request_object = self._get_request(*args, **kwargs)
         return self.get_all_info_from_request(request_object)
 
-    def _determine_number_of_required_matches(
-        self, match: Union[str, int], req_group_list: list
-    ) -> int:
-        """determine the number of required matches from parameters"""
-
-        if match == "all":
-            return len(req_group_list)
-
-        if isinstance(match, int):
-            return min(match, len(req_group_list))
-
-        raise FlaatException("Argument 'match' has invalid value: Must be 'all' or int")
-
-    def _get_effective_entitlements_from_claim(
-        self, user_infos: UserInfos, claim: str
-    ) -> List[str]:
-        override_entitlement_entries = check_environment_for_override(
-            "DISABLE_AUTHENTICATION_AND_ASSUME_ENTITLEMENTS"
-        )
-        if override_entitlement_entries is not None:
-            logger.info("Using entitlement override: %s", override_entitlement_entries)
-            return override_entitlement_entries
-
-        return user_infos.get_entitlements_from_claim(claim)
-
     def authenticate_user(self, *args, **kwargs) -> UserInfos:
         """authenticate user needs the same arguments as the view_func it is called from."""
 
@@ -334,56 +288,6 @@ class BaseFlaat(FlaatConfig):
         logger.info("Authenticated user: %s @ %s", infos.subject, infos.issuer)
 
         return infos
-
-    def _get_required_authz_func(
-        self,
-        # list of required claim values
-        required: list,
-        claim: str,
-        match: Union[str, int],
-        # parse an entitlement
-        parser: Callable[[str], Any] = None,
-        # compare two parsed entitlements
-        comparator: Callable[[Any, Any], bool] = None,
-    ) -> Callable[[UserInfos], bool]:
-
-        inner_comparator = comparator
-        if inner_comparator is None:
-            inner_comparator = lambda r, a: r == a
-
-        def authz_func(user_infos: UserInfos):
-            avail_raw = self._get_effective_entitlements_from_claim(user_infos, claim)
-            if avail_raw is None:
-                raise FlaatForbidden("No group memberships found")
-
-            avail_parsed = []
-
-            if parser is None:
-                avail_parsed = avail_raw
-            else:
-                avail_parsed = [parser(r) for r in avail_raw]
-
-            logger.debug("Required: %s - Available: %s", required, avail_parsed)
-            required_matches = self._determine_number_of_required_matches(
-                match, required
-            )
-            matches_found = 0
-
-            for req in required:
-                for avail in avail_parsed:
-                    if inner_comparator(req, avail):
-                        matches_found += 1
-
-            logger.info("Found %d of %d matches", matches_found, required_matches)
-
-            if matches_found < required_matches:
-                raise FlaatForbidden(
-                    f"Matched {matches_found} groups, but needed {required_matches}"
-                )
-
-            return True
-
-        return authz_func
 
     def _wrap_view_func(
         self,
@@ -494,107 +398,12 @@ class BaseFlaat(FlaatConfig):
 
         return decorator
 
-    def login_required(
-        self,
-        # manually check the user infos for a login condition
-        check_user: Callable[[UserInfos], bool] = None,
-        on_failure: Callable = None,
-    ):
-        def hasIssuerAndSub(infos: UserInfos) -> bool:
-            return infos.issuer != "" and infos.subject != ""
-
-        if check_user is None:
-            check_user = hasIssuerAndSub
+    def requires(self, requirement: Requirement, on_failure: Optional[Callable] = None):
+        def _authz_func(user_infos: UserInfos) -> bool:
+            return requirement.satisfied_by(user_infos)
 
         return self._get_auth_decorator(
             authn_func=self.authenticate_user,
-            authz_func=check_user,
-            on_failure=on_failure,
-        )
-
-    def group_required(
-        self,
-        group: Union[str, List[str]],
-        claim: str,
-        on_failure: Callable = None,
-        # python >= 3.8 could use:
-        # match: Union[Literal["all"], Literal["one"], int] = "all",
-        match: Union[str, int] = "all",
-    ) -> Callable:
-        """Decorator to enforce membership in a given group.
-        group is the name (or list) of the group to match
-        match specifies how many of the given groups must be matched. Valid values for match are
-        'all', 'one', or an integer
-        on_failure is a function that will be invoked if there was no valid user detected.
-        Useful for redirecting to some login page"""
-
-        required = self._parse(group)
-
-        return self._get_auth_decorator(
-            authn_func=self.authenticate_user,
-            authz_func=self._get_required_authz_func(required, claim, match),
-            on_failure=on_failure,
-        )
-
-    @staticmethod
-    def _aarc_entitlement_parser(
-        entitlement: str,
-    ):
-        try:
-            return aarc_entitlement.G069(entitlement)
-        except aarc_entitlement.Error as e:
-            logger.error("Error parsing aarc entitlement: %s", e)
-            return None
-
-    @staticmethod
-    def _parse(
-        raw_ents: Union[str, List[str]], parser: Optional[Callable] = None
-    ) -> list:
-        """parses groups or entitlements"""
-        raw_ents_list = ensure_is_list(raw_ents)
-        if parser is None:
-            return raw_ents_list
-
-        parsed_ents = []
-        for raw_ent in raw_ents_list:
-            parsed = parser(raw_ent)
-            if parsed is None:
-                raise FlaatException(f"Can not parse entitelment: {raw_ent}")
-            parsed_ents.append(parsed)
-
-        return parsed_ents
-
-    @staticmethod
-    def _aarc_entitlement_comparator(
-        req: aarc_entitlement.Base, avail: aarc_entitlement.Base
-    ) -> bool:
-        return avail.satisfies(req)
-
-    def aarc_entitlement_required(
-        self,
-        entitlement: Union[str, List[str]],
-        claim: str,
-        on_failure: Callable = None,
-        match: Union[str, int] = "all",
-    ) -> Callable:
-        """Decorator to enforce membership in a given group defined according to AARC-G002.
-
-        entitlement is the name (or list) of the entitlement to match
-        match specifies how many of the given groups must be matched. Valid values for match are
-        'all', or an integer
-        on_failure is a function that will be invoked if there was no valid user detected.
-        Useful for redirecting to some login page
-        """
-        parsed_ents = self._parse(entitlement, parser=self._aarc_entitlement_parser)
-
-        return self._get_auth_decorator(
-            authn_func=self.authenticate_user,
-            authz_func=self._get_required_authz_func(
-                parsed_ents,
-                claim,
-                match,
-                parser=self._aarc_entitlement_parser,
-                comparator=self._aarc_entitlement_comparator,
-            ),
+            authz_func=_authz_func,
             on_failure=on_failure,
         )

@@ -7,6 +7,7 @@ from dotenv import dotenv_values
 import liboidcagent
 
 from flaat.exceptions import FlaatException
+from flaat.requirements import HasAARCEntitlement, HasGroups, Requirement, ValidLogin
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
@@ -110,35 +111,28 @@ class Decorators:
         """constructs (nearly) all options of using our decorators for testing them
         against the frameworks"""
 
+        requirements: List[Requirement] = [ValidLogin()]
+
+        for match in [1, "all"]:
+            requirements.append(
+                HasGroups(self.groups, claim=self.claim_groups, match=match)
+            )
+            requirements.append(
+                HasAARCEntitlement(
+                    self.entitlements, claim=self.claim_entitlements, match=match
+                )
+            )
+
         decorators = [
             NamedDecorator("inject_user_infos", self.flaat.inject_user_infos),
             NamedDecorator("inject_user", self.flaat.inject_user(infos_to_user=User)),
-            NamedDecorator("login_required-none", self.flaat.login_required()),
-            NamedDecorator(
-                "login_required-on_failure",
-                self.flaat.login_required(on_failure=on_failure),
-            ),
         ]
 
-        for match in [1, "all"]:
+        for req in requirements:
             decorators.append(
                 NamedDecorator(
-                    f"group_required-match={match}",
-                    self.flaat.group_required(
-                        group=self.groups,
-                        claim=self.claim_groups,
-                        match=match,
-                    ),
-                )
-            )
-            decorators.append(
-                NamedDecorator(
-                    f"aarc_entitlement_required-match={match}",
-                    self.flaat.aarc_entitlement_required(
-                        entitlement=self.entitlements,
-                        claim=self.claim_entitlements,
-                        match=match,
-                    ),
+                    f"{req.__class__.__name__}={getattr(req, 'match', '-')}",
+                    self.flaat.requires(req),
                 )
             )
 

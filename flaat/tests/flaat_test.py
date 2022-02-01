@@ -1,33 +1,9 @@
 import pytest
 
 from flaat import BaseFlaat
-from flaat.exceptions import FlaatException, FlaatUnauthenticated
+from flaat.exceptions import FlaatUnauthenticated
 from flaat.test_env import FLAAT_AT, FLAAT_ISS
 from flaat.user_infos import UserInfos
-
-INVALID_ENTITLEMENT = "foo-bar"
-VALID_ENTITLEMENT = "urn:mace:egi.eu:group:eosc-synergy.eu:role=member#aai.egi.eu"
-CLAIM = "eduperson_entitlement"
-
-
-def test_invalid_aarc_entitlements():
-    """two broken decorators which should fail at import time"""
-
-    flaat = BaseFlaat()
-    with pytest.raises(FlaatException):
-        flaat.aarc_entitlement_required(
-            entitlement=INVALID_ENTITLEMENT,
-            claim=CLAIM,
-        )
-
-    with pytest.raises(FlaatException):
-        flaat.aarc_entitlement_required(
-            entitlement=[
-                INVALID_ENTITLEMENT,
-                VALID_ENTITLEMENT,
-            ],
-            claim=CLAIM,
-        )
 
 
 class TestUserInfos:
