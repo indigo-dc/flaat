@@ -1,10 +1,10 @@
-import jsonpickle
+from json import JSONEncoder
 import logging
 from typing import List, Optional
 
 from flaat import issuertools, tokentools
-from flaat.tokentools import AccessTokenInfo
 from flaat.exceptions import FlaatForbidden
+from flaat.tokentools import AccessTokenInfo
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +32,6 @@ class UserInfos:
             flaat.client_id,
             flaat.client_secret,
         )
-
-    def __repr__(self):
-        return jsonpickle.encode(self)
 
     @property
     def issuer(self) -> str:
@@ -75,3 +72,10 @@ class UserInfos:
             raise FlaatForbidden(f"Claim is not a list: {avail_group_entries})")
 
         return avail_group_entries
+
+    def toJSON(self):
+        class ATEncoder(JSONEncoder):
+            def default(self, o):
+                return o.__dict__
+
+        return ATEncoder(indent=4, sort_keys=True, separators=(",", ":")).encode(self)

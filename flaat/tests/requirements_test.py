@@ -11,7 +11,7 @@ from flaat.test_env import (
     FLAAT_TRUSTED_OPS_LIST,
 )
 from flaat.user_infos import UserInfos
-from flaat.requirements import Requirement, ValidLogin, HasAARCEntitlement, HasGroups
+from flaat.requirements import Requirement, ValidLogin, HasAARCEntitlement, HasGroup
 
 
 INVALID_ENTITLEMENT = "foo-bar"
@@ -74,7 +74,7 @@ class Requirements:
 
         for match in [1, "all"]:
             self.requirements.append(
-                HasGroups(self.groups, claim=self.claim_groups, match=match)
+                HasGroup(self.groups, claim=self.claim_groups, match=match)
             )
             self.requirements.append(
                 HasAARCEntitlement(

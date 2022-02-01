@@ -7,7 +7,7 @@ from dotenv import dotenv_values
 import liboidcagent
 
 from flaat.exceptions import FlaatException
-from flaat.requirements import HasAARCEntitlement, HasGroups, Requirement, ValidLogin
+from flaat.requirements import HasAARCEntitlement, HasGroup, Requirement, ValidLogin
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
@@ -121,7 +121,7 @@ class Decorators:
                 "requires-GroupAndEntitlement",
                 self.flaat.requires(
                     [
-                        HasGroups(self.groups, self.claim_groups),
+                        HasGroup(self.groups, self.claim_groups),
                         HasAARCEntitlement(self.entitlements, self.claim_entitlements),
                     ],
                 ),

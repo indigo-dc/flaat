@@ -38,6 +38,37 @@ class Requirement:
         return False
 
 
+class AllOf(Requirement):
+    def __init__(self, *reqs: Requirement):
+        self.requirements = reqs
+
+    def satisfied_by(self, user_infos: UserInfos) -> bool:
+        return all(req.satisfied_by(user_infos) for req in self.requirements)
+
+
+class OneOf(AllOf):
+    def satisfied_by(self, user_infos: UserInfos) -> bool:
+        for req in self.requirements:
+            if req.satisfied_by(user_infos):
+                return True
+        return False
+
+
+class N_Of(Requirement):
+    def __init__(self, n: int, *reqs: Requirement):
+        self.n = n
+        self.requirements = reqs
+
+    def satisfied_by(self, user_infos: UserInfos) -> bool:
+        n = 0
+        for req in self.requirements:
+            if req.satisfied_by(user_infos):
+                n += 1
+                if n >= self.n:
+                    return True
+        return False
+
+
 class ValidLogin(Requirement):
     def satisfied_by(self, user_infos: UserInfos):
         return (
@@ -47,7 +78,7 @@ class ValidLogin(Requirement):
         )
 
 
-class HasGroups(Requirement):
+class HasGroup(Requirement):
     def __init__(
         self,
         required: Union[str, List[str]],
@@ -133,7 +164,7 @@ class HasGroups(Requirement):
         return True
 
 
-class HasAARCEntitlement(HasGroups):
+class HasAARCEntitlement(HasGroup):
     def _parse(self, raw: str):
         try:
             return aarc_entitlement.G069(raw)
