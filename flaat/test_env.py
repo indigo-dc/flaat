@@ -116,6 +116,15 @@ class Decorators:
             NamedDecorator(
                 "requires-ValidLogin-on_failure",
                 self.flaat.requires(ValidLogin(), on_failure=on_failure),
-            ),
+            ),  # with on_failure
+            NamedDecorator(
+                "requires-GroupAndEntitlement",
+                self.flaat.requires(
+                    [
+                        HasGroups(self.groups, self.claim_groups),
+                        HasAARCEntitlement(self.entitlements, self.claim_entitlements),
+                    ],
+                ),
+            ),  # multiple reqs
         ]
         return decorators

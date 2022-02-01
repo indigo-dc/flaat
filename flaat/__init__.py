@@ -398,9 +398,20 @@ class BaseFlaat(FlaatConfig):
 
         return decorator
 
-    def requires(self, requirement: Requirement, on_failure: Optional[Callable] = None):
+    def requires(
+        self,
+        requirements: Union[Requirement, List[Requirement]],
+        on_failure: Optional[Callable] = None,
+    ):
         def _authz_func(user_infos: UserInfos) -> bool:
-            return requirement.satisfied_by(user_infos)
+            reqs = []
+            if isinstance(requirements, list):
+                reqs = requirements
+            else:
+                reqs = [requirements]
+
+            # pylint: disable=use-a-generator
+            return all(req.satisfied_by(user_infos) for req in reqs)
 
         return self._get_auth_decorator(
             authn_func=self.authenticate_user,
