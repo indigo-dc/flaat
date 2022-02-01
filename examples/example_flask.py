@@ -1,10 +1,9 @@
-import json
-
 from flask import Flask, request
 from werkzeug import Response
 
 from examples import logsetup
 from flaat.flask import Flaat
+from flaat.requirements import HasAARCEntitlement, HasGroup, ValidLogin
 
 logger = logsetup.setup_logging()
 
@@ -19,26 +18,26 @@ flaat = Flaat()
 flaat.set_cache_lifetime(120)  # seconds; default is 300
 flaat.set_trusted_OP_list(
     [
-        "https://b2access.eudat.eu/oauth2/",
-        "https://b2access-integration.fz-juelich.de/oauth2",
-        "https://unity.helmholtz-data-federation.de/oauth2/",
-        "https://login.helmholtz-data-federation.de/oauth2/",
-        "https://login-dev.helmholtz.de/oauth2/",
-        "https://login.helmholtz.de/oauth2/",
-        "https://unity.eudat-aai.fz-juelich.de/oauth2/",
-        "https://services.humanbrainproject.eu/oidc/",
+        "https://aai-demo.egi.eu/oidc",
+        "https://aai-dev.egi.eu/oidc",
+        "https://aai.egi.eu/oidc/",
         "https://accounts.google.com/",
-        "https://login.elixir-czech.org/oidc/",
+        "https://b2access-integration.fz-juelich.de/oauth2",
+        "https://b2access.eudat.eu/oauth2/",
         "https://iam-test.indigo-datacloud.eu/",
         "https://iam.deep-hybrid-datacloud.eu/",
         "https://iam.extreme-datacloud.eu/",
-        "https://aai.egi.eu/oidc/",
-        "https://aai-demo.egi.eu/oidc",
-        "https://aai-dev.egi.eu/oidc",
+        "https://login-dev.helmholtz.de/oauth2/",
+        "https://login.elixir-czech.org/oidc/",
+        "https://login.helmholtz-data-federation.de/oauth2/",
+        "https://login.helmholtz.de/oauth2/",
         "https://oidc.scc.kit.edu/auth/realms/kit/",
-        "https://proxy.demo.eduteams.org",
-        "https://wlcg.cloud.cnaf.infn.it/",
         "https://orcid.org/",
+        "https://proxy.demo.eduteams.org",
+        "https://services.humanbrainproject.eu/oidc/",
+        "https://unity.eudat-aai.fz-juelich.de/oauth2/",
+        "https://unity.helmholtz-data-federation.de/oauth2/",
+        "https://wlcg.cloud.cnaf.infn.it/",
     ]
 )
 # flaat.set_trusted_OP_file('/etc/oidc-agent/issuer.config')
@@ -61,7 +60,7 @@ flaat.set_timeout(3)
 
 
 def my_failure_callback(message=""):
-    return 'User define failure callback.\nError Message: "%s"' % message
+    return f"User define failure callback.\nError Message: {message}"
 
 
 @app.route("/")
@@ -90,14 +89,12 @@ def root():
 @flaat.inject_user_infos
 def info(user_infos=None):
     if user_infos is not None:
-        return json.dumps(
-            user_infos.__dict__, sort_keys=True, indent=4, separators=(",", ": ")
-        )
+        return user_infos.toJSON()
     return "No user infos"
 
 
 @app.route("/valid_user/<int:id>", methods=["POST", "GET"])
-@flaat.login_required()
+@flaat.requires(ValidLogin())
 def valid_user_id(id):
     retval = ""
     if request.method == "POST":
@@ -109,22 +106,24 @@ def valid_user_id(id):
 
 
 @app.route("/valid_user")
-@flaat.login_required()
+@flaat.requires(ValidLogin())
 def valid_user():
     return "This worked: there was a valid login\n"
 
 
 @app.route("/valid_user_2")
-@flaat.login_required(on_failure=my_failure_callback)
+@flaat.requires(ValidLogin(), on_failure=my_failure_callback)
 def valid_user_own_callback():
     return "This worked: there was a valid login"
 
 
 @app.route("/group_test_kit")
-@flaat.group_required(
-    group=["admins@kit.edu", "employee@kit.edu", "member@kit.edu"],
-    claim="eduperson_scoped_affiliation",
-    match=2,
+@flaat.requires(
+    HasGroup(
+        required=["admins@kit.edu", "employee@kit.edu", "member@kit.edu"],
+        claim="eduperson_scoped_affiliation",
+        match=2,
+    ),
     on_failure=my_failure_callback,
 )
 def demo_groups_kit():
@@ -132,67 +131,48 @@ def demo_groups_kit():
 
 
 @app.route("/group_test_iam")
-@flaat.group_required(group="KIT-Cloud", claim="groups")
+@flaat.requires(HasGroup("KIT-Cloud", "groups"))
 def demo_groups_iam():
     return "This worked: user is member of the requested group"
 
 
 @app.route("/group_test_hdf")
-@flaat.aarc_g002_entitlement_required(
-    entitlement=[
-        "urn:geant:h-df.de:group:m-team:feudal-developers",
-        "urn:geant:h-df.de:group:MyExampleColab#unity.helmholtz.de",
-    ],
-    claim="eduperson_entitlement",
-    match="all",
+@flaat.requires(
+    HasAARCEntitlement(
+        required=[
+            "urn:geant:h-df.de:group:m-team:feudal-developers",
+            "urn:geant:h-df.de:group:MyExampleColab#unity.helmholtz.de",
+        ],
+        claim="eduperson_entitlement",
+        match="all",
+    )
 )
 def demo_groups_hdf():
     return "This worked: user is member of the requested group"
 
 
 @app.route("/group_test_hdf2")
-@flaat.aarc_g002_entitlement_required(
-    entitlement=["urn:geant:h-df.de:group:MyExampleColab"],
-    claim="eduperson_entitlement",
-    match="all",
+@flaat.requires(
+    HasAARCEntitlement(
+        "urn:geant:h-df.de:group:MyExampleColab", "eduperson_entitlement"
+    )
 )
 def demo_groups_hdf2():
     return "This worked: user is member of the requested group"
 
 
 @app.route("/group_test_hdf3")
-@flaat.aarc_g002_entitlement_required(
-    entitlement=[
-        "urn:geant:h-df.de:group:MyExampleColab",
-        "urn:geant:h-df.de:group:m-team:feudal-developers",
-    ],
-    claim="eduperson_entitlement",
-    match="all",
+@flaat.requires(
+    HasAARCEntitlement(
+        [
+            "urn:geant:h-df.de:group:MyExampleColab",
+            "urn:geant:h-df.de:group:m-team:feudal-developers",
+        ],
+        "eduperson_entitlement",
+    )
 )
 def demo_groups_hdf3():
     return "This worked: user is member of the requested group"
-
-
-@app.route("/group_test_hack")
-@flaat.group_required(group=["Hardt"], claim="family_name", match="all")
-def demo_groups_hack():
-    return {"message": "This worked: user has the required Group Membership"}
-
-
-@app.route("/group_test_wlcg")
-@flaat.group_required(group="/wlcg", claim="wlcg.groups", match="all")
-def demo_groups_wlcg():
-    return {"message": "This worked: user has the required Group Membership"}
-
-
-@app.route("/role_test_egi")
-@flaat.aarc_g002_entitlement_required(
-    entitlement=["urn:mace:egi.eu:group:mteam.data.kit.edu:role=member"],
-    claim="eduperson_entitlement",
-    match="all",
-)
-def demo_role_egi():
-    return "This worked: user is member of the requested group and role"
 
 
 ##########

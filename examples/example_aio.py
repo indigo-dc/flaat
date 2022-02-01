@@ -4,6 +4,7 @@ from aiohttp import web
 
 from examples.logsetup import setup_logging
 from flaat.aio import Flaat
+from flaat.requirements import HasAARCEntitlement, HasGroup, ValidLogin
 from flaat.user_infos import UserInfos
 
 setup_logging()
@@ -60,7 +61,7 @@ flaat.set_trusted_OP_list(
 
 
 def my_failure_callback(message=""):
-    return 'User define failure callback.\nError Message: "%s"' % message
+    return f"User define failure callback.\nError Message: {message}"
 
 
 @routes.get("/")
@@ -105,22 +106,24 @@ async def info2(request, user_infos: UserInfos = None):
 
 
 @routes.get("/valid_user")
-@flaat.login_required()
+@flaat.requires(ValidLogin())
 async def valid_user(request):
     return web.Response(text="This worked: there was a valid login")
 
 
 @routes.get("/valid_user_2")
-@flaat.login_required(on_failure=my_failure_callback)
+@flaat.requires(ValidLogin(), on_failure=my_failure_callback)
 async def valid_user_own_callback(request):
     return web.Response(text="This worked: there was a valid login")
 
 
 @routes.get("/group_test_kit")
-@flaat.group_required(
-    group=["admins@kit.edu", "employee@kit.edu", "member@kit.edu"],
-    claim="eduperson_scoped_affiliation",
-    match=2,
+@flaat.requires(
+    HasGroup(
+        ["admins@kit.edu", "employee@kit.edu", "member@kit.edu"],
+        claim="eduperson_scoped_affiliation",
+        match=2,
+    ),
     on_failure=my_failure_callback,
 )
 async def demo_groups_kit(request):
@@ -128,64 +131,68 @@ async def demo_groups_kit(request):
 
 
 @routes.get("/group_test_iam")
-@flaat.group_required(group="KIT-Cloud", claim="groups")
+@flaat.requires(HasGroup("KIT-Cloud", "groups"))
 async def demo_groups_iam(request):
     return web.Response(text="This worked: user is member of the requested group")
 
 
 @routes.get("/group_test_hdf")
-@flaat.aarc_g002_entitlement_required(
-    entitlement=[
-        "urn:geant:h-df.de:group:m-team:feudal-developers",
-        "urn:geant:h-df.de:group:MyExampleColab#unity.helmholtz.de",
-    ],
-    claim="eduperson_entitlement",
-    match="all",
+@flaat.requires(
+    HasAARCEntitlement(
+        [
+            "urn:geant:h-df.de:group:m-team:feudal-developers",
+            "urn:geant:h-df.de:group:MyExampleColab#unity.helmholtz.de",
+        ],
+        "eduperson_entitlement",
+    )
 )
 async def demo_groups_hdf(request):
     return web.Response(text="This worked: user has the required entitlement(s)")
 
 
 @routes.get("/group_test_hdf2")
-@flaat.aarc_g002_entitlement_required(
-    entitlement=["urn:geant:h-df.de:group:MyExampleColab"],
-    claim="eduperson_entitlement",
-    match="all",
+@flaat.requires(
+    HasAARCEntitlement(
+        "urn:geant:h-df.de:group:MyExampleColab",
+        "eduperson_entitlement",
+    )
 )
 async def demo_groups_hdf2(request):
     return web.Response(text="This worked: user has the required entitlement(s)")
 
 
 @routes.get("/group_test_hdf3")
-@flaat.aarc_g002_entitlement_required(
-    entitlement=[
-        "urn:geant:h-df.de:group:MyExampleColab",
-        "urn:geant:h-df.de:group:m-team:feudal-developers",
-    ],
-    claim="eduperson_entitlement",
-    match="all",
+@flaat.requires(
+    HasAARCEntitlement(
+        [
+            "urn:geant:h-df.de:group:MyExampleColab",
+            "urn:geant:h-df.de:group:m-team:feudal-developers",
+        ],
+        "eduperson_entitlement",
+    )
 )
 async def demo_groups_hdf3(request):
     return web.Response(text="This worked: user has the required entitlement(s)")
 
 
 @routes.get("/group_test_hack")
-@flaat.group_required(group=["Hardt"], claim="family_name", match="all")
+@flaat.requires(HasGroup("Hardt", claim="family_name"))
 async def demo_groups_hack(request):
     return web.Response(text="This worked: user has the required Group Membership")
 
 
 @routes.get("/group_test_wlcg")
-@flaat.group_required(group="/wlcg", claim="wlcg.groups", match="all")
+@flaat.requires(HasGroup("/wlcg", "wlcg.groups"))
 async def demo_groups_wlcg(request):
     return web.Response(text="This worked: user has the required Group Membership")
 
 
 @routes.get("/role_test_egi")
-@flaat.aarc_g002_entitlement_required(
-    entitlement=["urn:mace:egi.eu:group:mteam.data.kit.edu:role=member"],
-    claim="eduperson_entitlement",
-    match="all",
+@flaat.requires(
+    HasAARCEntitlement(
+        "urn:mace:egi.eu:group:mteam.data.kit.edu:role=member",
+        "eduperson_entitlement",
+    )
 )
 async def demo_role_egi(request):
     return web.Response(

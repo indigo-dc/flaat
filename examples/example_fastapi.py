@@ -5,6 +5,8 @@ import uvicorn
 
 from examples import logsetup
 from flaat.fastapi import Flaat
+from flaat.requirements import OneOf, ValidLogin, HasGroup, HasAARCEntitlement
+from flaat.user_infos import UserInfos
 
 logger = logsetup.setup_logging()
 
@@ -63,13 +65,14 @@ flaat.set_trusted_OP_list(
 
 
 def my_failure_callback(message=""):
-    return 'User define failure callback.\nError Message: "%s"' % message
+    return f"User define failure callback.\nError Message: {message}"
 
 
 @app.get("/")
 async def root(request: Request):
     text = """This is an example for useing flaat with FastAPI. These endpoints are available:
-    /info               General info about the access_token (if provided)
+    /user_info          General info about the access_token (if provided)
+    /user               User built using method
     /valid_user         Requires a valid user
     /valid_user_2       Requires a valid user, uses a custom callback on error
     /group_test_kit     Requires user to have two "eduperson_scoped_affiliation" of
@@ -90,7 +93,20 @@ async def root(request: Request):
 
 @app.get("/info")
 @flaat.inject_user_infos
-async def info(request: Request, user_infos=None):
+async def user_info(request: Request, user_infos=None):
+    if user_infos is not None:
+        return {"data": user_infos.__dict__}
+
+    return {"message": "no userinfo"}
+
+
+def get_user(user_infos: UserInfos):
+    return {"infos": user_infos}
+
+
+@app.get("/info")
+@flaat.inject_user_infos
+async def user(request: Request, user_infos=None):
     if user_infos is not None:
         return {"data": user_infos.__dict__}
 
@@ -98,22 +114,24 @@ async def info(request: Request, user_infos=None):
 
 
 @app.get("/valid_user", dependencies=[Depends(security)])
-@flaat.login_required()
+@flaat.requires(ValidLogin())
 def valid_user(request: Request):
     return {"message": "This worked: there was a valid login"}
 
 
 @app.get("/valid_user_2", dependencies=[Depends(security)])
-@flaat.login_required(on_failure=my_failure_callback)
+@flaat.requires(ValidLogin(), on_failure=my_failure_callback)
 async def valid_user_own_callback(request: Request):
     return {"message": "This worked: there was a valid login"}
 
 
 @app.get("/group_test_kit", dependencies=[Depends(security)])
-@flaat.group_required(
-    group=["admins@kit.edu", "employee@kit.edu", "member@kit.edu"],
-    claim="eduperson_scoped_affiliation",
-    match=2,
+@flaat.requires(
+    HasGroup(
+        required=["admins@kit.edu", "employee@kit.edu", "member@kit.edu"],
+        claim="eduperson_scoped_affiliation",
+        match=2,
+    ),
     on_failure=my_failure_callback,
 )
 async def demo_groups_kit(request: Request):
@@ -121,60 +139,68 @@ async def demo_groups_kit(request: Request):
 
 
 @app.get("/group_test_iam", dependencies=[Depends(security)])
-@flaat.group_required(group="KIT-Cloud", claim="groups")
+@flaat.requires(HasGroup("KIT-Cloud", "groups"))
 async def demo_groups_iam(request: Request):
     return {"message": "This worked: user is member of the requested group"}
 
 
 @app.get("/group_test_hdf", dependencies=[Depends(security)])
-@flaat.aarc_g002_entitlement_required(
-    entitlement=[
-        "urn:geant:h-df.de:group:m-team:feudal-developers",
-        "urn:geant:h-df.de:group:MyExampleColab#unity.helmholtz.de",
-    ],
-    claim="eduperson_entitlement",
-    match="all",
+@flaat.requires(
+    HasAARCEntitlement(
+        required=[
+            "urn:geant:h-df.de:group:m-team:feudal-developers",
+            "urn:geant:h-df.de:group:MyExampleColab#unity.helmholtz.de",
+        ],
+        claim="eduperson_entitlement",
+        match="all",
+    )
 )
 async def demo_groups_hdf(request: Request):
     return {"message": "This worked: user has the required entitlement(s)"}
 
 
 @app.get("/group_test_hdf2", dependencies=[Depends(security)])
-@flaat.aarc_g002_entitlement_required(
-    entitlement=["urn:geant:h-df.de:group:MyExampleColab"],
-    claim="eduperson_entitlement",
-    match="all",
+@flaat.requires(
+    HasAARCEntitlement(
+        "urn:geant:h-df.de:group:MyExampleColab", "eduperson_entitlement"
+    )
 )
 async def demo_groups_hdf2(request: Request):
     return {"message": "This worked: user has the required entitlement(s)"}
 
 
 @app.get("/group_test_hdf3", dependencies=[Depends(security)])
-@flaat.aarc_g002_entitlement_required(
-    entitlement=[
-        "urn:geant:h-df.de:group:MyExampleColab",
-        "urn:geant:h-df.de:group:m-team:feudal-developers",
-    ],
-    claim="eduperson_entitlement",
-    match="all",
+@flaat.requires(
+    HasAARCEntitlement(
+        [
+            "urn:geant:h-df.de:group:MyExampleColab",
+            "urn:geant:h-df.de:group:m-team:feudal-developers",
+        ],
+        "eduperson_entitlement",
+    )
 )
 async def demo_groups_hdf3(request: Request):
     return {"message": "This worked: user has the required entitlement(s)"}
 
 
 @app.get("/group_test_hack", dependencies=[Depends(security)])
-@flaat.group_required(group=["Hardt"], claim="family_name", match="all")
+@flaat.requires(
+    OneOf(
+        HasGroup("Hardt", "family_name"),
+        HasGroup("/wlcg", "wlcg.groups"),
+    )
+)
 @app.get("/group_test_wlcg", dependencies=[Depends(security)])
-@flaat.group_required(group="/wlcg", claim="wlcg.groups", match="all")
 async def demo_groups_wlcg(request: Request):
     return {"message": "This worked: user has the required Group Membership"}
 
 
 @app.get("/role_test_egi", dependencies=[Depends(security)])
-@flaat.aarc_g002_entitlement_required(
-    entitlement=["urn:mace:egi.eu:group:mteam.data.kit.edu:role=member"],
-    claim="eduperson_entitlement",
-    match="all",
+@flaat.requires(
+    HasAARCEntitlement(
+        "urn:mace:egi.eu:group:mteam.data.kit.edu:role=member",
+        "eduperson_entitlement",
+    )
 )
 async def demo_role_egi(request: Request):
     return {"message": "This worked: user is member of the requested group and role"}
