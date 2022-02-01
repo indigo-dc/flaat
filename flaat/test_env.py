@@ -52,11 +52,6 @@ STATUS_KWARGS_LIST = [
 ]
 
 
-def on_failure(e):
-    logger.info("TEST on_failure called")
-    raise e
-
-
 class User:
     def __init__(self, user_infos: UserInfos):
         self.user_infos = user_infos
@@ -108,32 +103,19 @@ class Decorators:
             )
 
     def get_named_decorators(self):
-        """constructs (nearly) all options of using our decorators for testing them
-        against the frameworks"""
+        """construct  decorators for testing"""
 
-        requirements: List[Requirement] = [ValidLogin()]
-
-        for match in [1, "all"]:
-            requirements.append(
-                HasGroups(self.groups, claim=self.claim_groups, match=match)
-            )
-            requirements.append(
-                HasAARCEntitlement(
-                    self.entitlements, claim=self.claim_entitlements, match=match
-                )
-            )
+        def on_failure(exc):
+            logger.info("TEST on_failure called")
+            raise exc
 
         decorators = [
             NamedDecorator("inject_user_infos", self.flaat.inject_user_infos),
             NamedDecorator("inject_user", self.flaat.inject_user(infos_to_user=User)),
+            NamedDecorator("requires-ValidLogin", self.flaat.requires(ValidLogin())),
+            NamedDecorator(
+                "requires-ValidLogin-on_failure",
+                self.flaat.requires(ValidLogin(), on_failure=on_failure),
+            ),
         ]
-
-        for req in requirements:
-            decorators.append(
-                NamedDecorator(
-                    f"{req.__class__.__name__}={getattr(req, 'match', '-')}",
-                    self.flaat.requires(req),
-                )
-            )
-
         return decorators
