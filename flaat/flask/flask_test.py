@@ -15,9 +15,8 @@ flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
 DECORATORS = Decorators(flaat).get_named_decorators()
 
 
-def view_func(*args, **kwargs):
-    _ = args
-    _ = kwargs
+def view_func(test_inject=None):
+    _ = test_inject
     return Response(response="Success")
 
 

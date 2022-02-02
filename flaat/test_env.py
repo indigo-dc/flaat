@@ -110,8 +110,13 @@ class Decorators:
             raise exc
 
         decorators = [
-            NamedDecorator("inject_user_infos", self.flaat.inject_user_infos),
-            NamedDecorator("inject_user", self.flaat.inject_user(infos_to_user=User)),
+            NamedDecorator(
+                "inject_user_infos", self.flaat.inject_user_infos(key="test_inject")
+            ),
+            NamedDecorator(
+                "inject_user",
+                self.flaat.inject_user(infos_to_user=User, key="test_inject"),
+            ),
             NamedDecorator("requires-ValidLogin", self.flaat.requires(ValidLogin())),
             NamedDecorator(
                 "requires-ValidLogin-on_failure",

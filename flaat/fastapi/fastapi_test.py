@@ -16,9 +16,9 @@ flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
 DECORATORS = Decorators(flaat).get_named_decorators()
 
 
-async def view_func(request: Request, user_infos=None, user=None):
+async def view_func(request: Request, test_inject=None):
     _ = request
-    _ = user
+    _ = test_inject
     return {"message": "Success"}
 
 

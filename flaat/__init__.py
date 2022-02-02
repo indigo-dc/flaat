@@ -184,19 +184,20 @@ class BaseFlaat(FlaatConfig):
         kwargs[key] = value
         return kwargs
 
-    def inject_user_infos(self, view_func: Callable, key="user_infos") -> Callable:
+    def inject_user_infos(self, key="user_infos") -> Callable:
         def _add_user_infos(*args, **kwargs):
             request_object = self._get_request(self, *args, **kwargs)
             infos = self.get_all_info_from_request(request_object)
             kwargs = self._add_value_to_kwargs(kwargs, key, infos)
             return kwargs
 
-        return self._wrap_view_func(view_func, process_kwargs=_add_user_infos)
+        def decorator(view_func: Callable) -> Callable:
+            return self._wrap_view_func(view_func, process_kwargs=_add_user_infos)
+
+        return decorator
 
     def inject_user(
-        self,
-        infos_to_user: Callable[[UserInfos], Any],
-        key="user",
+        self, infos_to_user: Callable[[UserInfos], Any], key="user"
     ) -> Callable:
         """Injects a user into a view function given a method to translate a UserInfos instance into the user"""
 

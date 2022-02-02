@@ -15,9 +15,9 @@ DECORATORS = Decorators(flaat).get_named_decorators()
 logger = logging.getLogger(__name__)
 
 
-async def view_func(request, **kwargs):
+async def view_func(request, test_inject=None):
     _ = request
-    _ = kwargs
+    _ = test_inject
     return web.Response(text="Success")
 
 
