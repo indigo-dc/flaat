@@ -33,7 +33,7 @@ TRUSTED_OP_LIST = [
 ]
 
 
-def get_arg_parser():
+def get_arg_parser():  # pragma: no cover
     path_of_executable = os.path.realpath(sys.argv[0])
     folder_of_executable = os.path.split(path_of_executable)[0]
     full_name_of_executable = os.path.split(path_of_executable)[1]
@@ -103,7 +103,7 @@ def get_arg_parser():
     return parser
 
 
-def get_args():
+def get_args():  # pragma: no cover
     parser = get_arg_parser()
     args = parser.parse_args()
     # if -in -ui or -at are specified, we set all to false:
@@ -129,13 +129,16 @@ def get_flaat(args):
     return flaat
 
 
-def get_access_token(args):
+def get_access_token(args) -> str:
     access_token = None
     if isinstance(args.access_token, list) and len(args.access_token) > 0:
         # use only the first one for now:
         access_token = args.access_token[0]
-        if access_token is not None and args.verbose > 1:
-            print("Using AccessToken from Commandline")
+        if access_token is not None:
+            if args.verbose > 1:
+                print("Using AccessToken from Commandline")
+            return access_token
+
     if access_token is None:
         # try commandline
         if args.oidc_agent_account is not None:
@@ -143,8 +146,14 @@ def get_access_token(args):
                 access_token = agent.get_access_token(args.oidc_agent_account)
             except agent.OidcAgentError as e:
                 print(f"Could not use oidc-agent: {e}")
-            if access_token is not None and args.verbose > 1:
-                print("Using AccessToken from oidc-agent (specified via commandline)")
+
+            if access_token is not None:
+                if args.verbose > 1:
+                    print(
+                        "Using AccessToken from oidc-agent (specified via commandline)"
+                    )
+                return access_token
+
     if access_token is None:
         # try environment  for config
         env_vars_to_try = ["OIDC_AGENT_ACCOUNT"]
@@ -162,6 +171,7 @@ def get_access_token(args):
                     print(f"Using AccessToken from Environment variable {env_var}")
                 if access_token is not None:
                     break
+
     if access_token is None:
         # try environment for Access Token:
         env_vars_to_try = [
@@ -243,7 +253,7 @@ class PrintableUserInfos(UserInfos):
                 )
             print("")
 
-        if args.show_introspection_info:
+        if args.show_introspection_info or args.show_all:
             if self.introspection_info is None:
                 print(
                     """The response from the introspection endpoint does not contain information (at least I cannot find it.)

@@ -26,11 +26,11 @@ def _mandatory_env_var(name):
     return val
 
 
-_oidc_agent_account_name = _mandatory_env_var("OIDC_AGENT_ACCOUNT")
+OIDC_AGENT_ACCOUNT = _mandatory_env_var("OIDC_AGENT_ACCOUNT")
 
 FLAAT_AT = ""
 try:
-    FLAAT_AT = liboidcagent.get_access_token(_oidc_agent_account_name)
+    FLAAT_AT = liboidcagent.get_access_token(OIDC_AGENT_ACCOUNT)
 except liboidcagent.OidcAgentError as e:
     raise FlaatException(f"Unable to load access token for testing: {e}") from e
 
