@@ -22,14 +22,6 @@ class Flaat(BaseFlaat):
         logger.info("%s: %s", framework_exception, message)
         raise framework_exception(description=message) from exception
 
-    def get_request_id(self, request_object):
-        """Return a string identifying the request"""
-        try:
-            return f"{request_object.remote_addr}--{request_object.base_url}"
-        except AttributeError as e:
-            logger.error(f"Cannot identify the request: {e}")
-            raise e
-
     def _get_request(self, *_, **__):
         return request
 

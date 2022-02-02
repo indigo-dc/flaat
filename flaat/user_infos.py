@@ -71,9 +71,9 @@ class UserInfos:
         if not isinstance(avail_group_entries, list):
             if isinstance(avail_group_entries, str):
                 return [avail_group_entries]
-            else:
-                logger.debug(f"Claim is not a list: {avail_group_entries})")
-                return None
+
+            logger.debug("Claim is not a list: %s", avail_group_entries)
+            return None
 
         return avail_group_entries
 

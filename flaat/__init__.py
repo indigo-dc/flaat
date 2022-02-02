@@ -29,14 +29,8 @@ class BaseFlaat(FlaatConfig):
         self.issuer_config_cache = Issuer_config_cache()
         # maps issuer to issuer configs
         self.accesstoken_issuer_cache: Dict[str, str] = {}  # maps accesstoken to issuer
-        # self.request_id = "unset"
 
     # SUBCLASS STUBS
-    def get_request_id(self, request_object) -> str:  # pragma: no cover
-        _ = request_object
-        # raise NotImplementedError("use framework specific sub class")
-        return ""
-
     def _get_request(self, *args, **kwargs):  # pragma: no cover
         """overwritten in subclasses"""
         # raise NotImplementedError("implement in subclass")
@@ -46,10 +40,6 @@ class BaseFlaat(FlaatConfig):
 
     def _map_exception(self, exception: FlaatException):  # pragma: no cover
         _ = exception
-
-    def _wrap_async_call(self, func, *args, **kwargs):  # pragma: no cover
-        """may be overwritten in in sub class"""
-        return func(*args, **kwargs)
 
     def get_access_token_from_request(self, request) -> str:  # pragma: no cover
         """Helper function to obtain the OIDC AT from the flask request variable"""
