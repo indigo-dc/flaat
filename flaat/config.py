@@ -1,7 +1,8 @@
 import logging
 from typing import List
 
-from flaat import issuertools
+from flaat import issuers
+from flaat.caches import IssuerConfigCache
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ class FlaatConfig:
         self.ops_that_support_jwt: List[str] = OPS_THAT_SUPPORT_JWT
         self.claim_search_precedence: List[str] = CLAIM_SEARCH_PRECEDENCE
         self.raise_error_on_return = True  # else just return an error
+        self.issuer_config_cache = IssuerConfigCache()
 
     def set_verbosity(self, verbosity: int):
         if verbosity < 0 or verbosity > 3:
@@ -56,18 +58,6 @@ class FlaatConfig:
         # TODO also set the framework specific loggers
         logger.setLevel(level)
 
-    def set_cache_lifetime(self, lifetime):
-        """Set cache lifetime of requests_cache zn seconds, default: 300s"""
-        issuertools.cache_options.set_lifetime(lifetime)
-
-    def set_cache_allowable_codes(self, allowable_codes):
-        """set http status code that will be cached"""
-        issuertools.cache_options.set_allowable_codes(allowable_codes)
-
-    def set_cache_backend(self, backend):
-        """set the cache backend"""
-        issuertools.cache_options.backend = backend
-
     def set_trusted_OP(self, iss):
         """Define OIDC Provider. Must be a valid URL. E.g. 'https://aai.egi.eu/oidc/'
         This should not be required for OPs that put their address into the AT (e.g. keycloak, mitre,
@@ -77,13 +67,12 @@ class FlaatConfig:
     def set_trusted_OP_list(self, trusted_op_list: List[str]):
         """Define a list of OIDC provider URLs.
         E.g. ['https://iam.deep-hybrid-datacloud.eu/', 'https://login.helmholtz.de/oauth2/', 'https://aai.egi.eu/oidc/']"""
-        self.trusted_op_list = []
-        for issuer in trusted_op_list:
-            self.trusted_op_list.append(issuer.rstrip("/"))
 
-        # iss_config = issuertools.find_issuer_config_in_list(self.trusted_op_list, self.op_hint,
-        #         exclude_list = [])
-        # self.issuer_config_cache.add_list(iss_config)
+        self.trusted_op_list = list(map(lambda iss: iss.rstrip("/"), trusted_op_list))
+
+        # LOW PRIO: Make this parallel
+        for iss in self.trusted_op_list:
+            self.issuer_config_cache.get(iss)
 
     def set_trusted_OP_file(self, filename="/etc/oidc-agent/issuer.config", hint=None):
         """Set filename of oidc-agent's issuer.config. Requires oidc-agent to be installed."""
@@ -98,7 +87,7 @@ class FlaatConfig:
     def set_verify_tls(self, param_verify_tls=True):
         """Whether to verify tls connections. Only use for development and debugging"""
         self.verify_tls = param_verify_tls
-        issuertools.verify_tls = param_verify_tls
+        issuers.verify_tls = param_verify_tls
 
     def set_client_id(self, client_id):
         """Client id. At the moment this one is sent to all matching providers. This is only
@@ -114,7 +103,7 @@ class FlaatConfig:
     def set_num_request_workers(self, num):
         """set number of request workers"""
         self.num_request_workers = num
-        issuertools.num_request_workers = num
+        issuers.num_request_workers = num
 
     def get_num_request_workers(self):
         """get number of request workers"""
@@ -130,11 +119,11 @@ class FlaatConfig:
 
     def set_iss_config_timeout(self, num):
         """set timeout for connections to get config from OP"""
-        issuertools.timeout = num
+        issuers.timeout = num
 
     def get_iss_config_timeout(self):
         """set timeout for connections to get config from OP"""
-        return issuertools.timeout
+        return issuers.timeout
 
     def set_timeout(self, num):
         """set global timeouts for http connections"""

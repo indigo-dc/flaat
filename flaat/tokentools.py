@@ -67,15 +67,9 @@ def get_access_token_info(access_token) -> Optional[AccessTokenInfo]:
 
     try:
         header = json.loads(base64url_decode(header_enc))
+        logger.debug("JWT Header: %s", header)
         body = json.loads(base64url_decode(body_enc))
-        logger.debug(
-            "header: %s",
-            json.dumps(header, sort_keys=True, indent=4, separators=(",", ": ")),
-        )
-        logger.debug(
-            "body: %s",
-            json.dumps(body, sort_keys=True, indent=4, separators=(",", ": ")),
-        )
+        logger.debug("JWT Body:   %s", body)
         return AccessTokenInfo(header, body, signature_enc)
     except ValueError as e:
         logger.debug("Unable to decode JWT: %s", e)

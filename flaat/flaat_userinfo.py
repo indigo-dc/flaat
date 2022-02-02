@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+from typing import Optional
 
 import configargparse
 import liboidcagent as agent
@@ -120,7 +121,6 @@ def get_args():  # pragma: no cover
 def get_flaat(args):
     flaat = BaseFlaat()
     flaat.set_verbosity(args.verbose)
-    flaat.set_cache_lifetime(300)  # seconds; default is 300
     flaat.set_trusted_OP_list(TRUSTED_OP_LIST)
     if args.client_id:
         flaat.set_client_id(args.client_id)
@@ -194,7 +194,10 @@ def get_access_token(args) -> str:
     return access_token
 
 
-class PrintableUserInfos(UserInfos):
+class UserInfosPrinter:
+    def __init__(self, user_infos: Optional[UserInfos]):
+        self.user_infos = user_infos
+
     def print(self, args):
         if args.machine_readable:
             self.print_machine_readable()
@@ -202,6 +205,11 @@ class PrintableUserInfos(UserInfos):
             self.print_human_readable(args)
 
     def print_machine_readable(self):
+        if self.user_infos is None:
+            error = {"error": "No user infos found"}
+            print(json.dumps(error))
+            sys.exit(2)
+
         printDict = {}
         for attr_name in [
             "valid_for_secs",
@@ -209,7 +217,7 @@ class PrintableUserInfos(UserInfos):
             "user_info",
             "introspection_info",
         ]:
-            val = getattr(self, attr_name)
+            val = getattr(self.user_infos, attr_name)
             if val is not None:
                 if hasattr(val, "__dict__"):
                     printDict[attr_name] = val.__dict__
@@ -219,8 +227,12 @@ class PrintableUserInfos(UserInfos):
         print(json.dumps(printDict, sort_keys=True, indent=4))
 
     def print_human_readable(self, args):
+        if self.user_infos is None:
+            print("Error: No user infos found")
+            sys.exit(2)
+
         if args.show_access_token or args.show_all:
-            if self.access_token_info is None:
+            if self.user_infos.access_token_info is None:
                 print(
                     "Info: Your access token is not a JWT. I.e. it does not contain information (at least I cannot find it.)"
                 )
@@ -230,7 +242,7 @@ class PrintableUserInfos(UserInfos):
                     print("Information stored inside the access token:")
                 print(
                     json.dumps(
-                        self.access_token_info.__dict__,
+                        self.user_infos.access_token_info.__dict__,
                         sort_keys=True,
                         indent=4,
                         separators=(",", ": "),
@@ -238,7 +250,7 @@ class PrintableUserInfos(UserInfos):
                 )
             print("")
         if args.show_user_info or args.show_all:
-            if self.user_info is None:
+            if self.user_infos.user_info is None:
                 print(
                     """The response from the userinfo endpoint does not contain information (at least I cannot find it.)
         Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong"""
@@ -248,13 +260,16 @@ class PrintableUserInfos(UserInfos):
                     print("Information retrieved from userinfo endpoint:")
                 print(
                     json.dumps(
-                        self.user_info, sort_keys=True, indent=4, separators=(",", ": ")
+                        self.user_infos.user_info,
+                        sort_keys=True,
+                        indent=4,
+                        separators=(",", ": "),
                     )
                 )
             print("")
 
         if args.show_introspection_info or args.show_all:
-            if self.introspection_info is None:
+            if self.user_infos.introspection_info is None:
                 print(
                     """The response from the introspection endpoint does not contain information (at least I cannot find it.)
         Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong"""
@@ -263,7 +278,7 @@ class PrintableUserInfos(UserInfos):
                 print("Information retrieved from introspection endpoint:")
                 print(
                     json.dumps(
-                        self.introspection_info,
+                        self.user_infos.introspection_info,
                         sort_keys=True,
                         indent=4,
                         separators=(",", ": "),
@@ -271,11 +286,11 @@ class PrintableUserInfos(UserInfos):
                 )
             print("")
 
-        if self.valid_for_secs > 0:
-            print(f"Token valid for {self.valid_for_secs:.1f} more seconds.")
+        if self.user_infos.valid_for_secs > 0:
+            print(f"Token valid for {self.user_infos.valid_for_secs:.1f} more seconds.")
         else:
             print(
-                f"Your token is already EXPIRED for {self.valid_for_secs:.1f} seconds!"
+                f"Your token is already EXPIRED for {self.user_infos.valid_for_secs:.1f} seconds!"
             )
         print("")
 
@@ -284,7 +299,8 @@ def main():
     args = get_args()
     flaat = get_flaat(args)
     access_token = get_access_token(args)
-    PrintableUserInfos(flaat, access_token).print(args)
+    user_infos = flaat.get_user_infos_from_access_token(access_token)
+    UserInfosPrinter(user_infos).print(args)
 
 
 if __name__ == "__main__":

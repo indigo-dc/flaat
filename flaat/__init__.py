@@ -9,12 +9,11 @@ import logging
 import os
 from typing import Any, Callable, Dict, List, Optional, Union
 
-from flaat import issuertools
-from flaat.caches import Issuer_config_cache
 from flaat.config import FlaatConfig
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
+from flaat.issuers import IssuerConfig
 from flaat.requirements import CheckResult, Requirement
-from flaat.tokentools import AccessTokenInfo
+from flaat.tokentools import AccessTokenInfo, get_access_token_info
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
@@ -26,8 +25,6 @@ class BaseFlaat(FlaatConfig):
 
     def __init__(self):
         super().__init__()
-        self.issuer_config_cache = Issuer_config_cache()
-        # maps issuer to issuer configs
         self.accesstoken_issuer_cache: Dict[str, str] = {}  # maps accesstoken to issuer
 
     # SUBCLASS STUBS
@@ -54,23 +51,18 @@ class BaseFlaat(FlaatConfig):
     # TODO this method is way too long
     def _find_issuer_config_everywhere(
         self, access_token, access_token_info: Optional[AccessTokenInfo]
-    ) -> dict:
+    ) -> Optional[IssuerConfig]:
 
-        # 0: Use accesstoken_issuer cache to find issuerconfig:
-        logger.debug("find_issuer - 0: In cache")
-        if access_token in self.accesstoken_issuer_cache:
-            issuer = self.accesstoken_issuer_cache[access_token]
-            iss_config = self.issuer_config_cache.get(issuer)
-
+        # 0: Manually set in the config
+        if self.iss != "":
+            iss_config = self.issuer_config_cache.get(self.iss)
             if iss_config is None:
-                raise FlaatUnauthenticated(
-                    f"Issuer config in cache but None for: {issuer}"
+                raise FlaatException(
+                    f"Misconfigured: issuer is set to '{self.iss}', but we cant find a config for that issuer"
                 )
-
             return iss_config
 
-        # 1: find info in the AT
-        logger.debug("find_issuer - 1: In access_token")
+        # 1: JWT AT
         if access_token_info is not None:
             at_iss = access_token_info.issuer
             if at_iss is not None:
@@ -86,41 +78,55 @@ class BaseFlaat(FlaatConfig):
 
                 return iss_config
 
-        # 2: use a provided string
-        logger.debug('find_issuer - 2: From "set_iss"')
-        iss_config = issuertools.find_issuer_config_in_string(self.iss)
-        if iss_config is not None:
+        # 2: Try AT -> Issuer cache
+        if access_token in self.accesstoken_issuer_cache:
+            issuer = self.accesstoken_issuer_cache[access_token]
+            iss_config = self.issuer_config_cache.get(issuer)
+
+            if iss_config is None:
+                raise FlaatUnauthenticated(f"Invalid Issuer URL in cacher: {issuer}")
+
             return iss_config
 
-        # 3: Try the provided list of providers:
-        logger.debug("find_issuer - 3: From trusted_op_list")
-        iss_config = issuertools.find_issuer_config_in_list(
-            self.trusted_op_list, self.op_hint, exclude_list=self.ops_that_support_jwt
+        return None
+
+    def get_user_infos_from_access_token(self, access_token) -> Optional[UserInfos]:
+        logger.debug("Access token: %s", access_token)
+        access_token_info = get_access_token_info(access_token)
+        issuer_config = self._find_issuer_config_everywhere(
+            access_token, access_token_info
         )
-        if iss_config is not None:
-            return iss_config
+        if issuer_config is not None:
+            return issuer_config.get_user_infos(access_token)
 
-        raise FlaatUnauthenticated("Could not determine issuer config")
+        logger.debug("Issuer could not be determined -> trying all trusted OPs")
+        # TODO parallel would speed up things here
+        for cached_config in self.issuer_config_cache:
+            user_infos = cached_config.get_user_infos(
+                access_token, access_token_info=access_token_info
+            )
+            if user_infos is not None:
+                self.accesstoken_issuer_cache[access_token] = cached_config.issuer
+                return user_infos
 
-    def get_all_info_from_request(self, param_request):
+        return None
+
+    def get_user_infos_from_request(self, request_object) -> Optional[UserInfos]:
         try:
-            access_token = self.get_access_token_from_request(param_request)
-            logger.debug("Access token: %s", access_token)
-            return UserInfos(self, access_token)
+            access_token = self.get_access_token_from_request(request_object)
+            user_infos = self.get_user_infos_from_access_token(access_token)
+            if user_infos is None:
+                raise FlaatUnauthenticated("Unable to retrieve user infos")
+
+            return user_infos
         except FlaatException as e:
             return self._map_exception(e)
 
-    def authenticate_user(self, *args, **kwargs) -> UserInfos:
+    def authenticate_user(self, *args, **kwargs) -> Optional[UserInfos]:
         """authenticate user needs the same arguments as the view_func it is called from."""
 
         request_object = self._get_request(*args, **kwargs)
-        access_token = self.get_access_token_from_request(request_object)
-        logger.debug("Access token: %s", access_token)
-
-        infos = UserInfos(self, access_token)
-        logger.info("Authenticated user: %s @ %s", infos.subject, infos.issuer)
-
-        return infos
+        return self.get_user_infos_from_request(request_object)
 
     def _wrap_view_func(
         self,
@@ -170,38 +176,37 @@ class BaseFlaat(FlaatConfig):
         kwargs[key] = value
         return kwargs
 
-    def inject_user_infos(self, key="user_infos") -> Callable:
-        def _add_user_infos(*args, **kwargs):
-            request_object = self._get_request(self, *args, **kwargs)
-            infos = self.get_all_info_from_request(request_object)
-            kwargs = self._add_value_to_kwargs(kwargs, key, infos)
-            return kwargs
-
-        def decorator(view_func: Callable) -> Callable:
-            return self._wrap_view_func(view_func, process_kwargs=_add_user_infos)
-
-        return decorator
-
     def inject_user(
-        self, infos_to_user: Callable[[UserInfos], Any], key="user"
+        self,
+        infos_to_user: Callable[[UserInfos], Any],
+        key="user",
+        strict=True,
     ) -> Callable:
-        """Injects a user into a view function given a method to translate a UserInfos instance into the user"""
+        """Injects a user into a view function given a method to translate a UserInfos instance into the user
+        If strict is set to True this decorator will fail when theire is nothing to inject
+        """
 
         def _inject_user(*args, **kwargs):
-            request_object = self._get_request(self, *args, **kwargs)
-            infos = self.get_all_info_from_request(request_object)
-            user = None
+            user_infos = self.authenticate_user(*args, **kwargs)
+            if user_infos is None or user_infos.is_empty:
+                if strict:
+                    raise FlaatUnauthenticated(
+                        "Needed user infos could not be retrieved"
+                    )
+                logger.debug("Unable to inject: No user infos")
+                return kwargs
 
-            if infos is not None:
-                user = infos_to_user(infos)
-                kwargs = self._add_value_to_kwargs(kwargs, key, user)
-
+            user = infos_to_user(user_infos)
+            kwargs = self._add_value_to_kwargs(kwargs, key, user)
             return kwargs
 
         def decorator(view_func: Callable) -> Callable:
             return self._wrap_view_func(view_func, process_kwargs=_inject_user)
 
         return decorator
+
+    def inject_user_infos(self, key="user_infos", strict=True) -> Callable:
+        return self.inject_user(infos_to_user=lambda info: info, key=key, strict=strict)
 
     def _requirement_auth_disabled(self):
         return (
@@ -241,7 +246,7 @@ class BaseFlaat(FlaatConfig):
         def _authenticate(*args, **kwargs):
             if not self._requirement_auth_disabled():
                 user_infos = self.authenticate_user(self, *args, **kwargs)
-                if user_infos is None:
+                if user_infos is None or user_infos.is_empty:
                     raise FlaatUnauthenticated("Could not determine identity of user")
 
                 authz_check = _user_has_authorization(user_infos)

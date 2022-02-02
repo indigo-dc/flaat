@@ -41,5 +41,5 @@ def client(app):
 @pytest.mark.parametrize("decorator", DECORATORS)
 def test_decorator(client, decorator, status, kwargs):
     resp = client.get(f"/{decorator.name}", **kwargs)
-    expected = get_expected_status_code(decorator, status)
+    expected = decorator.get_expected_status_code(status)
     assert resp.status_code == expected

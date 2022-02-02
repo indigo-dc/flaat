@@ -1,4 +1,4 @@
-from flaat.issuertools import is_url
+from flaat.issuers import is_url
 
 
 class TestURLs:

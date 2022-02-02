@@ -6,8 +6,9 @@ from attr import dataclass
 from dotenv import dotenv_values
 import liboidcagent
 
+from flaat import BaseFlaat
 from flaat.exceptions import FlaatException
-from flaat.requirements import HasAARCEntitlement, HasGroup, Requirement, ValidLogin
+from flaat.requirements import HasAARCEntitlement, HasGroup, ValidLogin
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
@@ -49,14 +50,6 @@ STATUS_KWARGS_LIST = [
 ]
 
 
-class User:
-    def __init__(self, user_infos: UserInfos):
-        self.user_infos = user_infos
-
-    def __str__(self) -> str:
-        return f"User {self.user_infos.subject} @ {self.user_infos.issuer}"
-
-
 @dataclass
 class NamedDecorator:
     name: str
@@ -66,12 +59,11 @@ class NamedDecorator:
     def __str__(self):
         return self.name
 
-
-def get_expected_status_code(nd: NamedDecorator, status_code: int):
-    expected = status_code
-    if status_code == 200 and nd.status_code is not None:
-        expected = nd.status_code
-    return expected
+    def get_expected_status_code(self, status_code: int):
+        expected = status_code
+        if status_code == 200 and self.status_code is not None:
+            expected = self.status_code
+        return expected
 
 
 class Decorators:
@@ -84,10 +76,11 @@ class Decorators:
     decorators: List[NamedDecorator]
 
     def __init__(self, flaat):
-        self.flaat = flaat
+        self.flaat: BaseFlaat = flaat
         self.at = FLAAT_AT
-        user_info = UserInfos(self.flaat, self.at)
-        if user_info.user_info is None:
+        logger.debug("Fetching user infos for test_env")
+        user_infos = self.flaat.get_user_infos_from_access_token(self.at)
+        if user_infos is None or user_infos.user_info is None:
             raise FlaatException(
                 "Cannot run tests: could not fetch a userinfo with the access token"
             )
@@ -95,13 +88,13 @@ class Decorators:
         self.claim_groups = FLAAT_CLAIM_GROUP
         self.claim_entitlements = FLAAT_CLAIM_ENTITLEMENT
 
-        self.groups = user_info.user_info.get(self.claim_groups, None)
+        self.groups = user_infos.user_info.get(self.claim_groups, None)
         if not isinstance(self.groups, list) or len(self.groups) < 2:
             raise FlaatException(
                 "CLAIM_GROUP must point to list of at least two groups"
             )
 
-        self.entitlements = user_info.user_info.get(self.claim_entitlements, None)
+        self.entitlements = user_infos.user_info.get(self.claim_entitlements, None)
         if not isinstance(self.entitlements, list) or len(self.entitlements) < 2:
             raise FlaatException(
                 "CLAIM_ENTITLEMENT must point to list of at least two entitlements"
@@ -113,6 +106,14 @@ class Decorators:
         def on_failure(exc):
             logger.info("TEST on_failure called")
             raise exc
+
+        # for inject_user
+        class User:
+            def __init__(self, user_infos: UserInfos):
+                self.user_infos = user_infos
+
+            def __str__(self) -> str:
+                return f"User {self.user_infos.subject} @ {self.user_infos.issuer}"
 
         decorators = [
             NamedDecorator(

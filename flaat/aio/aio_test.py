@@ -9,7 +9,6 @@ from flaat.test_env import (
     Decorators,
     STATUS_KWARGS_LIST,
     FLAAT_TRUSTED_OPS_LIST,
-    get_expected_status_code,
 )
 
 flaat = Flaat()
@@ -47,5 +46,5 @@ def cli(event_loop, aiohttp_client, app):
 async def test_decorator(cli, decorator, status, kwargs):
     logger.debug("Decorator: %s", decorator.name)
     resp = await cli.get(f"/{decorator.name}", **kwargs)
-    expected = get_expected_status_code(decorator, status)
+    expected = decorator.get_expected_status_code(status)
     assert resp.status == expected

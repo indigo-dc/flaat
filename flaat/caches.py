@@ -3,52 +3,44 @@
 # pylint: disable=consider-using-dict-items,consider-iterating-dictionary
 
 import logging
+from typing import Dict, Optional
 
-from flaat import issuertools
+from flaat.issuers import IssuerConfig
 
 logger = logging.getLogger(__name__)
 
 
-class Issuer_config_cache:
-    """Caching of issuer configs"""
+class IssuerConfigCache:
+    """Cache: Issuer -> Issuer Config"""
 
     def __init__(self):
-        self.entries = {}  # maps 'iss' to the whole issuer config
+        # maps 'iss' to the whole issuer config
+        self.entries: Dict[str, IssuerConfig] = {}
         self.n = 0
 
-    def add_config(self, iss, issuer_config):
+    def set(self, iss, issuer_config: IssuerConfig):
         """add entry"""
-        logger.info("Adding: %s", iss)
+        logger.info("Setting: %s - %s", iss, issuer_config)
         self.entries[iss] = issuer_config
 
-    def get(self, iss):
+    def get(self, iss) -> Optional[IssuerConfig]:
         """get entry"""
-        try:
+        if iss in self.entries:
             return self.entries[iss]
-        except KeyError:
-            logger.debug("No issuer config for issuer in cache: %s", iss)
 
-            # try to fetch it now
-            issuer_config = issuertools.find_issuer_config_in_string(iss)
-            if issuer_config is not None:
-                self.add_config(iss, issuer_config)
-                return issuer_config
+        logger.debug("No IssuerConfig for issuer in cache: %s", iss)
 
-            return None
+        # try to fetch it now
+        issuer_config = IssuerConfig.get_from_string(iss)
+        if issuer_config is not None:
+            self.set(iss, issuer_config)
+            return issuer_config
+
+        return None
 
     def remove(self, iss):
         """remove entry"""
         del self.entries[iss]
-
-    def dump_to_log(self):
-        """display cache"""
-        logger.info("Issuer Cache:")
-        for iss in self.entries:
-            logger.info(
-                "%s -> %s",
-                self.entries[iss]["issuer"],
-                self.entries[iss]["userinfo_endpoint"],
-            )
 
     def __iter__(self):
         self.n = 0

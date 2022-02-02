@@ -51,8 +51,8 @@ class Requirements:
         self.flaat = BaseFlaat()
         self.flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
         self.at = FLAAT_AT
-        self.user_infos = UserInfos(self.flaat, self.at)
-        if self.user_infos.user_info is None:
+        self.user_infos = self.flaat.get_user_infos_from_access_token(self.at)
+        if self.user_infos is None or self.user_infos.user_info is None:
             raise FlaatException(
                 "Cannot run tests: could not fetch a userinfo with the access token"
             )
