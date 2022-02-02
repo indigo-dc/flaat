@@ -44,4 +44,5 @@ def client(app: Flask):
 @pytest.mark.parametrize("decorator", DECORATORS)
 def test_decorator(client, decorator, status, kwargs):
     resp = client.get(f"/{decorator.name}", **kwargs)
-    assert resp.status_code == status
+    expected = get_expected_status_code(decorator, status)
+    assert resp.status_code == expected

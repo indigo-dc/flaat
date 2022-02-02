@@ -1,11 +1,12 @@
+from dataclasses import dataclass
 import json
 import logging
 import os
-from typing import List, Union
+from typing import List, Optional, Union
 
 import aarc_entitlement
 
-from flaat.exceptions import FlaatException, FlaatForbidden
+from flaat.exceptions import FlaatException
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
@@ -32,26 +33,57 @@ def check_environment_for_override(env_key):
     return None
 
 
+@dataclass
+class CheckResult:
+    """CheckResult is the result of an `is_satisfied_by` check"""
+
+    is_satisfied: bool
+    message: str
+
+
 class Requirement:
-    def satisfied_by(self, user_infos: UserInfos) -> bool:
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         _ = user_infos
-        return False
+        return CheckResult(False, "method not overwritten")
 
 
 class AllOf(Requirement):
     def __init__(self, *reqs: Requirement):
         self.requirements = reqs
 
-    def satisfied_by(self, user_infos: UserInfos) -> bool:
-        return all(req.satisfied_by(user_infos) for req in self.requirements)
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+        satisfied = True
+        message = "All sub-requirements are satisfied"
+        failed_messages = []
+
+        for req in self.requirements:
+            check_result = req.is_satisfied_by(user_infos)
+            if not check_result.is_satisfied:
+                failed_messages.append(check_result.message)
+                satisfied = False
+
+        if not satisfied:
+            message = f"Unsatisfied sub-requirements: {failed_messages}"
+
+        return CheckResult(satisfied, message)
 
 
 class OneOf(AllOf):
-    def satisfied_by(self, user_infos: UserInfos) -> bool:
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+        satisfied = True
+        message = "All sub-requirements are satisfied"
+        failed_messages = []
+
         for req in self.requirements:
-            if req.satisfied_by(user_infos):
-                return True
-        return False
+            check_result = req.is_satisfied_by(user_infos)
+            if not check_result.is_satisfied:
+                satisfied = False
+                failed_messages.append(check_result.message)
+
+        if not satisfied:
+            message = f"No sub-requirements are satisfied: {failed_messages}"
+
+        return CheckResult(satisfied, message)
 
 
 class N_Of(Requirement):
@@ -59,23 +91,36 @@ class N_Of(Requirement):
         self.n = n
         self.requirements = reqs
 
-    def satisfied_by(self, user_infos: UserInfos) -> bool:
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+        failed_messages = []
         n = 0
         for req in self.requirements:
-            if req.satisfied_by(user_infos):
+            check_result = req.is_satisfied_by(user_infos)
+            if not check_result.is_satisfied:
+                failed_messages.append(check_result.message)
+            else:
                 n += 1
-                if n >= self.n:
-                    return True
-        return False
+
+        if n >= self.n:
+            return CheckResult(True, f"{n} of {self.n} sub-requirments are satisfied")
+
+        return CheckResult(
+            False,
+            f"{n} of {self.n} sub requirments are satisfied: {failed_messages}",
+        )
 
 
 class ValidLogin(Requirement):
-    def satisfied_by(self, user_infos: UserInfos):
-        return (
-            user_infos is not None
-            and user_infos.subject != ""
-            and user_infos.issuer != ""
-        )
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+        if user_infos is None:
+            return CheckResult(False, "No valid user_infos found")
+
+        if user_infos.subject != "" and user_infos.issuer != "":
+            return CheckResult(
+                True, "Valid user: {user_infos.subject} @ {user_infos.issuer}"
+            )
+
+        return CheckResult(False, "user_infos have no subject / issuer")
 
 
 class HasGroup(Requirement):
@@ -130,7 +175,7 @@ class HasGroup(Requirement):
 
     def _get_effective_entitlements_from_claim(
         self, user_infos: UserInfos, claim: str
-    ) -> List[str]:
+    ) -> Optional[List[str]]:
         override_entitlement_entries = check_environment_for_override(
             "DISABLE_AUTHENTICATION_AND_ASSUME_ENTITLEMENTS"
         )
@@ -140,10 +185,10 @@ class HasGroup(Requirement):
 
         return user_infos.get_entitlements_from_claim(claim)
 
-    def satisfied_by(self, user_infos: UserInfos) -> bool:
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         avail_raw = self._get_effective_entitlements_from_claim(user_infos, self.claim)
         if avail_raw is None:
-            raise FlaatForbidden("No group memberships found")
+            return CheckResult(False, "Claim not found")
 
         avail_parsed = self._parse_all(avail_raw)
 
@@ -157,11 +202,12 @@ class HasGroup(Requirement):
         logger.info("Found %d of %d matches", matches_found, self.required_matches)
 
         if matches_found < self.required_matches:
-            raise FlaatForbidden(
-                f"Matched {matches_found} groups, but needed {self.required_matches}"
+            return CheckResult(
+                False,
+                f"Found only {matches_found} of {self.required_matches} matches",
             )
 
-        return True
+        return CheckResult(True, "Enough matches found")
 
 
 class HasAARCEntitlement(HasGroup):

@@ -3,7 +3,6 @@ import logging
 from typing import List, Optional
 
 from flaat import issuertools, tokentools
-from flaat.exceptions import FlaatForbidden
 from flaat.tokentools import AccessTokenInfo
 
 logger = logging.getLogger(__name__)
@@ -47,7 +46,7 @@ class UserInfos:
 
     def get_entitlements_from_claim(
         self, claim: str, search_precedence: Optional[List[str]] = None
-    ) -> List[str]:
+    ) -> Optional[List[str]]:
         """extract groups / entitlements from given claim (in userinfo or access_token)"""
         if search_precedence is None:
             search_precedence = ["userinfo", "access_token"]
@@ -67,9 +66,14 @@ class UserInfos:
                 break
 
         if avail_group_entries is None:
-            raise FlaatForbidden(f"Claim does not exist: {claim})")
+            logger.debug("Claim does not exist: %s", claim)
+            return None
         if not isinstance(avail_group_entries, list):
-            raise FlaatForbidden(f"Claim is not a list: {avail_group_entries})")
+            if isinstance(avail_group_entries, str):
+                return [avail_group_entries]
+            else:
+                logger.debug(f"Claim is not a list: {avail_group_entries})")
+                return None
 
         return avail_group_entries
 

@@ -1,6 +1,7 @@
 # pylint: disable=redefined-outer-name,wildcard-import,unused-wildcard-import
 
 import logging
+
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 import pytest
@@ -40,5 +41,5 @@ def client(app):
 @pytest.mark.parametrize("decorator", DECORATORS)
 def test_decorator(client, decorator, status, kwargs):
     resp = client.get(f"/{decorator.name}", **kwargs)
-    logger.debug("Response: %s %s", resp.status_code, resp.text)
-    assert resp.status_code == status
+    expected = get_expected_status_code(decorator, status)
+    assert resp.status_code == expected

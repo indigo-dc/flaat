@@ -1,17 +1,19 @@
 # pylint: disable=redefined-outer-name
 
 from typing import List
+
 import pytest
+
 from flaat import BaseFlaat
 from flaat.exceptions import FlaatException
+from flaat.requirements import HasAARCEntitlement, HasGroup, Requirement, ValidLogin
 from flaat.test_env import (
     FLAAT_AT,
-    FLAAT_CLAIM_GROUP,
     FLAAT_CLAIM_ENTITLEMENT,
+    FLAAT_CLAIM_GROUP,
     FLAAT_TRUSTED_OPS_LIST,
 )
 from flaat.user_infos import UserInfos
-from flaat.requirements import Requirement, ValidLogin, HasAARCEntitlement, HasGroup
 
 
 INVALID_ENTITLEMENT = "foo-bar"
@@ -98,4 +100,4 @@ def test_possible_requirements_success(requirements, user_infos):
     against the frameworks"""
 
     for req in requirements:
-        assert req.satisfied_by(user_infos)
+        assert req.is_satisfied_by(user_infos)

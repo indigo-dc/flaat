@@ -5,7 +5,12 @@ from aiohttp import web
 import pytest
 
 from flaat.aio import Flaat
-from flaat.test_env import Decorators, STATUS_KWARGS_LIST, FLAAT_TRUSTED_OPS_LIST
+from flaat.test_env import (
+    Decorators,
+    STATUS_KWARGS_LIST,
+    FLAAT_TRUSTED_OPS_LIST,
+    get_expected_status_code,
+)
 
 flaat = Flaat()
 flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
@@ -42,4 +47,5 @@ def cli(event_loop, aiohttp_client, app):
 async def test_decorator(cli, decorator, status, kwargs):
     logger.debug("Decorator: %s", decorator.name)
     resp = await cli.get(f"/{decorator.name}", **kwargs)
-    assert resp.status == status
+    expected = get_expected_status_code(decorator, status)
+    assert resp.status == expected

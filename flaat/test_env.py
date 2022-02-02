@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 from attr import dataclass
 from dotenv import dotenv_values
@@ -40,14 +40,11 @@ FLAAT_ISS = _mandatory_env_var("FLAAT_ISS")
 FLAAT_TRUSTED_OPS_LIST = [FLAAT_ISS]
 
 STATUS_KWARGS_LIST = [
-    # no token -> unauthorized
-    (401, {}),
-    # invalid access token -> unauthorized
-    (
-        401,
-        {"headers": {"Authorization": "Bearer invalid_at"}},
-    ),
-    # good access token with the right entitlements
+    # Invalid access token -> unauthorized
+    (401, {"headers": {"Authorization": "Bearer invalid_at"}}),
+    # Good access token with the right entitlements
+    # If the decorator has a status_code then that one overrides the 200 set here
+    # see get_expected_status_code
     (200, {"headers": {"Authorization": f"Bearer {FLAAT_AT}"}}),
 ]
 
@@ -64,9 +61,17 @@ class User:
 class NamedDecorator:
     name: str
     decorator: Callable
+    status_code: Optional[int] = None  # expected status of this decorator
 
     def __str__(self):
         return self.name
+
+
+def get_expected_status_code(nd: NamedDecorator, status_code: int):
+    expected = status_code
+    if status_code == 200 and nd.status_code is not None:
+        expected = nd.status_code
+    return expected
 
 
 class Decorators:
@@ -131,5 +136,12 @@ class Decorators:
                     ],
                 ),
             ),  # multiple reqs
+            NamedDecorator(
+                "requires-forbidden",
+                self.flaat.requires(
+                    HasGroup("group_that_does_not_exist", self.claim_groups),
+                ),
+                status_code=403,
+            ),  # this must cause forbidden
         ]
         return decorators

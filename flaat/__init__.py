@@ -10,10 +10,10 @@ import os
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from flaat import issuertools
-from flaat.config import FlaatConfig
 from flaat.caches import Issuer_config_cache
+from flaat.config import FlaatConfig
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
-from flaat.requirements import Requirement
+from flaat.requirements import CheckResult, Requirement
 from flaat.tokentools import AccessTokenInfo
 from flaat.user_infos import UserInfos
 
@@ -32,26 +32,26 @@ class BaseFlaat(FlaatConfig):
         # self.request_id = "unset"
 
     # SUBCLASS STUBS
-    def get_request_id(self, request_object) -> str:
+    def get_request_id(self, request_object) -> str:  # pragma: no cover
         _ = request_object
         # raise NotImplementedError("use framework specific sub class")
         return ""
 
-    def _get_request(self, *args, **kwargs):
+    def _get_request(self, *args, **kwargs):  # pragma: no cover
         """overwritten in subclasses"""
         # raise NotImplementedError("implement in subclass")
         _ = args
         _ = kwargs
         return {}
 
-    def _map_exception(self, exception: FlaatException):
+    def _map_exception(self, exception: FlaatException):  # pragma: no cover
         _ = exception
 
-    def _wrap_async_call(self, func, *args, **kwargs):
+    def _wrap_async_call(self, func, *args, **kwargs):  # pragma: no cover
         """may be overwritten in in sub class"""
         return func(*args, **kwargs)
 
-    def get_access_token_from_request(self, request) -> str:
+    def get_access_token_from_request(self, request) -> str:  # pragma: no cover
         """Helper function to obtain the OIDC AT from the flask request variable"""
         _ = request
         return ""
@@ -119,10 +119,6 @@ class BaseFlaat(FlaatConfig):
             return UserInfos(self, access_token)
         except FlaatException as e:
             return self._map_exception(e)
-
-    def _auth_get_all_info(self, *args, **kwargs):
-        request_object = self._get_request(*args, **kwargs)
-        return self.get_all_info_from_request(request_object)
 
     def authenticate_user(self, *args, **kwargs) -> UserInfos:
         """authenticate user needs the same arguments as the view_func it is called from."""
@@ -230,15 +226,27 @@ class BaseFlaat(FlaatConfig):
         requirements: Union[Requirement, List[Requirement]],
         on_failure: Optional[Callable] = None,
     ):
-        def _user_has_authorization(user_infos: UserInfos) -> bool:
+        def _user_has_authorization(user_infos: UserInfos) -> CheckResult:
             reqs = []
             if isinstance(requirements, list):
                 reqs = requirements
             else:
                 reqs = [requirements]
 
-            # pylint: disable=use-a-generator
-            return all(req.satisfied_by(user_infos) for req in reqs)
+            satisfied = True
+            failure_messages = []
+            for req in reqs:
+                check_result = req.is_satisfied_by(user_infos)
+                if not check_result.is_satisfied:
+                    failure_messages.append(check_result.message)
+                    satisfied = False
+
+            if satisfied:
+                return CheckResult(True, "")
+
+            return CheckResult(
+                False, f"User does not meet requirements: {failure_messages}"
+            )
 
         def _authenticate(*args, **kwargs):
             if not self._requirement_auth_disabled():
@@ -246,8 +254,9 @@ class BaseFlaat(FlaatConfig):
                 if user_infos is None:
                     raise FlaatUnauthenticated("Could not determine identity of user")
 
-                if not _user_has_authorization(user_infos):
-                    raise FlaatForbidden("User is not permitted to use service")
+                authz_check = _user_has_authorization(user_infos)
+                if not authz_check.is_satisfied:
+                    raise FlaatForbidden(authz_check.message)
 
             return kwargs
 
