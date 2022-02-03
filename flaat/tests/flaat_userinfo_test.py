@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 from flaat import BaseFlaat
-from flaat.flaat_userinfo import UserInfosPrinter, get_access_token, get_flaat
+from flaat.flaat_userinfo import (
+    TRUSTED_OP_LIST,
+    UserInfosPrinter,
+    get_access_token,
+    get_flaat,
+)
 from flaat.test_env import FLAAT_AT, FLAAT_ISS, OIDC_AGENT_ACCOUNT
 
 
@@ -33,7 +38,8 @@ def test_print_infos():
 
 
 def test_get_flaat():
-    assert get_flaat(ArgsMock()) is not None
+    trusted_op_list = TRUSTED_OP_LIST[:1]
+    assert get_flaat(ArgsMock(), trusted_op_list) is not None
 
 
 def test_get_at():

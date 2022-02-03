@@ -25,10 +25,12 @@ class IssuerConfigCache:
 
     def get(self, iss) -> Optional[IssuerConfig]:
         """get entry"""
-        if iss in self.entries:
-            return self.entries[iss]
+        issuer_config = self.entries.get(iss, None)
+        if issuer_config is not None:
+            logger.debug("Cache hit for issuer: %s", iss)
+            return issuer_config
 
-        logger.debug("No IssuerConfig for issuer in cache: %s", iss)
+        logger.info("Cache miss for issuer: %s", iss)
 
         # try to fetch it now
         issuer_config = IssuerConfig.get_from_string(iss)
@@ -37,10 +39,6 @@ class IssuerConfigCache:
             return issuer_config
 
         return None
-
-    def remove(self, iss):
-        """remove entry"""
-        del self.entries[iss]
 
     def __iter__(self):
         self.n = 0
@@ -58,7 +56,3 @@ class IssuerConfigCache:
     def __len__(self):
         """return length"""
         return len(self.entries.keys())
-
-    def has(self, iss):
-        """do we have an entry"""
-        return iss in self.entries.keys()

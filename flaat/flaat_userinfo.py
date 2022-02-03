@@ -118,10 +118,13 @@ def get_args():  # pragma: no cover
     return args
 
 
-def get_flaat(args):
+def get_flaat(args, trusted_op_list=None):
     flaat = BaseFlaat()
     flaat.set_verbosity(args.verbose)
-    flaat.set_trusted_OP_list(TRUSTED_OP_LIST)
+    if trusted_op_list is not None:
+        flaat.set_trusted_OP_list(trusted_op_list)
+    else:
+        flaat.set_trusted_OP_list(TRUSTED_OP_LIST)
     if args.client_id:
         flaat.set_client_id(args.client_id)
     if args.client_secret:

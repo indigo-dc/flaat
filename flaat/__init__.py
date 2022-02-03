@@ -48,7 +48,6 @@ class BaseFlaat(FlaatConfig):
     def _issuer_is_trusted(self, issuer):
         return issuer.rstrip("/") in self.trusted_op_list
 
-    # TODO this method is way too long
     def _find_issuer_config_everywhere(
         self, access_token, access_token_info: Optional[AccessTokenInfo]
     ) -> Optional[IssuerConfig]:
@@ -64,13 +63,13 @@ class BaseFlaat(FlaatConfig):
 
         # 1: JWT AT
         if access_token_info is not None:
+            logger.debug("Access token is a JWT")
             at_iss = access_token_info.issuer
             if at_iss is not None:
                 if not self._issuer_is_trusted(at_iss):
                     raise FlaatUnauthenticated(f"Issuer is not trusted: {at_iss}")
 
                 iss_config = self.issuer_config_cache.get(at_iss)
-
                 if iss_config is None:
                     raise FlaatUnauthenticated(
                         f"Unable to fetch issuer config for: {at_iss}"
@@ -80,9 +79,10 @@ class BaseFlaat(FlaatConfig):
 
         # 2: Try AT -> Issuer cache
         if access_token in self.accesstoken_issuer_cache:
+            logger.debug("Cache hit for access_token")
             issuer = self.accesstoken_issuer_cache[access_token]
-            iss_config = self.issuer_config_cache.get(issuer)
 
+            iss_config = self.issuer_config_cache.get(issuer)
             if iss_config is None:
                 raise FlaatUnauthenticated(f"Invalid Issuer URL in cacher: {issuer}")
 

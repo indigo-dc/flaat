@@ -58,10 +58,8 @@ class FlaatConfig:
         # TODO also set the framework specific loggers
         logger.setLevel(level)
 
-    def set_trusted_OP(self, iss):
-        """Define OIDC Provider. Must be a valid URL. E.g. 'https://aai.egi.eu/oidc/'
-        This should not be required for OPs that put their address into the AT (e.g. keycloak, mitre,
-        shibboleth)"""
+    def set_issuer(self, iss):
+        """Use set_issuer to only use this issuer"""
         self.iss = iss.rstrip("/")
 
     def set_trusted_OP_list(self, trusted_op_list: List[str]):
