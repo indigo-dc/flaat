@@ -225,11 +225,16 @@ class BaseFlaat(FlaatConfig):
     def requires(
         self,
         requirements: Union[
-            Union[Requirement, Callable[[BaseFlaat], Requirement]],
-            List[Union[Requirement, Callable[[BaseFlaat], Requirement]]],
+            Union[Requirement, Callable[[], Requirement]],
+            List[Union[Requirement, Callable[[], Requirement]]],
         ],
         on_failure: Optional[Callable] = None,
     ):
+        """returns decorator that only allows users, which fit the requirements
+        If the requirements are callables, they are evaluated at runtime of the view_func,
+        not at import time.
+        """
+
         def _user_has_authorization(user_infos: UserInfos) -> CheckResult:
             _req_list = (
                 requirements if isinstance(requirements, list) else [requirements]
@@ -238,7 +243,7 @@ class BaseFlaat(FlaatConfig):
             reqs: List[Requirement] = []
             for req in _req_list:
                 if callable(req):
-                    req = req(self)
+                    req = req()
                 reqs.append(req)
 
             satisfied = True

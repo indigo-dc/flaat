@@ -26,20 +26,20 @@ def test_invalid_aarc_entitlements():
     """two broken decorators which should fail at import time"""
     flaat = BaseFlaat()
 
-    def get_invalid_requirement(_):
+    def get_invalid_requirement():
         return HasAARCEntitlement(
             required=INVALID_ENTITLEMENT,
             claim=CLAIM,
         )
 
     with pytest.raises(FlaatException):
-        flaat.requires(requirements=get_invalid_requirement(flaat))
+        flaat.requires(requirements=get_invalid_requirement())
 
     with pytest.raises(FlaatException):
         flaat.requires(
             requirements=[
-                get_invalid_requirement(flaat),
-                get_invalid_requirement(flaat),
+                get_invalid_requirement(),
+                get_invalid_requirement(),
             ]
         )
 
