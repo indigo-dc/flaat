@@ -13,7 +13,7 @@ from flaat.access_tokens import AccessTokenInfo, get_access_token_info
 from flaat.config import FlaatConfig
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.issuers import IssuerConfig
-from flaat.requirements import CheckResult, Requirement
+from flaat.requirements import CheckResult, Requirement, ValidLogin
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
@@ -106,6 +106,7 @@ class BaseFlaat(FlaatConfig):
                 access_token, access_token_info=access_token_info
             )
             if user_infos is not None:
+                logger.debug("Found issuer for access token: %s", cached_config.issuer)
                 self.accesstoken_issuer_cache[access_token] = cached_config.issuer
                 return user_infos
 
@@ -263,3 +264,6 @@ class BaseFlaat(FlaatConfig):
             )
 
         return decorator
+
+    def login_required(self, on_failure=None):
+        return self.requires(ValidLogin(), on_failure=on_failure)

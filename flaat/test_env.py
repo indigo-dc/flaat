@@ -120,13 +120,11 @@ class Decorators:
                 "inject_user_infos", self.flaat.inject_user_infos(key="test_inject")
             ),
             NamedDecorator(
-                "inject_user",
-                self.flaat.inject_user(infos_to_user=User, key="test_inject"),
+                "login_required", self.flaat.login_required(on_failure=on_failure)
             ),
-            NamedDecorator("requires-ValidLogin", self.flaat.requires(ValidLogin())),
             NamedDecorator(
-                "requires-ValidLogin-on_failure",
-                self.flaat.requires(ValidLogin(), on_failure=on_failure),
+                "login_required-on_failure",
+                self.flaat.login_required(on_failure=on_failure),
             ),  # with on_failure
             NamedDecorator(
                 "requires-GroupAndEntitlement",
