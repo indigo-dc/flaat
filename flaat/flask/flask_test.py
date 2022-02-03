@@ -1,18 +1,16 @@
-# pylint: disable=redefined-outer-name,wildcard-import,unused-wildcard-import
+# pylint: disable=redefined-outer-name
 from flask.app import Flask
 import pytest
 from werkzeug import Response
 
 from flaat.flask import Flaat
-from flaat.test_env import *
+from flaat.test_env import User, FLAAT_TRUSTED_OPS_LIST, STATUS_KWARGS_LIST
 
 
-# TODO shouldn't we recreate the flaat instance for every test?
-# especially thinking about caches etc.
 flaat = Flaat()
 flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
 
-DECORATORS = Decorators(flaat).get_named_decorators()
+DECORATORS = User(flaat).get_named_decorators()
 
 
 def view_func(test_inject=None):

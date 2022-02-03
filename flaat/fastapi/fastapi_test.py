@@ -1,4 +1,4 @@
-# pylint: disable=redefined-outer-name,wildcard-import,unused-wildcard-import
+# pylint: disable=redefined-outer-name
 
 import logging
 
@@ -7,14 +7,14 @@ from fastapi.testclient import TestClient
 import pytest
 
 from flaat.fastapi import Flaat
-from flaat.test_env import *
+from flaat.test_env import User, STATUS_KWARGS_LIST, FLAAT_TRUSTED_OPS_LIST
 
 logger = logging.getLogger(__name__)
 
 flaat = Flaat()
 flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
 
-DECORATORS = Decorators(flaat).get_named_decorators()
+DECORATORS = User(flaat).get_named_decorators()
 
 
 async def view_func(request: Request, test_inject=None):

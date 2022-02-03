@@ -1,20 +1,16 @@
-# pylint: disable=redefined-outer-name,wildcard-import,unused-wildcard-import
+# pylint: disable=redefined-outer-name
 
 import logging
 from aiohttp import web
 import pytest
 
 from flaat.aio import Flaat
-from flaat.test_env import (
-    Decorators,
-    STATUS_KWARGS_LIST,
-    FLAAT_TRUSTED_OPS_LIST,
-)
+from flaat.test_env import User, STATUS_KWARGS_LIST, FLAAT_TRUSTED_OPS_LIST
 
 flaat = Flaat()
 flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
 
-DECORATORS = Decorators(flaat).get_named_decorators()
+DECORATORS = User(flaat).get_named_decorators()
 
 logger = logging.getLogger(__name__)
 

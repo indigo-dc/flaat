@@ -66,7 +66,7 @@ class NamedDecorator:
         return expected
 
 
-class Decorators:
+class User:
     claim_groups: str
     claim_entitlements: str
 
@@ -79,8 +79,8 @@ class Decorators:
         self.flaat: BaseFlaat = flaat
         self.at = FLAAT_AT
         logger.debug("Fetching user infos for test_env")
-        user_infos = self.flaat.get_user_infos_from_access_token(self.at)
-        if user_infos is None or user_infos.user_info is None:
+        self.user_infos = self.flaat.get_user_infos_from_access_token(self.at)
+        if self.user_infos is None or self.user_infos.user_info is None:
             raise FlaatException(
                 "Cannot run tests: could not fetch a userinfo with the access token"
             )
@@ -88,13 +88,13 @@ class Decorators:
         self.claim_groups = FLAAT_CLAIM_GROUP
         self.claim_entitlements = FLAAT_CLAIM_ENTITLEMENT
 
-        self.groups = user_infos.user_info.get(self.claim_groups, None)
+        self.groups = self.user_infos.user_info.get(self.claim_groups, None)
         if not isinstance(self.groups, list) or len(self.groups) < 2:
             raise FlaatException(
                 "CLAIM_GROUP must point to list of at least two groups"
             )
 
-        self.entitlements = user_infos.user_info.get(self.claim_entitlements, None)
+        self.entitlements = self.user_infos.user_info.get(self.claim_entitlements, None)
         if not isinstance(self.entitlements, list) or len(self.entitlements) < 2:
             raise FlaatException(
                 "CLAIM_ENTITLEMENT must point to list of at least two entitlements"
