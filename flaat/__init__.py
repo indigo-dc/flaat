@@ -182,37 +182,38 @@ class BaseFlaat(FlaatConfig):
         kwargs[key] = value
         return kwargs
 
-    def inject_user(
+    def inject_object(
         self,
-        infos_to_user: Callable[[UserInfos], Any],
-        key="user",
+        infos_to_object: Callable[[UserInfos], Any],
+        key="object",
         strict=True,
     ) -> Callable:
-        """Injects a user into a view function given a method to translate a UserInfos instance into the user
+        """Injects a object into a view function given a method to translate a UserInfos instance into the object.
+        This is useful for injecting user instances.
         If strict is set to True this decorator will fail when theire is nothing to inject
         """
 
-        def _inject_user(*args, **kwargs):
+        def _inject_object(*args, **kwargs):
             user_infos = self.authenticate_user(*args, **kwargs)
             if user_infos is None or user_infos.is_empty:
                 if strict:
                     raise FlaatUnauthenticated(
-                        "Needed user infos could not be retrieved"
+                        "Needed object infos could not be retrieved"
                     )
-                logger.debug("Unable to inject: No user infos")
+                logger.debug("Unable to inject: No object infos")
                 return kwargs
 
-            user = infos_to_user(user_infos)
-            kwargs = self._add_value_to_kwargs(kwargs, key, user)
+            obj = infos_to_object(user_infos)
+            kwargs = self._add_value_to_kwargs(kwargs, key, obj)
             return kwargs
 
         def decorator(view_func: Callable) -> Callable:
-            return self._wrap_view_func(view_func, process_kwargs=_inject_user)
+            return self._wrap_view_func(view_func, process_kwargs=_inject_object)
 
         return decorator
 
     def inject_user_infos(self, key="user_infos", strict=True) -> Callable:
-        return self.inject_user(infos_to_user=lambda info: info, key=key, strict=strict)
+        return self.inject_object(infos_to_object=lambda info: info, key=key, strict=strict)
 
     def _requirement_auth_disabled(self):
         return (
