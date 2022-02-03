@@ -24,21 +24,33 @@ CLAIM = "eduperson_entitlement"
 
 def test_invalid_aarc_entitlements():
     """two broken decorators which should fail at import time"""
+    flaat = BaseFlaat()
 
-    with pytest.raises(FlaatException):
-        HasAARCEntitlement(
+    def get_invalid_requirement(_):
+        return HasAARCEntitlement(
             required=INVALID_ENTITLEMENT,
             claim=CLAIM,
         )
 
     with pytest.raises(FlaatException):
-        HasAARCEntitlement(
-            required=[
-                INVALID_ENTITLEMENT,
-                VALID_ENTITLEMENT,
-            ],
-            claim=CLAIM,
+        flaat.requires(requirements=get_invalid_requirement(flaat))
+
+    with pytest.raises(FlaatException):
+        flaat.requires(
+            requirements=[
+                get_invalid_requirement(flaat),
+                get_invalid_requirement(flaat),
+            ]
         )
+
+    # lazy loading of entitlements -> no exception at import time
+    flaat.requires(get_invalid_requirement)
+    flaat.requires(
+        requirements=[
+            get_invalid_requirement,
+            get_invalid_requirement,
+        ]
+    )
 
 
 class RequirementsUser(User):

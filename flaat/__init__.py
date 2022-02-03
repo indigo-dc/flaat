@@ -3,6 +3,7 @@ Use decorators for authorising access to OIDC authenticated REST APIs.
 """
 # This code is distributed under the MIT License
 
+from __future__ import annotations
 from asyncio import iscoroutinefunction
 from functools import wraps
 import logging
@@ -223,15 +224,22 @@ class BaseFlaat(FlaatConfig):
 
     def requires(
         self,
-        requirements: Union[Requirement, List[Requirement]],
+        requirements: Union[
+            Union[Requirement, Callable[[BaseFlaat], Requirement]],
+            List[Union[Requirement, Callable[[BaseFlaat], Requirement]]],
+        ],
         on_failure: Optional[Callable] = None,
     ):
         def _user_has_authorization(user_infos: UserInfos) -> CheckResult:
-            reqs = []
-            if isinstance(requirements, list):
-                reqs = requirements
-            else:
-                reqs = [requirements]
+            _req_list = (
+                requirements if isinstance(requirements, list) else [requirements]
+            )
+
+            reqs: List[Requirement] = []
+            for req in _req_list:
+                if callable(req):
+                    req = req(self)
+                reqs.append(req)
 
             satisfied = True
             failure_messages = []
