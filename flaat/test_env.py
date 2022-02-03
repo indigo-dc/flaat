@@ -8,8 +8,7 @@ import liboidcagent
 
 from flaat import BaseFlaat
 from flaat.exceptions import FlaatException
-from flaat.requirements import HasAARCEntitlement, HasGroup, ValidLogin
-from flaat.user_infos import UserInfos
+from flaat.requirements import HasAARCEntitlement, HasGroup
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ config = {
 
 def _mandatory_env_var(name):
     val = config.get(name, "")
-    if val == "":
+    if val == "":  # pragma: no cover
         raise ValueError(f"Set '{name}' in environment or .env file")
 
     return val
@@ -32,7 +31,7 @@ OIDC_AGENT_ACCOUNT = _mandatory_env_var("OIDC_AGENT_ACCOUNT")
 FLAAT_AT = ""
 try:
     FLAAT_AT = liboidcagent.get_access_token(OIDC_AGENT_ACCOUNT)
-except liboidcagent.OidcAgentError as e:
+except liboidcagent.OidcAgentError as e:  # pragma: no cover
     raise FlaatException(f"Unable to load access token for testing: {e}") from e
 
 FLAAT_CLAIM_ENTITLEMENT = _mandatory_env_var("FLAAT_CLAIM_ENTITLEMENT")
@@ -56,9 +55,6 @@ class NamedDecorator:
     decorator: Callable
     status_code: Optional[int] = None  # expected status of this decorator
 
-    def __str__(self):
-        return self.name
-
     def get_expected_status_code(self, status_code: int):
         expected = status_code
         if status_code == 200 and self.status_code is not None:
@@ -80,7 +76,9 @@ class User:
         self.at = FLAAT_AT
         logger.debug("Fetching user infos for test_env")
         self.user_infos = self.flaat.get_user_infos_from_access_token(self.at)
-        if self.user_infos is None or self.user_infos.user_info is None:
+        if (
+            self.user_infos is None or self.user_infos.user_info is None
+        ):  # pragma: no cover
             raise FlaatException(
                 "Cannot run tests: could not fetch a userinfo with the access token"
             )
@@ -89,13 +87,17 @@ class User:
         self.claim_entitlements = FLAAT_CLAIM_ENTITLEMENT
 
         self.groups = self.user_infos.user_info.get(self.claim_groups, None)
-        if not isinstance(self.groups, list) or len(self.groups) < 2:
+        if (
+            not isinstance(self.groups, list) or len(self.groups) < 2
+        ):  # pragma: no cover
             raise FlaatException(
                 "CLAIM_GROUP must point to list of at least two groups"
             )
 
         self.entitlements = self.user_infos.user_info.get(self.claim_entitlements, None)
-        if not isinstance(self.entitlements, list) or len(self.entitlements) < 2:
+        if (
+            not isinstance(self.entitlements, list) or len(self.entitlements) < 2
+        ):  # pragma: no cover
             raise FlaatException(
                 "CLAIM_ENTITLEMENT must point to list of at least two entitlements"
             )
@@ -106,14 +108,6 @@ class User:
         def on_failure(exc):
             logger.info("TEST on_failure called")
             raise exc
-
-        # for inject_user
-        class User:
-            def __init__(self, user_infos: UserInfos):
-                self.user_infos = user_infos
-
-            def __str__(self) -> str:
-                return f"User {self.user_infos.subject} @ {self.user_infos.issuer}"
 
         decorators = [
             NamedDecorator(

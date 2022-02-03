@@ -6,7 +6,15 @@ import pytest
 
 from flaat import BaseFlaat
 from flaat.exceptions import FlaatException
-from flaat.requirements import HasAARCEntitlement, HasGroup, Requirement, ValidLogin
+from flaat.requirements import (
+    AllOf,
+    HasAARCEntitlement,
+    HasGroup,
+    N_Of,
+    OneOf,
+    Requirement,
+    ValidLogin,
+)
 from flaat.test_env import FLAAT_ISS, User
 
 INVALID_ENTITLEMENT = "foo-bar"
@@ -49,6 +57,10 @@ class RequirementsUser(User):
                     self.entitlements, claim=self.claim_entitlements, match=match
                 )
             )
+
+        self.requirements.append(AllOf(*self.requirements))
+        self.requirements.append(N_Of(2, *self.requirements))
+        self.requirements.append(OneOf(*self.requirements))
 
 
 @pytest.fixture

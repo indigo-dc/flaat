@@ -10,7 +10,7 @@ import os
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from flaat.access_tokens import AccessTokenInfo, get_access_token_info
-from flaat.config import FlaatConfig
+from flaat.config import OPS_THAT_SUPPORT_JWT, FlaatConfig
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.issuers import IssuerConfig
 from flaat.requirements import CheckResult, Requirement, ValidLogin
@@ -102,6 +102,10 @@ class BaseFlaat(FlaatConfig):
         logger.debug("Issuer could not be determined -> trying all trusted OPs")
         # TODO parallel would speed up things here
         for cached_config in self.issuer_config_cache:
+            # skip OPs that would have provided a JWT
+            if cached_config.issuer in OPS_THAT_SUPPORT_JWT:
+                continue
+
             user_infos = cached_config.get_user_infos(
                 access_token, access_token_info=access_token_info
             )

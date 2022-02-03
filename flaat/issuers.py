@@ -1,14 +1,11 @@
-"""Tools for token handling in FLAAT"""
 # This code is distributed under the MIT License
 
 from __future__ import annotations
 from base64 import b64encode
 import json
 import logging
-from queue import Empty, Queue
 import re
-from threading import Thread
-from typing import List, Optional
+from typing import Optional
 
 import requests
 
@@ -17,13 +14,9 @@ from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
 
-
-# Set defaults:
-verify_tls = True
-timeout = 1.2  # (seconds)
-num_request_workers = 10
-param_q = Queue(num_request_workers * 2)
-result_q = Queue(num_request_workers * 2)
+# Defaults for requests
+VERIFY_TLS = True
+TIMEOUT = 1.2  # (seconds)
 
 
 def is_url(string):
@@ -73,40 +66,14 @@ class IssuerConfig:
         logger.info("Fetching issuer config from: %s", config_url)
         try:
             resp = requests.get(
-                config_url, verify=verify_tls, headers=headers, timeout=timeout
+                config_url, verify=VERIFY_TLS, headers=headers, timeout=TIMEOUT
             )
-            if resp.status_code != 200:
-                logger.warning("Getconfig: resp: %s", resp.status_code)
-        except requests.exceptions.ConnectionError:
-            logger.warning("Cannot obtain iss_config from endpoint: %s", config_url)
-            return None
-        except requests.exceptions.ReadTimeout:
-            logger.warning(
-                "Timeout fetching issuer config from endpoint: %s", config_url
-            )
-            return None
-
-        try:
             issuer_config: dict = resp.json()
             return cls(issuer_config=issuer_config)
-        except requests.exceptions.JSONDecodeError:
-            logger.debug("URL did not return JSON: %s", url)
-            return None
 
-    @classmethod
-    def get_from_at(cls, access_token) -> Optional[IssuerConfig]:
-        """If there is an issuer in the AT, we fetch the ISS config and return it"""
-        at_info = access_tokens.get_access_token_info(access_token)
-        if at_info is None:
+        except requests.exceptions.RequestException as e:
+            logger.warning("Error fetching issuer config from %s: %s", config_url, e)
             return None
-
-        at_iss = at_info.issuer
-        logger.debug("Issuer: %s", at_iss)
-        if at_iss is None or not is_url(at_iss):
-            return None
-
-        config_url = at_iss + "/.well-known/openid-configuration"
-        return cls.get_from_url(config_url)
 
     @classmethod
     def get_from_string(cls, string: str) -> Optional[IssuerConfig]:
@@ -154,18 +121,28 @@ class IssuerConfig:
             return None
 
         logger.debug("Getting introspection from %s", introspection_endpoint)
-        resp = requests.post(
-            introspection_endpoint,
-            verify=verify_tls,
-            headers=headers,
-            data=post_data,
-            timeout=timeout,
-        )
-        if resp.status_code != 200:
-            logger.debug("Introspection response: %s - %s", resp.status_code, resp.text)
+        try:
+            resp = requests.post(
+                introspection_endpoint,
+                verify=VERIFY_TLS,
+                headers=headers,
+                data=post_data,
+                timeout=TIMEOUT,
+            )
+            resp_json = dict(resp.json())
+            logger.debug(
+                "Got Introspection from %s: %s",
+                introspection_endpoint,
+                json.dumps(resp_json, sort_keys=True, indent=4, separators=(",", ": ")),
+            )
+            return resp_json
+        except requests.exceptions.RequestException as e:
+            logger.warning(
+                "Error fetching introspection info from %s: %s",
+                introspection_endpoint,
+                e,
+            )
             return None
-
-        return dict(resp.json())
 
     def _get_user_info(self, access_token: str) -> Optional[dict]:
         """Query the userinfo endpoint, using the AT as authentication"""
@@ -173,43 +150,36 @@ class IssuerConfig:
         headers = {"Content-type": "application/x-www-form-urlencoded"}
         headers["Authorization"] = f"Bearer {access_token}"
         userinfo_endpoint = self.issuer_config.get("userinfo_endpoint", "")
-        logger.debug("Trying to get userinfo from %s", userinfo_endpoint)
+
         if userinfo_endpoint == "":
             return None
 
+        logger.debug("Trying to get userinfo from %s", userinfo_endpoint)
         try:
             resp = requests.get(
                 userinfo_endpoint,
-                verify=verify_tls,
+                verify=VERIFY_TLS,
                 headers=headers,
-                timeout=timeout,
+                timeout=TIMEOUT,
             )
-            if resp.status_code != 200:
-                logger.warning(
-                    "Failed to fetch userinfo from %s: %s / %s / %s\nHeaders was: %s\nTimeout: %s",
-                    userinfo_endpoint,
-                    resp.status_code,
-                    resp.text,
-                    resp.reason,
-                    headers,
-                    timeout,
-                )
-                return None
 
-            resp_json = resp.json()
+            resp_json = dict(resp.json())
             logger.debug(
                 "Got Userinfo from %s: %s",
                 userinfo_endpoint,
                 json.dumps(resp_json, sort_keys=True, indent=4, separators=(",", ": ")),
             )
+            if "error_description" in resp_json:
+                logger.warning(
+                    "Error fetching userinfo from %s: %s",
+                    userinfo_endpoint,
+                    resp_json["error_description"],
+                )
+                return None
             return resp_json
 
-        except requests.exceptions.ReadTimeout:
-            logger.warning(
-                "Timeout fetching userinfo from %s (timeout was %s)",
-                userinfo_endpoint,
-                timeout,
-            )
+        except requests.exceptions.RequestException as e:
+            logger.warning("Error fetching userinfo from %s: %s", userinfo_endpoint, e)
             return None
 
     def get_user_infos(self, access_token, access_token_info=None) -> UserInfos:
@@ -219,61 +189,3 @@ class IssuerConfig:
         introspection_info = self._get_introspected_token_info(access_token)
 
         return UserInfos(access_token_info, user_info, introspection_info)
-
-
-def thread_worker_issuerconfig():
-    """Thread worker"""
-    logger.debug("thread_worker_issuerconfig starting")
-
-    def safe_get(q):
-        try:
-            return q.get(timeout=5)
-        except Empty:
-            return None
-
-    while True:
-        item = safe_get(param_q)
-        if item is None:
-            break
-        result = IssuerConfig.get_from_url(item)
-        result_q.put(result)
-        param_q.task_done()
-        result_q.task_done()
-
-    logger.debug("thread_worker_issuerconfig stopping")
-
-
-def find_issuer_config_in_list(
-    op_list: List[str], op_hint=None, exclude_list: Optional[List[str]] = None
-) -> Optional[IssuerConfig]:
-    """find the hinted issuer in configured op_list"""
-    if exclude_list is None:
-        exclude_list = []
-
-    for _ in range(num_request_workers):
-        t = Thread(target=thread_worker_issuerconfig)
-        t.daemon = True
-        t.start()
-
-    if not op_list:
-        return None
-
-    for issuer in op_list:
-        if issuer in exclude_list:
-            logger.debug("skipping %s due to exclude list", issuer)
-            continue
-        issuer_wellknown = issuer + "/.well-known/openid-configuration"
-        if op_hint is None:
-            param_q.put(issuer_wellknown)
-        else:
-            if re.search(op_hint, issuer):
-                param_q.put(issuer_wellknown)
-    param_q.join()
-    result_q.join()
-    try:
-        while not result_q.empty():
-            entry = result_q.get(block=False, timeout=timeout)
-            if entry is not None:
-                return IssuerConfig(entry)
-    except Empty:
-        return None
