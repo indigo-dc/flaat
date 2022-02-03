@@ -168,7 +168,7 @@ class HasGroup(Requirement):
         for raw_ent in raw_list:
             parsed = self._parse(raw_ent)
             if parsed is None:
-                raise FlaatException(f"Can not parse entitelment: {raw_ent}")
+                raise FlaatException(f"Can not parse entitlement: '{raw_ent}'")
             parsed_list.append(parsed)
 
         return parsed_list
