@@ -2,7 +2,7 @@ from json import JSONEncoder
 import logging
 from typing import List, Optional
 
-from flaat.tokentools import AccessTokenInfo
+from flaat.access_tokens import AccessTokenInfo
 
 logger = logging.getLogger(__name__)
 

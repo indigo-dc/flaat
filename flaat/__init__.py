@@ -1,4 +1,4 @@
-"""FLAsk support for OIDC Access Tokens -- FLAAT.
+"""Python support for OIDC Access Tokens -- FLAAT.
 Use decorators for authorising access to OIDC authenticated REST APIs.
 """
 # This code is distributed under the MIT License
@@ -9,11 +9,11 @@ import logging
 import os
 from typing import Any, Callable, Dict, List, Optional, Union
 
+from flaat.access_tokens import AccessTokenInfo, get_access_token_info
 from flaat.config import FlaatConfig
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.issuers import IssuerConfig
 from flaat.requirements import CheckResult, Requirement
-from flaat.tokentools import AccessTokenInfo, get_access_token_info
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)

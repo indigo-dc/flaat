@@ -1,4 +1,3 @@
-"""Tools for FLAAT"""
 # This code is distributed under the MIT License
 
 import base64

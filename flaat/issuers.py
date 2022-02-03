@@ -12,7 +12,7 @@ from typing import List, Optional
 
 import requests
 
-from flaat import tokentools
+from flaat import access_tokens
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
@@ -96,7 +96,7 @@ class IssuerConfig:
     @classmethod
     def get_from_at(cls, access_token) -> Optional[IssuerConfig]:
         """If there is an issuer in the AT, we fetch the ISS config and return it"""
-        at_info = tokentools.get_access_token_info(access_token)
+        at_info = access_tokens.get_access_token_info(access_token)
         if at_info is None:
             return None
 
@@ -214,7 +214,7 @@ class IssuerConfig:
 
     def get_user_infos(self, access_token, access_token_info=None) -> UserInfos:
         if access_token_info is None:
-            access_token_info = tokentools.get_access_token_info(access_token)
+            access_token_info = access_tokens.get_access_token_info(access_token)
         user_info = self._get_user_info(access_token)
         introspection_info = self._get_introspected_token_info(access_token)
 
