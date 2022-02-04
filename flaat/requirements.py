@@ -1,3 +1,4 @@
+"""This module contains classes to express diverse requiremnts which a user needs to satisfy in order to use a view function"""
 from dataclasses import dataclass
 import json
 import logging
@@ -42,25 +43,48 @@ class CheckResult:
 
 
 class Requirement:
+    """Requirement is the base class of all requirements.
+    Requirement have a method `is_satisfied_by` which returns a `CheckResult` instance.
+    """
+
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         _ = user_infos
         return CheckResult(False, "method not overwritten")
 
+
+class Unsatisfiable(Requirement):
+    """Unsatisfiable is never satisfied"""
+
+    def is_satisfied_by(self, _):
+        return CheckResult(False, "Requirement is unsatisfiable")
+
+
 class IsTrue(Requirement):
-    """ wraps a function into an requirement"""
+    """IsTrue is satisfied if the provided func evaluates to True"""
+
     def __init__(self, func: Callable[[UserInfos], bool]):
         self.func = func
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
-        return CheckResult(self.func(user_infos), f"Evaluation of: {self.func.__name__}")
+        return CheckResult(
+            self.func(user_infos), f"Evaluation of: {self.func.__name__}"
+        )
 
 
-class AllOf(Requirement):
+class MetaRequirement(Requirement):
+    """MetaRequirement is a requirements consisting of multiple sub-requirements
+    Use the childs AllOf, OneOf or N_Of directly.
+    """
+
     def __init__(self, *reqs: Requirement):
         self.requirements = list(reqs)
 
     def add_requirement(self, req: Requirement):
         self.requirements.append(req)
+
+
+class AllOf(MetaRequirement):
+    """AllOf is satisfied if all of its sub-requirements are satisfied"""
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         satisfied = True
@@ -79,7 +103,9 @@ class AllOf(Requirement):
         return CheckResult(satisfied, message)
 
 
-class OneOf(AllOf):
+class OneOf(MetaRequirement):
+    """OneOf is satisfied if at least one of its sub-requirements are satisfied"""
+
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         satisfied = True
         message = "All sub-requirements are satisfied"
@@ -96,15 +122,13 @@ class OneOf(AllOf):
 
         return CheckResult(satisfied, message)
 
-class AnyOf(OneOf):
-    """ AnyOf is a requirement that is satisfied if any of its sub-requirements is satisfied"""
-    pass
 
+class N_Of(MetaRequirement):
+    """N_Of is satisfied if at least `n` of its sub requirements are satisfied"""
 
-class N_Of(Requirement):
     def __init__(self, n: int, *reqs: Requirement):
+        super().__init__(*reqs)
         self.n = n
-        self.requirements = reqs
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         failed_messages = []
@@ -121,11 +145,27 @@ class N_Of(Requirement):
 
         return CheckResult(
             False,
-            f"{n} of {self.n} sub requirments are satisfied: {failed_messages}",
+            f"Only {n} of {self.n} sub requirments were satisfied: {failed_messages}",
         )
 
 
+def match_to_meta_requirement(match: Union[str, int]) -> MetaRequirement:
+    """translates a match argument to meta requirements
+    Valid values are: "all", "one" or int"""
+
+    if match == "all":
+        return AllOf()
+    if match == "one":
+        return OneOf()
+    if isinstance(match, int):
+        return N_Of(match)
+
+    raise FlaatException("Argument 'match' has invalid value: Must be 'all' or int")
+
+
 class ValidLogin(Requirement):
+    """ValidLogin is satisfied if the user has a subject and an issuer"""
+
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         if user_infos is None:
             return CheckResult(False, "No valid user_infos found")
@@ -138,102 +178,152 @@ class ValidLogin(Requirement):
         return CheckResult(False, "user_infos have no subject / issuer")
 
 
-class HasGroup(Requirement):
-    def __init__(
-        self,
-        required: Union[str, List[str]],
-        claim: str,  # claim in the user info
-        match: Union[str, int] = "all",
-    ):
-        self.required = self._parse_all(required)
+class HasClaim(Requirement):
+    """HasClaim is satisfied if the user has the specified claim value"""
+
+    def __init__(self, required, claim: str, location="user_info"):
+        """
+        location describes, where the claim is looked up: ["user_info", "access_token"]
+        claim is the name of the claim
+        value is the value the claim needs to have
+        """
+        # try parsing the value, if it does not work revert to equal comparisons
+        self.use_parse = True
+        self.value = self.parse(required)
+        if self.value is None:
+            self.use_parse = False
+            self.value = required
+
         self.claim = claim
-        self.match = match
-        self.required_matches = self._determine_number_of_required_matches(
-            match,
-            self.required,
-        )
 
-    def _determine_number_of_required_matches(
-        self, match: Union[str, int], req_group_list: list
-    ) -> int:
-        """determine the number of required matches from parameters"""
+        valid_locations = ["user_info", "access_token"]
+        if location not in valid_locations:
+            raise ValueError(
+                f"HasClaim arg location needs to be one of: {valid_locations}"
+            )
+        self.location = location
 
-        if match == "all":
-            return len(req_group_list)
-
-        if isinstance(match, int):
-            return min(match, len(req_group_list))
-
-        raise FlaatException("Argument 'match' has invalid value: Must be 'all' or int")
-
-    def _compare(self, req, avail):
-        """possibly overwritten is subclass"""
-        return req == avail
-
-    def _parse(self, raw):
-        """possibly overwritten is subclass"""
-        return raw
-
-    def _parse_all(self, raw: Union[str, List[str]]) -> list:
-        """parses groups or entitlements"""
-
-        raw_list = ensure_is_list(raw)
-
-        parsed_list = []
-        for raw_ent in raw_list:
-            parsed = self._parse(raw_ent)
-            if parsed is None:
-                raise FlaatException(f"Can not parse entitlement: '{raw_ent}'")
-            parsed_list.append(parsed)
-
-        return parsed_list
-
-    def _get_effective_entitlements_from_claim(
-        self, user_infos: UserInfos, claim: str
-    ) -> Optional[List[str]]:
+    def _get_override_claims(self) -> Optional[dict]:
         override_entitlement_entries = check_environment_for_override(
             "DISABLE_AUTHENTICATION_AND_ASSUME_ENTITLEMENTS"
         )
         if override_entitlement_entries is not None:
             logger.info("Using entitlement override: %s", override_entitlement_entries)
-            return override_entitlement_entries
+            return {self.claim: override_entitlement_entries}
 
-        return user_infos.get_entitlements_from_claim(claim)
+        return None
+
+    def _get_claim_dict(self, user_infos: UserInfos) -> Optional[dict]:
+        override_claims = self._get_override_claims()
+        if override_claims is not None:
+            return override_claims
+
+        claim_dict = None
+        if self.location == "user_info" and user_infos.user_info is not None:
+            claim_dict = user_infos.user_info
+        elif (
+            self.location == "access_token" and user_infos.access_token_info is not None
+        ):
+            claim_dict = user_infos.access_token_info.body
+        return claim_dict
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
-        avail_raw = self._get_effective_entitlements_from_claim(user_infos, self.claim)
-        if avail_raw is None:
-            return CheckResult(False, "Claim not found")
-
-        avail_parsed = self._parse_all(avail_raw)
-
-        logger.debug("Required: %s - Available: %s", self.required, avail_parsed)
-        matches_found = 0
-        for req in self.required:
-            for avail in avail_parsed:
-                if self._compare(req, avail):
-                    matches_found += 1
-
-        logger.info("Found %d of %d matches", matches_found, self.required_matches)
-
-        if matches_found < self.required_matches:
+        claim_dict = self._get_claim_dict(user_infos)
+        if claim_dict is None:
             return CheckResult(
-                False,
-                f"Found only {matches_found} of {self.required_matches} matches",
+                False, f"Claim location '{self.location}' does not exist in user_infos"
             )
 
-        return CheckResult(True, "Enough matches found")
+        value = claim_dict.get(self.claim, None)
+        if value is None:
+            return CheckResult(False, f"Claim '{self.claim}' is not available")
+
+        matched = False
+        matched_value = None
+        if isinstance(value, list):
+            for val in value:
+                if self.matches(self.value, self.parse(val)):
+                    matched_value = val
+                    matched = True
+                    break
+
+        if not matched:
+            return CheckResult(
+                False,
+                f"No match for the required value '{self.value}' of claim '{self.claim}'",
+            )
+
+        return CheckResult(
+            True,
+            f"Match for the required value '{self.value}' of claim '{self.claim}': '{matched_value}'",
+        )
+
+    def _parse(self, raw):
+        """_parse can be overwritten by subclasses"""
+        return raw
+
+    def parse(self, raw):
+        if self.use_parse:
+            return self._parse(raw)
+        return raw
+
+    def _matches(self, required, available) -> bool:
+        """_matches can be overwritten by subclasses"""
+        return required == available
+
+    def matches(self, required, available) -> bool:
+        if self.use_parse:
+            return self._matches(required, available)
+        return required == available
 
 
-class HasAARCEntitlement(HasGroup):
+class HasAARCEntitlement(HasClaim):
+    """HasAARCEntitlement is satisfies if the user has the provided AARC-G002/G069 entitlement
+    If the argument `required` is not a parseable AARC entitlement, we revert to equals comparisons.
+    """
+
     def _parse(self, raw: str):
         try:
             return aarc_entitlement.G069(raw)
         except aarc_entitlement.Error as e:
-            logger.error("Error parsing aarc entitlement: %s", e)
+            logger.debug("Error parsing aarc entitlement: %s", e)
             return None
 
-    def _compare(
-        self, req: aarc_entitlement.Base, avail: aarc_entitlement.Base
+    def _matches(
+        self, required: aarc_entitlement.Base, available: aarc_entitlement.Base
     ) -> bool:
-        return avail.satisfies(req)
+        return available.satisfies(required)
+
+
+def get_claim_requirement(
+    required: Union[str, List[str]],
+    claim: str,  # claim in the user info
+    match: Union[str, int] = "all",
+    claim_requirement_class=HasClaim,
+) -> Requirement:
+    """get_claim_requirement returns a requirement that is satisfied if the user has the claim value(s) of `required`.
+    Depending on the `match` argument all or a specific number of values are required to be matched.
+
+    If the claim values need specific handling, claim_requirement_class can be used to specify, a class
+    for the handling, see `get_vo_requirement`)
+    """
+    if isinstance(required, list):
+        requirement = match_to_meta_requirement(match)
+
+        for req in required:
+            requirement.add_requirement(claim_requirement_class(req, claim=claim))
+    else:
+        requirement = claim_requirement_class(required, claim=claim)
+
+    return requirement
+
+
+def get_vo_requirement(
+    required: Union[str, List[str]],
+    claim: str,  # claim in the user info
+    match: Union[str, int] = "all",
+) -> Requirement:
+    """Equivalent to `get_claim_requirement`, but works for both groups and AARC entitlements"""
+    return get_claim_requirement(
+        required, claim, match, claim_requirement_class=HasAARCEntitlement
+    )

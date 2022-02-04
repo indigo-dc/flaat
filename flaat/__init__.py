@@ -258,8 +258,9 @@ class BaseFlaat(FlaatConfig):
             if satisfied:
                 return CheckResult(True, "")
 
+            failure_message = "\n".join(failure_messages)
             return CheckResult(
-                False, f"User does not meet requirements: {failure_messages}"
+                False, f"User does not meet requirements: {failure_message}"
             )
 
         def _authenticate(*args, **kwargs):

@@ -1,56 +1,27 @@
 # pylint: disable=redefined-outer-name
 
+import json
+import os
 from typing import List
 
 import pytest
 
 from flaat import BaseFlaat
-from flaat.exceptions import FlaatException
 from flaat.requirements import (
     AllOf,
-    HasAARCEntitlement,
-    HasGroup,
+    HasClaim,
     N_Of,
     OneOf,
     Requirement,
     ValidLogin,
+    get_claim_requirement,
+    get_vo_requirement,
 )
 from flaat.test_env import FLAAT_ISS, User
 
 INVALID_ENTITLEMENT = "foo-bar"
 VALID_ENTITLEMENT = "urn:mace:egi.eu:group:eosc-synergy.eu:role=member#aai.egi.eu"
 CLAIM = "eduperson_entitlement"
-
-
-def test_invalid_aarc_entitlements():
-    """two broken decorators which should fail at import time"""
-    flaat = BaseFlaat()
-
-    def get_invalid_requirement():
-        return HasAARCEntitlement(
-            required=INVALID_ENTITLEMENT,
-            claim=CLAIM,
-        )
-
-    with pytest.raises(FlaatException):
-        flaat.requires(requirements=get_invalid_requirement())
-
-    with pytest.raises(FlaatException):
-        flaat.requires(
-            requirements=[
-                get_invalid_requirement(),
-                get_invalid_requirement(),
-            ]
-        )
-
-    # lazy loading of entitlements -> no exception at import time
-    flaat.requires(get_invalid_requirement)
-    flaat.requires(
-        requirements=[
-            get_invalid_requirement,
-            get_invalid_requirement,
-        ]
-    )
 
 
 class RequirementsUser(User):
@@ -62,10 +33,10 @@ class RequirementsUser(User):
         self.requirements: List[Requirement] = [ValidLogin()]
         for match in [1, "all"]:
             self.requirements.append(
-                HasGroup(self.groups, claim=self.claim_groups, match=match)
+                get_claim_requirement(self.groups, claim=self.claim_groups, match=match)
             )
             self.requirements.append(
-                HasAARCEntitlement(
+                get_vo_requirement(
                     self.entitlements, claim=self.claim_entitlements, match=match
                 )
             )
@@ -86,3 +57,10 @@ def test_possible_requirements_success(user):
 
     for req in user.requirements:
         assert req.is_satisfied_by(user.user_infos)
+
+
+def test_claim_override(user):
+    req = HasClaim("bar", "foo")
+    assert not req.is_satisfied_by(user.user_infos).is_satisfied
+    os.environ["DISABLE_AUTHENTICATION_AND_ASSUME_ENTITLEMENTS"] = json.dumps(["bar"])
+    assert req.is_satisfied_by(user.user_infos).is_satisfied

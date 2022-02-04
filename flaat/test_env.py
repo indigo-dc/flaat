@@ -8,7 +8,7 @@ import liboidcagent
 
 from flaat import BaseFlaat
 from flaat.exceptions import FlaatException
-from flaat.requirements import HasAARCEntitlement, HasGroup
+from flaat.requirements import HasClaim, get_claim_requirement, get_vo_requirement
 
 logger = logging.getLogger(__name__)
 
@@ -124,15 +124,15 @@ class User:
                 "requires-GroupAndEntitlement",
                 self.flaat.requires(
                     [
-                        HasGroup(self.groups, self.claim_groups),
-                        HasAARCEntitlement(self.entitlements, self.claim_entitlements),
+                        get_claim_requirement(self.groups, self.claim_groups),
+                        get_vo_requirement(self.entitlements, self.claim_entitlements),
                     ],
                 ),
             ),  # multiple reqs
             NamedDecorator(
                 "requires-forbidden",
                 self.flaat.requires(
-                    HasGroup("group_that_does_not_exist", self.claim_groups),
+                    HasClaim("group_that_does_not_exist", self.claim_groups),
                 ),
                 status_code=403,
             ),  # this must cause forbidden
