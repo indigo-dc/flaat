@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import json
 import logging
 import os
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 import aarc_entitlement
 
@@ -46,10 +46,21 @@ class Requirement:
         _ = user_infos
         return CheckResult(False, "method not overwritten")
 
+class IsTrue(Requirement):
+    """ wraps a function into an requirement"""
+    def __init__(self, func: Callable[[UserInfos], bool]):
+        self.func = func
+
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+        return CheckResult(self.func(user_infos), f"Evaluation of: {self.func.__name__}")
+
 
 class AllOf(Requirement):
     def __init__(self, *reqs: Requirement):
-        self.requirements = reqs
+        self.requirements = list(reqs)
+
+    def add_requirement(self, req: Requirement):
+        self.requirements.append(req)
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         satisfied = True
@@ -84,6 +95,10 @@ class OneOf(AllOf):
             message = f"No sub-requirements are satisfied: {failed_messages}"
 
         return CheckResult(satisfied, message)
+
+class AnyOf(OneOf):
+    """ AnyOf is a requirement that is satisfied if any of its sub-requirements is satisfied"""
+    pass
 
 
 class N_Of(Requirement):
