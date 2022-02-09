@@ -182,10 +182,16 @@ class IssuerConfig:
             logger.warning("Error fetching userinfo from %s: %s", userinfo_endpoint, e)
             return None
 
-    def get_user_infos(self, access_token, access_token_info=None) -> UserInfos:
+    def get_user_infos(
+        self, access_token, access_token_info=None
+    ) -> Optional[UserInfos]:
+        user_info = self._get_user_info(access_token)
+        if user_info is None:
+            return None
+
         if access_token_info is None:
             access_token_info = access_tokens.get_access_token_info(access_token)
-        user_info = self._get_user_info(access_token)
+
         introspection_info = self._get_introspected_token_info(access_token)
 
         return UserInfos(access_token_info, user_info, introspection_info)

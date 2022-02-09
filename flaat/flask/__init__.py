@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class Flaat(BaseFlaat):
-    def _map_exception(self, exception: FlaatException):
+    def map_exception(self, exception: FlaatException):
         framework_exception = InternalServerError
 
         if isinstance(exception, FlaatForbidden):

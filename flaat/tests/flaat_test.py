@@ -9,7 +9,7 @@ def test_success():
     flaat = BaseFlaat()
     flaat.set_trusted_OP_list([FLAAT_ISS])
     info = flaat.get_user_infos_from_access_token(FLAAT_AT)
-    assert info is not None and not info.is_empty
+    assert info is not None
 
 
 def test_untrusted():
@@ -30,7 +30,7 @@ def test_set_iss():
     # correct issuer
     flaat.set_issuer(FLAAT_ISS)
     info = flaat.get_user_infos_from_access_token(FLAAT_AT)
-    assert info is not None and not info.is_empty
+    assert info is not None
 
     # setting invalid issuer
     flaat.set_issuer("https://another.issuer")

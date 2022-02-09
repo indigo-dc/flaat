@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from fastapi import HTTPException, Request
@@ -10,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class Flaat(BaseFlaat):
-    def _map_exception(self, exception):
+    def map_exception(self, exception: FlaatException):
         framework_exception = HTTPException
         status_code = 500
 
@@ -27,8 +26,7 @@ class Flaat(BaseFlaat):
             status_code=status_code, detail=message
         ) from exception
 
-    # FIXME this is probably broken: kwargs and args are
-    def _get_request(self, *args, **kwargs):
+    def _get_request(self, *_, **kwargs):
         if "request" not in kwargs:
             raise FlaatException("No request parameter in view function!")
 

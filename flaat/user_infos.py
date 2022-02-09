@@ -10,15 +10,15 @@ logger = logging.getLogger(__name__)
 class UserInfos:
     """Infos represents infos about an access token and the user it belongs to"""
 
+    user_info: dict
     access_token_info: Optional[AccessTokenInfo]
-    user_info: Optional[dict]
     introspection_info: Optional[dict]
     valid_for_secs: int = -1
 
     def __init__(
         self,
         access_token_info: Optional[AccessTokenInfo],
-        user_info: Optional[dict],
+        user_info: dict,
         introspection_info: Optional[dict],
     ):
         self.access_token_info = access_token_info
@@ -27,15 +27,6 @@ class UserInfos:
 
         self.user_info = user_info
         self.introspection_info = introspection_info
-
-    @property
-    def is_empty(self):
-        """is_empty is true if this instance contains no usefull information"""
-        return (
-            self.access_token_info is None
-            and self.user_info is None
-            and self.introspection_info is None
-        )
 
     @property
     def issuer(self) -> str:
@@ -48,6 +39,9 @@ class UserInfos:
         if self.user_info is not None:
             return self.user_info.get("sub", "")
         return ""
+
+    def __str__(self):
+        return f"{self.subject}@{self.issuer}"
 
     def toJSON(self):
         class ATEncoder(JSONEncoder):

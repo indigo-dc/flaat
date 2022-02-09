@@ -12,12 +12,8 @@ from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
 
-
-def ensure_is_list(item: Union[list, str]) -> List[str]:
-    """Make sure we have a list"""
-    if isinstance(item, str):
-        return [item]
-    return item
+# USER_INFOS is the type for user infos that are checked against requirements
+USER_INFOS = Optional[UserInfos]
 
 
 def check_environment_for_override(env_key):
@@ -27,7 +23,7 @@ def check_environment_for_override(env_key):
         if env_val is not None:
             avail_entitlement_entries = json.loads(env_val)
             return avail_entitlement_entries
-    except (TypeError, json.JSONDecodeError) as e:
+    except (TypeError, json.JSONDecodeError) as e:  # pragma: no cover
         logger.error(
             "Cannot decode JSON group list from the environment: %s\n%s", env_val, e
         )
@@ -47,9 +43,16 @@ class Requirement:
     Requirement have a method `is_satisfied_by` which returns a `CheckResult` instance.
     """
 
-    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
         _ = user_infos
         return CheckResult(False, "method not overwritten")
+
+
+class Satisfied(Requirement):
+    """Satisfied is always satisfied"""
+
+    def is_satisfied_by(self, _):
+        return CheckResult(True, "Requirement is always satisfied")
 
 
 class Unsatisfiable(Requirement):
@@ -62,10 +65,10 @@ class Unsatisfiable(Requirement):
 class IsTrue(Requirement):
     """IsTrue is satisfied if the provided func evaluates to True"""
 
-    def __init__(self, func: Callable[[UserInfos], bool]):
+    def __init__(self, func: Callable[[USER_INFOS], bool]):
         self.func = func
 
-    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
         return CheckResult(
             self.func(user_infos), f"Evaluation of: {self.func.__name__}"
         )
@@ -86,7 +89,7 @@ class MetaRequirement(Requirement):
 class AllOf(MetaRequirement):
     """AllOf is satisfied if all of its sub-requirements are satisfied"""
 
-    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
         satisfied = True
         message = "All sub-requirements are satisfied"
         failed_messages = []
@@ -106,7 +109,7 @@ class AllOf(MetaRequirement):
 class OneOf(MetaRequirement):
     """OneOf is satisfied if at least one of its sub-requirements are satisfied"""
 
-    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
         satisfied = True
         message = "All sub-requirements are satisfied"
         failed_messages = []
@@ -130,7 +133,7 @@ class N_Of(MetaRequirement):
         super().__init__(*reqs)
         self.n = n
 
-    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
         failed_messages = []
         n = 0
         for req in self.requirements:
@@ -163,10 +166,10 @@ def match_to_meta_requirement(match: Union[str, int]) -> MetaRequirement:
     raise FlaatException("Argument 'match' has invalid value: Must be 'all' or int")
 
 
-class ValidLogin(Requirement):
-    """ValidLogin is satisfied if the user has a subject and an issuer"""
+class HasSubIss(Requirement):
+    """HasSubIss is satisfied if the user has a subject and an issuer"""
 
-    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
         if user_infos is None:
             return CheckResult(False, "No valid user_infos found")
 
@@ -213,7 +216,10 @@ class HasClaim(Requirement):
 
         return None
 
-    def _get_claim_dict(self, user_infos: UserInfos) -> Optional[dict]:
+    def _get_claim_dict(self, user_infos: USER_INFOS) -> Optional[dict]:
+        if user_infos is None:
+            return None
+
         override_claims = self._get_override_claims()
         if override_claims is not None:
             return override_claims
@@ -227,7 +233,7 @@ class HasClaim(Requirement):
             claim_dict = user_infos.access_token_info.body
         return claim_dict
 
-    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
         claim_dict = self._get_claim_dict(user_infos)
         if claim_dict is None:
             return CheckResult(
@@ -327,3 +333,9 @@ def get_vo_requirement(
     return get_claim_requirement(
         required, claim, match, claim_requirement_class=HasAARCEntitlement
     )
+
+
+# REQUIREMENT is the type of requirements, either lazy or not
+REQUIREMENT = Union[Requirement, Callable[[], Requirement]]
+
+REQUEST_REQUIREMENT = Callable[[UserInfos, tuple, dict], CheckResult]

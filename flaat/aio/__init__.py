@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class Flaat(BaseFlaat):
-    def _map_exception(self, exception):
+    def map_exception(self, exception: FlaatException):
         framework_exception = HTTPServerError
 
         if isinstance(exception, FlaatUnauthenticated):

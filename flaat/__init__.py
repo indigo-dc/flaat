@@ -5,19 +5,54 @@ Use decorators for authorising access to OIDC authenticated REST APIs.
 
 from __future__ import annotations
 from asyncio import iscoroutinefunction
+from dataclasses import dataclass
 from functools import wraps
 import logging
 import os
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, NoReturn, Optional, Tuple, Union
 
 from flaat.access_tokens import AccessTokenInfo, get_access_token_info
-from flaat.config import OPS_THAT_SUPPORT_JWT, FlaatConfig
+from flaat.config import FlaatConfig, OPS_THAT_SUPPORT_JWT
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.issuers import IssuerConfig
-from flaat.requirements import CheckResult, Requirement, ValidLogin
+from flaat.requirements import (
+    CheckResult,
+    HasSubIss,
+    Requirement,
+    Satisfied,
+    Unsatisfiable,
+    REQUIREMENT,
+    REQUEST_REQUIREMENT,
+)
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
+
+# MAP_EXCEPTION is the type for self.map_exception
+# It map our exceptions to framework specific or custom exceptions
+MAP_EXCEPTION = Callable[[FlaatException], NoReturn]
+
+# ON_FAILURE is the type for on_failure functions
+# these are called in place of a view function, if the authentication process resulted in an error
+# on_failure functions may raise a framework specific exception, or return a valid response for the respective framework.
+ON_FAILURE = Callable[[FlaatException, Optional[UserInfos]], Union[Any, NoReturn]]
+
+
+@dataclass
+class AccessLevel:
+    name: str
+    requirement: REQUIREMENT
+
+
+Anyone = AccessLevel("ANYONE", Satisfied())
+NoOne = AccessLevel("NOONE", Unsatisfiable())
+Identified = AccessLevel("IDENTIFIED", HasSubIss())
+
+DEFAULT_ACCESS_LEVELS = [
+    Anyone,
+    NoOne,
+    Identified,
+]
 
 
 class BaseFlaat(FlaatConfig):
@@ -26,7 +61,12 @@ class BaseFlaat(FlaatConfig):
 
     def __init__(self):
         super().__init__()
-        self.accesstoken_issuer_cache: Dict[str, str] = {}  # maps accesstoken to issuer
+        self._accesstoken_issuer_cache: Dict[
+            str, str
+        ] = {}  # maps accesstoken to issuer
+
+        # access levels for the self.access_level decorator
+        self.access_levels = DEFAULT_ACCESS_LEVELS
 
     # SUBCLASS STUBS
     def _get_request(self, *args, **kwargs):  # pragma: no cover
@@ -36,8 +76,8 @@ class BaseFlaat(FlaatConfig):
         _ = kwargs
         return {}
 
-    def _map_exception(self, exception: FlaatException):  # pragma: no cover
-        _ = exception
+    def map_exception(self, exception: FlaatException) -> NoReturn:  # pragma: no cover
+        raise exception
 
     def get_access_token_from_request(self, request) -> str:  # pragma: no cover
         """Helper function to obtain the OIDC AT from the flask request variable"""
@@ -79,9 +119,9 @@ class BaseFlaat(FlaatConfig):
                 return iss_config
 
         # 2: Try AT -> Issuer cache
-        if access_token in self.accesstoken_issuer_cache:
+        if access_token in self._accesstoken_issuer_cache:
             logger.debug("Cache hit for access_token")
-            issuer = self.accesstoken_issuer_cache[access_token]
+            issuer = self._accesstoken_issuer_cache[access_token]
 
             iss_config = self.issuer_config_cache.get(issuer)
             if iss_config is None:
@@ -112,108 +152,58 @@ class BaseFlaat(FlaatConfig):
             )
             if user_infos is not None:
                 logger.debug("Found issuer for access token: %s", cached_config.issuer)
-                self.accesstoken_issuer_cache[access_token] = cached_config.issuer
+                self._accesstoken_issuer_cache[access_token] = cached_config.issuer
                 return user_infos
 
         return None
 
     def get_user_infos_from_request(self, request_object) -> Optional[UserInfos]:
-        try:
-            access_token = self.get_access_token_from_request(request_object)
-            user_infos = self.get_user_infos_from_access_token(access_token)
-            if user_infos is None:
-                raise FlaatUnauthenticated("Unable to retrieve user infos")
-
-            return user_infos
-        except FlaatException as e:
-            return self._map_exception(e)
+        access_token = self.get_access_token_from_request(request_object)
+        user_infos = self.get_user_infos_from_access_token(access_token)
+        return user_infos
 
     def authenticate_user(self, *args, **kwargs) -> Optional[UserInfos]:
         """authenticate user needs the same arguments as the view_func it is called from."""
-
         request_object = self._get_request(*args, **kwargs)
-        return self.get_user_infos_from_request(request_object)
-
-    def _wrap_view_func(
-        self,
-        view_func: Callable,
-        process_kwargs: Callable[[tuple, dict], dict],
-        handle_exception=None,
-    ) -> Callable:
-        def _handle_exception(self, e):
-            if handle_exception is not None:
-                logger.debug("Passing exception to provided handler: %s", e)
-                try:
-                    return handle_exception(e)
-                except FlaatException as exc:
-                    return self._map_exception(exc)
-
-            return self._map_exception(e)
-
-        def _process_kwargs(*args, **kwargs):
-            try:
-                return process_kwargs(*args, **kwargs)
-            except FlaatException as e:
-                _handle_exception(self, e)
-                return kwargs
-
-        @wraps(view_func)
-        def wrapper(*args, **kwargs):
-            logger.debug("wrapper: view_func args=%s kwargs=%s", args, kwargs)
-            kwargs = _process_kwargs(*args, **kwargs)
-            return view_func(*args, **kwargs)
-
-        @wraps(view_func)
-        async def async_wrapper(*args, **kwargs):
-            kwargs = _process_kwargs(*args, **kwargs)
-            logger.debug("async_wrapper: view_func args=%s kwargs=%s", args, kwargs)
-            return await view_func(*args, **kwargs)
-
-        if iscoroutinefunction(view_func):
-            return async_wrapper
-
-        return wrapper
-
-    @staticmethod
-    def _add_value_to_kwargs(kwargs, key, value):
-        if key in kwargs:
-            logger.warning("Overwriting already existing kwarg: %s", kwargs[key])
-
-        kwargs[key] = value
-        return kwargs
+        user_infos = self.get_user_infos_from_request(request_object)
+        return user_infos
 
     def inject_object(
         self,
-        infos_to_object: Callable[[UserInfos], Any],
+        infos_to_object: Optional[Callable[[UserInfos], Any]] = None,
         key="object",
         strict=True,
     ) -> Callable:
         """Injects a object into a view function given a method to translate a UserInfos instance into the object.
         This is useful for injecting user instances.
-        If strict is set to True this decorator will fail when theire is nothing to inject
+        If `strict` is set to True this decorator will fail when there is nothing to inject
         """
 
-        def _inject_object(*args, **kwargs):
-            user_infos = self.authenticate_user(*args, **kwargs)
-            if user_infos is None or user_infos.is_empty:
-                if strict:
-                    raise FlaatUnauthenticated(
-                        "Needed object infos could not be retrieved"
-                    )
-                logger.debug("Unable to inject: No object infos")
-                return kwargs
+        def _add_value_to_kwargs(kwargs: dict, key: str, value) -> dict:
+            if key in kwargs:
+                logger.warning("Overwriting already existing kwarg: %s", kwargs[key])
 
-            obj = infos_to_object(user_infos)
-            kwargs = self._add_value_to_kwargs(kwargs, key, obj)
+            kwargs[key] = value
             return kwargs
 
-        def decorator(view_func: Callable) -> Callable:
-            return self._wrap_view_func(view_func, process_kwargs=_inject_object)
+        def _infos_to_object(user_infos: UserInfos):
+            if infos_to_object is not None:
+                return infos_to_object(user_infos)
+            return user_infos
 
-        return decorator
+        def _inject_object(
+            user_infos: UserInfos, *args, **kwargs
+        ) -> Tuple[tuple, dict]:
+            obj = _infos_to_object(user_infos)
+            kwargs = _add_value_to_kwargs(kwargs, key, obj)
+            return (args, kwargs)
+
+        return AuthWorkflow(
+            self, process_arguments=_inject_object, ignore_no_authn=(not strict)
+        ).decorate_view_func
 
     def inject_user_infos(self, key="user_infos", strict=True) -> Callable:
-        return self.inject_object(infos_to_object=lambda info: info, key=key, strict=strict)
+        return self.inject_object(key=key, strict=strict)
 
     def _requirement_auth_disabled(self):
         return (
@@ -225,64 +215,220 @@ class BaseFlaat(FlaatConfig):
 
     def requires(
         self,
-        requirements: Union[
-            Union[Requirement, Callable[[], Requirement]],
-            List[Union[Requirement, Callable[[], Requirement]]],
-        ],
-        on_failure: Optional[Callable] = None,
+        requirements: Union[REQUIREMENT, List[REQUIREMENT]],
+        on_failure: Optional[ON_FAILURE] = None,
     ):
         """returns decorator that only allows users, which fit the requirements
         If the requirements are callables, they are evaluated at runtime of the view_func,
         not at import time.
         """
+        return AuthWorkflow(
+            self, user_requirements=requirements, on_failure=on_failure
+        ).decorate_view_func
 
-        def _user_has_authorization(user_infos: UserInfos) -> CheckResult:
-            _req_list = (
-                requirements if isinstance(requirements, list) else [requirements]
+    def _get_access_level_requirement(self, access_level_name: str) -> Requirement:
+        requirement = None
+        for level in self.access_levels:
+            if level.name == access_level_name:
+                requirement = level.requirement
+                break
+
+        if requirement is None:
+            raise FlaatException(
+                f"Access level name '{access_level_name}' not found. Configure in 'access_levels'"
             )
 
-            reqs: List[Requirement] = []
-            for req in _req_list:
-                if callable(req):
-                    req = req()
-                reqs.append(req)
+        if callable(requirement):
+            # we already get lazy evaluated. So we don't stack levels of lazyness here
+            return requirement()
 
-            satisfied = True
-            failure_messages = []
-            for req in reqs:
-                check_result = req.is_satisfied_by(user_infos)
-                if not check_result.is_satisfied:
-                    failure_messages.append(check_result.message)
-                    satisfied = False
+        return requirement
 
-            if satisfied:
-                return CheckResult(True, "")
+    def access_level(
+        self, access_level_name: str, on_failure: Optional[ON_FAILURE] = None
+    ):
+        """access_level only allows users which fit the requirement of the given access level.
+        The requirements are specified in self.access_level_requirement
+        """
 
-            failure_message = "\n".join(failure_messages)
-            return CheckResult(
-                False, f"User does not meet requirements: {failure_message}"
+        return self.requires(
+            self._get_access_level_requirement(access_level_name), on_failure=on_failure
+        )
+
+
+class AuthWorkflow:
+    """
+    Encapsulate the complete workflow of a decorator
+    - authenticating the users
+    - checking its authorization
+    - checking the request parameters against the authorization
+    - ...
+    """
+
+    def __init__(
+        self,
+        flaat: BaseFlaat,
+        user_requirements: Union[REQUIREMENT, List[REQUIREMENT]] = None,
+        request_requirements: Union[
+            REQUEST_REQUIREMENT, List[REQUEST_REQUIREMENT]
+        ] = None,
+        process_arguments: Callable[
+            [UserInfos, tuple, dict], Tuple[tuple, dict]
+        ] = None,
+        on_failure: Callable[
+            [FlaatException, Optional[UserInfos]], Union[Any, NoReturn]
+        ] = None,
+        ignore_no_authn=False,
+    ):
+        self.flaat = flaat
+        self.user_requirements = (
+            user_requirements if user_requirements is not None else []
+        )
+        self.request_requirements = (
+            request_requirements if request_requirements is not None else []
+        )
+        self._process_arguments = process_arguments
+        self.on_failure = on_failure
+        self.ignore_no_authn = ignore_no_authn
+
+    def authenticate_user(self, *args, **kwargs) -> Optional[UserInfos]:
+        return self.flaat.authenticate_user(*args, **kwargs)
+
+    def check_user_authorization(self, user_infos: UserInfos) -> CheckResult:
+        reqs = []
+        for req in (
+            self.user_requirements
+            if isinstance(self.user_requirements, list)
+            else [self.user_requirements]
+        ):
+            reqs.append(req() if callable(req) else req)
+
+        satisfied = True
+        failure_messages = []
+        for req in reqs:
+            check_result = req.is_satisfied_by(user_infos)
+            if not check_result.is_satisfied:
+                failure_messages.append(check_result.message)
+                satisfied = False
+
+        if satisfied:
+            return CheckResult(True, "")
+
+        failure_message = "\n".join(failure_messages)
+        return CheckResult(
+            False, f"User {user_infos} does not meet requirements: {failure_message}"
+        )
+
+    def check_request_authorization(
+        self, user_infos: UserInfos, *args, **kwargs
+    ) -> CheckResult:
+        satisfied = True
+        failure_messages = []
+        for req in (
+            self.request_requirements
+            if isinstance(self.request_requirements, list)
+            else [self.request_requirements]
+        ):
+            check_result = req(user_infos, *args, **kwargs)
+            if not check_result.is_satisfied:
+                failure_messages.append(check_result.message)
+                satisfied = False
+
+        if satisfied:
+            return CheckResult(True, "")
+
+        failure_message = "\n".join(failure_messages)
+        return CheckResult(
+            False,
+            f"Request from user {user_infos} does not meet requirements: {failure_message}",
+        )
+
+    def handle_failure(
+        self, exception: FlaatException, user_infos: Optional[UserInfos]
+    ) -> Union[Any, NoReturn]:
+        if self.on_failure is not None:
+            try:
+                return self.on_failure(exception, user_infos)
+            except FlaatException as e:
+                return self.flaat.map_exception(e)
+
+        return self.flaat.map_exception(exception)
+
+    def handle_no_user_authentication(self, message) -> Union[Any, NoReturn]:
+        self.handle_failure(FlaatUnauthenticated(message), None)
+
+    def handle_no_user_authorization(
+        self, message, user_infos: UserInfos
+    ) -> Union[Any, NoReturn]:
+        self.handle_failure(FlaatForbidden(message), user_infos)
+
+    def handle_no_request_authorization(
+        self, message, user_infos: UserInfos
+    ) -> Union[Any, NoReturn]:
+        self.handle_failure(FlaatForbidden(message), user_infos)
+
+    def process_arguments(
+        self, user_infos: UserInfos, *args, **kwargs
+    ) -> Tuple[tuple, dict]:
+        if self._process_arguments is not None:
+            return self._process_arguments(user_infos, *args, **kwargs)
+        return (args, kwargs)
+
+    def _run_work_flow(
+        self, *args, **kwargs
+    ) -> Tuple[Tuple[tuple, dict], Optional[Any]]:
+        """
+        returns: (((args, kwargs) | None), (error_response | None))
+        """
+        user_infos = self.authenticate_user(*args, **kwargs)
+        if user_infos is None:
+            if self.ignore_no_authn:
+                # No error, but also do nothing else
+                return ((args, kwargs), None)
+
+            # Fail without user infos
+            return (
+                (args, kwargs),
+                self.handle_no_user_authentication(
+                    "User identity could not be determined"
+                ),
             )
 
-        def _authenticate(*args, **kwargs):
-            if not self._requirement_auth_disabled():
-                user_infos = self.authenticate_user(self, *args, **kwargs)
-                if user_infos is None or user_infos.is_empty:
-                    raise FlaatUnauthenticated("Could not determine identity of user")
-
-                authz_check = _user_has_authorization(user_infos)
-                if not authz_check.is_satisfied:
-                    raise FlaatForbidden(authz_check.message)
-
-            return kwargs
-
-        def decorator(view_func: Callable) -> Callable:
-            return self._wrap_view_func(
-                view_func,
-                process_kwargs=_authenticate,
-                handle_exception=on_failure,
+        user_authz_check = self.check_user_authorization(user_infos)
+        if not user_authz_check.is_satisfied:
+            return (
+                (args, kwargs),
+                self.handle_no_user_authorization(user_authz_check.message, user_infos),
             )
 
-        return decorator
+        request_authz_check = self.check_request_authorization(
+            user_infos, *args, **kwargs
+        )
+        if not request_authz_check.is_satisfied:
+            return (
+                (args, kwargs),
+                self.handle_no_request_authorization(
+                    request_authz_check.message, user_infos
+                ),
+            )
 
-    def login_required(self, on_failure=None):
-        return self.requires(ValidLogin(), on_failure=on_failure)
+        return (self.process_arguments(user_infos, *args, **kwargs), None)
+
+    def decorate_view_func(self, view_func: Callable) -> Callable:
+        @wraps(view_func)
+        def wrapper(*args, **kwargs):
+            ((args, kwargs), error_response) = self._run_work_flow(*args, **kwargs)
+            if error_response is not None:
+                return error_response
+            return view_func(*args, **kwargs)
+
+        @wraps(view_func)
+        async def async_wrapper(*args, **kwargs):
+            ((args, kwargs), error_response) = self._run_work_flow(*args, **kwargs)
+            if error_response is not None:
+                return error_response
+            return await view_func(*args, **kwargs)
+
+        if iscoroutinefunction(view_func):
+            return async_wrapper
+        return wrapper

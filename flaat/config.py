@@ -39,7 +39,6 @@ class FlaatConfig:
         self.verify_tls: bool = True
         self.client_id: str = ""
         self.client_secret: str = ""
-        self.num_request_workers: int = 10
         self.client_connect_timeout: float = 1.2  # seconds
         self.ops_that_support_jwt: List[str] = OPS_THAT_SUPPORT_JWT
         self.claim_search_precedence: List[str] = CLAIM_SEARCH_PRECEDENCE
@@ -59,7 +58,9 @@ class FlaatConfig:
         logger.setLevel(level)
 
     def set_issuer(self, iss):
-        """Use set_issuer to only use this issuer"""
+        """Define OIDC Provider. Must be a valid URL. E.g. 'https://aai.egi.eu/oidc/'
+        This should not be required for OPs that put their address into the AT (e.g. keycloak, mitre,
+        shibboleth)"""
         self.iss = iss.rstrip("/")
 
     def set_trusted_OP_list(self, trusted_op_list: List[str]):
@@ -85,7 +86,7 @@ class FlaatConfig:
     def set_verify_tls(self, param_verify_tls=True):
         """Whether to verify tls connections. Only use for development and debugging"""
         self.verify_tls = param_verify_tls
-        issuers.verify_tls = param_verify_tls
+        issuers.VERIFY_TLS = param_verify_tls
 
     def set_client_id(self, client_id):
         """Client id. At the moment this one is sent to all matching providers. This is only
@@ -98,15 +99,6 @@ class FlaatConfig:
         """Client Secret. At the moment this one is sent to all matching providers."""
         self.client_secret = client_secret
 
-    def set_num_request_workers(self, num):
-        """set number of request workers"""
-        self.num_request_workers = num
-        issuers.num_request_workers = num
-
-    def get_num_request_workers(self):
-        """get number of request workers"""
-        return self.num_request_workers
-
     def set_client_connect_timeout(self, num):
         """set timeout for flaat connecting to OPs"""
         self.client_connect_timeout = num
@@ -117,11 +109,11 @@ class FlaatConfig:
 
     def set_iss_config_timeout(self, num):
         """set timeout for connections to get config from OP"""
-        issuers.timeout = num
+        issuers.TIMEOUT = num
 
     def get_iss_config_timeout(self):
         """set timeout for connections to get config from OP"""
-        return issuers.timeout
+        return issuers.TIMEOUT
 
     def set_timeout(self, num):
         """set global timeouts for http connections"""

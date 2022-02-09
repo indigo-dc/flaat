@@ -32,7 +32,9 @@ FLAAT_AT = ""
 try:
     FLAAT_AT = liboidcagent.get_access_token(OIDC_AGENT_ACCOUNT)
 except liboidcagent.OidcAgentError as e:  # pragma: no cover
-    raise FlaatException(f"Unable to load access token for testing: {e}") from e
+    raise FlaatException(
+        f"Error acquiring access token for oidc agent account '{OIDC_AGENT_ACCOUNT}': {e}"
+    ) from e
 
 FLAAT_CLAIM_ENTITLEMENT = _mandatory_env_var("FLAAT_CLAIM_ENTITLEMENT")
 FLAAT_CLAIM_GROUP = _mandatory_env_var("FLAAT_CLAIM_GROUP")
@@ -105,7 +107,7 @@ class User:
     def get_named_decorators(self):
         """construct  decorators for testing"""
 
-        def on_failure(exc):
+        def on_failure(exc, _):
             logger.info("TEST on_failure called")
             raise exc
 
@@ -114,11 +116,11 @@ class User:
                 "inject_user_infos", self.flaat.inject_user_infos(key="test_inject")
             ),
             NamedDecorator(
-                "login_required", self.flaat.login_required(on_failure=on_failure)
+                "access_level_IDENTIFIED", self.flaat.access_level("IDENTIFIED")
             ),
             NamedDecorator(
-                "login_required-on_failure",
-                self.flaat.login_required(on_failure=on_failure),
+                "access_level_IDENTIFIED-on_failure",
+                self.flaat.access_level("IDENTIFIED", on_failure=on_failure),
             ),  # with on_failure
             NamedDecorator(
                 "requires-GroupAndEntitlement",

@@ -10,10 +10,13 @@ from flaat import BaseFlaat
 from flaat.requirements import (
     AllOf,
     HasClaim,
+    HasSubIss,
+    IsTrue,
     N_Of,
     OneOf,
     Requirement,
-    ValidLogin,
+    Satisfied,
+    Unsatisfiable,
     get_claim_requirement,
     get_vo_requirement,
 )
@@ -30,20 +33,26 @@ class RequirementsUser(User):
         flaat.set_issuer(FLAAT_ISS)
         super().__init__(flaat)
 
-        self.requirements: List[Requirement] = [ValidLogin()]
+        self.success_requirements: List[Requirement] = [
+            HasSubIss(),
+            Satisfied(),
+            IsTrue(lambda _: True),
+        ]
         for match in [1, "all"]:
-            self.requirements.append(
+            self.success_requirements.append(
                 get_claim_requirement(self.groups, claim=self.claim_groups, match=match)
             )
-            self.requirements.append(
+            self.success_requirements.append(
                 get_vo_requirement(
                     self.entitlements, claim=self.claim_entitlements, match=match
                 )
             )
 
-        self.requirements.append(AllOf(*self.requirements))
-        self.requirements.append(N_Of(2, *self.requirements))
-        self.requirements.append(OneOf(*self.requirements))
+        self.success_requirements.append(AllOf(*self.success_requirements))
+        self.success_requirements.append(N_Of(2, *self.success_requirements))
+        self.success_requirements.append(OneOf(*self.success_requirements))
+
+        self.failure_requirements = [Unsatisfiable()]
 
 
 @pytest.fixture
@@ -55,8 +64,12 @@ def test_possible_requirements_success(user):
     """constructs (nearly) all options of using our decorators for testing them
     against the frameworks"""
 
-    for req in user.requirements:
-        assert req.is_satisfied_by(user.user_infos)
+    for req in user.success_requirements:
+        assert req.is_satisfied_by(user.user_infos).is_satisfied
+
+def test_possible_requirements_failure(user):
+    for req in user.failure_requirements:
+        assert not req.is_satisfied_by(user.user_infos).is_satisfied
 
 
 def test_claim_override(user):
