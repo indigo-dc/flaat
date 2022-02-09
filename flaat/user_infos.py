@@ -43,7 +43,7 @@ class UserInfos:
     def __str__(self):
         return f"{self.subject}@{self.issuer}"
 
-    def toJSON(self):
+    def toJSON(self) -> str:
         class ATEncoder(JSONEncoder):
             def default(self, o):
                 return o.__dict__

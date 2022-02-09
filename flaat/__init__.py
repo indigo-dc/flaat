@@ -11,18 +11,21 @@ import logging
 import os
 from typing import Any, Callable, Dict, List, NoReturn, Optional, Tuple, Union
 
+from cachetools import TTLCache, cached
+
 from flaat.access_tokens import AccessTokenInfo, get_access_token_info
+from flaat.caches import user_infos_cache
 from flaat.config import FlaatConfig, OPS_THAT_SUPPORT_JWT
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.issuers import IssuerConfig
 from flaat.requirements import (
     CheckResult,
     HasSubIss,
+    REQUEST_REQUIREMENT,
+    REQUIREMENT,
     Requirement,
     Satisfied,
     Unsatisfiable,
-    REQUIREMENT,
-    REQUEST_REQUIREMENT,
 )
 from flaat.user_infos import UserInfos
 
@@ -89,13 +92,24 @@ class BaseFlaat(FlaatConfig):
     def _issuer_is_trusted(self, issuer):
         return issuer.rstrip("/") in self.trusted_op_list
 
+    @cached(cache=TTLCache(maxsize=128, ttl=1800))  # cache issuer configs for one hour
+    def _get_issuer_config(self, iss) -> Optional[IssuerConfig]:
+        issuer_config = IssuerConfig.get_from_string(iss)
+        if issuer_config is None:
+            return None
+
+        # FIXME Having per issuer secrets would make more sense
+        issuer_config.client_id = self.client_id
+        issuer_config.client_secret = self.client_secret
+        return issuer_config
+
     def _find_issuer_config_everywhere(
         self, access_token, access_token_info: Optional[AccessTokenInfo]
     ) -> Optional[IssuerConfig]:
 
         # 0: Manually set in the config
         if self.iss != "":
-            iss_config = self.issuer_config_cache.get(self.iss)
+            iss_config = self._get_issuer_config(self.iss)
             if iss_config is None:
                 raise FlaatException(
                     f"Misconfigured: issuer is set to '{self.iss}', but we cant find a config for that issuer"
@@ -110,7 +124,7 @@ class BaseFlaat(FlaatConfig):
                 if not self._issuer_is_trusted(at_iss):
                     raise FlaatUnauthenticated(f"Issuer is not trusted: {at_iss}")
 
-                iss_config = self.issuer_config_cache.get(at_iss)
+                iss_config = self._get_issuer_config(at_iss)
                 if iss_config is None:
                     raise FlaatUnauthenticated(
                         f"Unable to fetch issuer config for: {at_iss}"
@@ -123,7 +137,7 @@ class BaseFlaat(FlaatConfig):
             logger.debug("Cache hit for access_token")
             issuer = self._accesstoken_issuer_cache[access_token]
 
-            iss_config = self.issuer_config_cache.get(issuer)
+            iss_config = self._get_issuer_config(issuer)
             if iss_config is None:
                 raise FlaatUnauthenticated(f"Invalid Issuer URL in cacher: {issuer}")
 
@@ -131,6 +145,7 @@ class BaseFlaat(FlaatConfig):
 
         return None
 
+    @cached(cache=user_infos_cache)
     def get_user_infos_from_access_token(self, access_token) -> Optional[UserInfos]:
         logger.debug("Access token: %s", access_token)
         access_token_info = get_access_token_info(access_token)
@@ -141,19 +156,23 @@ class BaseFlaat(FlaatConfig):
             return issuer_config.get_user_infos(access_token)
 
         logger.debug("Issuer could not be determined -> trying all trusted OPs")
-        # TODO parallel would speed up things here
-        for cached_config in self.issuer_config_cache:
+        # Nice to have: parallel would speed up things here
+        for issuer in self.trusted_op_list:
             # skip OPs that would have provided a JWT
-            if cached_config.issuer in OPS_THAT_SUPPORT_JWT:
+            if issuer in OPS_THAT_SUPPORT_JWT:
                 continue
 
-            user_infos = cached_config.get_user_infos(
-                access_token, access_token_info=access_token_info
-            )
-            if user_infos is not None:
-                logger.debug("Found issuer for access token: %s", cached_config.issuer)
-                self._accesstoken_issuer_cache[access_token] = cached_config.issuer
-                return user_infos
+            issuer_config = self._get_issuer_config(issuer)
+            if issuer_config is not None:
+                user_infos = issuer_config.get_user_infos(
+                    access_token, access_token_info=access_token_info
+                )
+                if user_infos is not None:
+                    logger.debug(
+                        "Found issuer for access token: %s", issuer_config.issuer
+                    )
+                    self._accesstoken_issuer_cache[access_token] = issuer_config.issuer
+                    return user_infos
 
         return None
 

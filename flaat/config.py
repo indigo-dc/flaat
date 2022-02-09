@@ -2,7 +2,6 @@ import logging
 from typing import List
 
 from flaat import issuers
-from flaat.caches import IssuerConfigCache
 
 logger = logging.getLogger(__name__)
 
@@ -35,15 +34,10 @@ class FlaatConfig:
         self.trusted_op_list: List[str] = []
         self.iss: str = ""
         self.op_hint: str = ""
-        self.trusted_op_file: str = ""
-        self.verify_tls: bool = True
         self.client_id: str = ""
         self.client_secret: str = ""
         self.client_connect_timeout: float = 1.2  # seconds
-        self.ops_that_support_jwt: List[str] = OPS_THAT_SUPPORT_JWT
         self.claim_search_precedence: List[str] = CLAIM_SEARCH_PRECEDENCE
-        self.raise_error_on_return = True  # else just return an error
-        self.issuer_config_cache = IssuerConfigCache()
 
     def set_verbosity(self, verbosity: int):
         if verbosity < 0 or verbosity > 3:
@@ -58,9 +52,7 @@ class FlaatConfig:
         logger.setLevel(level)
 
     def set_issuer(self, iss):
-        """Define OIDC Provider. Must be a valid URL. E.g. 'https://aai.egi.eu/oidc/'
-        This should not be required for OPs that put their address into the AT (e.g. keycloak, mitre,
-        shibboleth)"""
+        """Pins the given issuer. Only users of this issuer can be used."""
         self.iss = iss.rstrip("/")
 
     def set_trusted_OP_list(self, trusted_op_list: List[str]):
@@ -69,23 +61,8 @@ class FlaatConfig:
 
         self.trusted_op_list = list(map(lambda iss: iss.rstrip("/"), trusted_op_list))
 
-        # LOW PRIO: Make this parallel
-        for iss in self.trusted_op_list:
-            self.issuer_config_cache.get(iss)
-
-    def set_trusted_OP_file(self, filename="/etc/oidc-agent/issuer.config", hint=None):
-        """Set filename of oidc-agent's issuer.config. Requires oidc-agent to be installed."""
-        self.trusted_op_file = filename
-        self.op_hint = hint
-
-    def set_OP_hint(self, hint):
-        """String to specify the hint. This is used for regex searching in lists of providers for
-        possible matching ones."""
-        self.op_hint = hint
-
     def set_verify_tls(self, param_verify_tls=True):
         """Whether to verify tls connections. Only use for development and debugging"""
-        self.verify_tls = param_verify_tls
         issuers.VERIFY_TLS = param_verify_tls
 
     def set_client_id(self, client_id):
@@ -103,31 +80,15 @@ class FlaatConfig:
         """set timeout for flaat connecting to OPs"""
         self.client_connect_timeout = num
 
-    def get_client_connect_timeout(self):
-        """get timeout for flaat connecting to OPs"""
-        return self.client_connect_timeout
-
     def set_iss_config_timeout(self, num):
         """set timeout for connections to get config from OP"""
         issuers.TIMEOUT = num
-
-    def get_iss_config_timeout(self):
-        """set timeout for connections to get config from OP"""
-        return issuers.TIMEOUT
 
     def set_timeout(self, num):
         """set global timeouts for http connections"""
         self.set_iss_config_timeout(num)
         self.set_client_connect_timeout(num)
 
-    def get_timeout(self):
-        """get global timeout for https connections"""
-        return (self.get_iss_config_timeout(), self.get_client_connect_timeout())
-
     def set_claim_search_precedence(self, a_list):
         """set order in which to search for specific claim"""
         self.claim_search_precedence = a_list
-
-    def get_claim_search_precedence(self):
-        """get order in which to search for specific claim"""
-        return self.claim_search_precedence

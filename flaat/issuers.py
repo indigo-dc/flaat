@@ -1,13 +1,13 @@
 # This code is distributed under the MIT License
 
 from __future__ import annotations
-from base64 import b64encode
 import json
 import logging
 import re
 from typing import Optional
 
 import requests
+from requests.models import HTTPBasicAuth
 
 from flaat import access_tokens
 from flaat.user_infos import UserInfos
@@ -61,7 +61,7 @@ class IssuerConfig:
 
         # remove slashes:
         config_url = re.sub("^https?://", "", config_url)
-        config_url = config_url.replace("//+", "/")
+        config_url = config_url.replace("//", "/")
         config_url = "https://" + config_url
         logger.info("Fetching issuer config from: %s", config_url)
         try:
@@ -72,7 +72,7 @@ class IssuerConfig:
             return cls(issuer_config=issuer_config)
 
         except requests.exceptions.RequestException as e:
-            logger.warning("Error fetching issuer config from %s: %s", config_url, e)
+            logger.debug("Error fetching issuer config from %s: %s", config_url, e)
             return None
 
     @classmethod
@@ -82,11 +82,17 @@ class IssuerConfig:
         if string is None or not is_url(string):
             return None
 
+        well_known_path = "/.well-known/openid-configuration"
+
+        if string.endswith(well_known_path):
+            return cls.get_from_url(string)
+
+        if string.endswith(("/oauth2", "/oauth2/")):
+            return cls.get_from_url(string + well_known_path)
+
         for url in [
-            string + "/.well-known/openid-configuration",
-            string,
-            string + "/oauth2",
-            string + "/oauth2" + "/.well-known/openid-configuration",
+            string + well_known_path,
+            string + "/oauth2" + well_known_path,
         ]:
             iss_config = cls.get_from_url(url)
             if iss_config is not None:
@@ -96,31 +102,25 @@ class IssuerConfig:
 
     def _get_introspected_token_info(self, access_token: str):
         """Query te token introspection endpoint, if there is a client_id and client_secret set"""
-        headers = {}
-        headers = {"Content-type": "application/x-www-form-urlencoded"}
 
-        post_data = {"token": access_token}
-
-        if self.client_id == "" or self.client_secret == "":
+        if self.client_id == "" and self.client_secret == "":
             logger.debug(
                 "Skipping introspection endpoint because client_id and client_secret are not configured"
             )
             return None
 
-        basic_auth_string = self.client_id
         if self.client_secret != "":
-            basic_auth_string += ":{self.client_secret}"
-        basic_auth_bytes = bytearray(basic_auth_string, "utf-8")
-
-        headers[
-            "Authorization"
-        ] = f'Basic {b64encode(basic_auth_bytes).decode("utf-8")}'
+            auth = HTTPBasicAuth(self.client_id, self.client_secret)
+        else:
+            auth = HTTPBasicAuth(self.client_id, "")
 
         introspection_endpoint = self.issuer_config.get("introspection_endpoint", "")
         if introspection_endpoint == "":
             return None
 
         logger.debug("Getting introspection from %s", introspection_endpoint)
+        headers = {"Content-type": "application/x-www-form-urlencoded"}
+        post_data = {"token": access_token}
         try:
             resp = requests.post(
                 introspection_endpoint,
@@ -128,6 +128,7 @@ class IssuerConfig:
                 headers=headers,
                 data=post_data,
                 timeout=TIMEOUT,
+                auth=auth,
             )
             resp_json = dict(resp.json())
             logger.debug(

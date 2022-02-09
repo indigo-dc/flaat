@@ -1,58 +1,17 @@
-# This code is distributed under the MIT License
+from cachetools import LRUCache
 
-# pylint: disable=consider-using-dict-items,consider-iterating-dictionary
-
-import logging
-from typing import Dict, Optional
-
-from flaat.issuers import IssuerConfig
-
-logger = logging.getLogger(__name__)
+from flaat.user_infos import UserInfos
 
 
-class IssuerConfigCache:
-    """Cache: Issuer -> Issuer Config"""
+class UserInfoCache(LRUCache):
+    """This caches user_infos for access tokens for an unspecified time.
+    Before yielding UserInfos, the validity of user infos is checked."""
 
-    def __init__(self):
-        # maps 'iss' to the whole issuer config
-        self.entries: Dict[str, IssuerConfig] = {}
-        self.n = 0
+    def __getitem__(self, key):
+        item = super().__getitem__(key)
+        if isinstance(item, UserInfos) and item.valid_for_secs < 0:
+            raise KeyError()
+        return item
 
-    def set(self, iss, issuer_config: IssuerConfig):
-        """add entry"""
-        logger.info("Setting: %s - %s", iss, issuer_config)
-        self.entries[iss] = issuer_config
 
-    def get(self, iss) -> Optional[IssuerConfig]:
-        """get entry"""
-        issuer_config = self.entries.get(iss, None)
-        if issuer_config is not None:
-            logger.debug("Cache hit for issuer: %s", iss)
-            return issuer_config
-
-        logger.info("Cache miss for issuer: %s", iss)
-
-        # try to fetch it now
-        issuer_config = IssuerConfig.get_from_string(iss)
-        if issuer_config is not None:
-            self.set(iss, issuer_config)
-            return issuer_config
-
-        return None
-
-    def __iter__(self):
-        self.n = 0
-        return self
-
-    def __next__(self):
-        keys = self.entries.keys()
-        my_length = len(keys)
-        if self.n < my_length:
-            retval = self.entries[list(keys)[self.n]]
-            self.n += 1
-            return retval
-        raise StopIteration
-
-    def __len__(self):
-        """return length"""
-        return len(self.entries.keys())
+user_infos_cache = UserInfoCache(maxsize=1024)
