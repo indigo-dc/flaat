@@ -14,7 +14,11 @@ from typing import Any, Callable, Dict, List, NoReturn, Optional, Tuple, Union
 from cachetools import cached
 
 from flaat.access_tokens import AccessTokenInfo, get_access_token_info
-from flaat.caches import user_infos_cache, issuer_config_cache
+from flaat.caches import (
+    user_infos_cache,
+    issuer_config_cache,
+    access_token_issuer_cache,
+)
 from flaat.config import FlaatConfig, OPS_THAT_SUPPORT_JWT
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.issuers import IssuerConfig
@@ -64,9 +68,6 @@ class BaseFlaat(FlaatConfig):
 
     def __init__(self):
         super().__init__()
-        self._accesstoken_issuer_cache: Dict[
-            str, str
-        ] = {}  # maps accesstoken to issuer
 
         # access levels for the self.access_level decorator
         self.access_levels = DEFAULT_ACCESS_LEVELS
@@ -133,15 +134,12 @@ class BaseFlaat(FlaatConfig):
                 return iss_config
 
         # 2: Try AT -> Issuer cache
-        if access_token in self._accesstoken_issuer_cache:
+        if access_token in access_token_issuer_cache:
             logger.debug("Cache hit for access_token")
-            issuer = self._accesstoken_issuer_cache[access_token]
-
+            issuer = access_token_issuer_cache[access_token]
             iss_config = self._get_issuer_config(issuer)
-            if iss_config is None:
-                raise FlaatUnauthenticated(f"Invalid Issuer URL in cacher: {issuer}")
-
-            return iss_config
+            if iss_config is not None:
+                return iss_config
 
         return None
 
@@ -171,7 +169,7 @@ class BaseFlaat(FlaatConfig):
                     logger.debug(
                         "Found issuer for access token: %s", issuer_config.issuer
                     )
-                    self._accesstoken_issuer_cache[access_token] = issuer_config.issuer
+                    access_token_issuer_cache[access_token] = issuer_config.issuer
                     return user_infos
 
         return None

@@ -26,3 +26,6 @@ user_infos_cache = UserInfoCache(maxsize=1024)
 
 # cache issuer configs for an hour
 issuer_config_cache = TTLCache(maxsize=128, ttl=3600)
+
+# cache access_token_issuer mappings indefinitely
+access_token_issuer_cache = LRUCache(maxsize=1024)

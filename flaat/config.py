@@ -7,8 +7,6 @@ logger = logging.getLogger(__name__)
 
 # DEFAULT VALUES
 
-CLAIM_SEARCH_PRECEDENCE = ["userinfo", "access_token"]
-
 # No leading slash ('/') in ops_that_support_jwt !!!
 OPS_THAT_SUPPORT_JWT = [
     "https://aai-dev.egi.eu/oidc",
@@ -37,7 +35,6 @@ class FlaatConfig:
         self.client_id: str = ""
         self.client_secret: str = ""
         self.client_connect_timeout: float = 1.2  # seconds
-        self.claim_search_precedence: List[str] = CLAIM_SEARCH_PRECEDENCE
 
     def set_verbosity(self, verbosity: int):
         if verbosity < 0 or verbosity > 3:
@@ -88,7 +85,3 @@ class FlaatConfig:
         """set global timeouts for http connections"""
         self.set_iss_config_timeout(num)
         self.set_client_connect_timeout(num)
-
-    def set_claim_search_precedence(self, a_list):
-        """set order in which to search for specific claim"""
-        self.claim_search_precedence = a_list
