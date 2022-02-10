@@ -49,7 +49,7 @@ def _make_json_request(url, **kwargs) -> Optional[dict]:
         resp_json = dict(resp.json())
 
         if "error" in resp_json or "error_description" in resp_json:
-            logger.warning(
+            logger.debug(
                 "Error json received: %s %s",
                 resp_json.get("error", ""),
                 resp_json.get("error_description", ""),
@@ -58,7 +58,7 @@ def _make_json_request(url, **kwargs) -> Optional[dict]:
 
         return resp_json
     except requests.exceptions.RequestException as e:
-        logger.warning("Error making json request to %s: %s", url, e)
+        logger.debug("Error making json request to %s: %s", url, e)
         return None
 
 

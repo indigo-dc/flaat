@@ -4,7 +4,6 @@ import base64
 from dataclasses import dataclass
 import json
 import logging
-import time
 from typing import Optional
 
 
@@ -40,17 +39,6 @@ class AccessTokenInfo:
     @property
     def issuer(self) -> str:
         return self.body.get("iss", "")
-
-    @property
-    def timeleft(self) -> int:
-        """Get the lifetime left in the token"""
-        timeleft = -1
-        now = time.time()
-        try:
-            timeleft = self.body["exp"] - now
-        except KeyError:  # no 'exp' claim
-            pass
-        return timeleft
 
 
 def get_access_token_info(access_token) -> Optional[AccessTokenInfo]:

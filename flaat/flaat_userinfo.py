@@ -257,6 +257,9 @@ class UserInfosPrinter:
                 print("Information retrieved from introspection endpoint:")
                 self.print_json(self.user_infos.introspection_info)
 
+        if self.user_infos.valid_for_secs is None:
+            return
+
         print("")
         if self.user_infos.valid_for_secs > 0:
             print(f"Token valid for {self.user_infos.valid_for_secs:.1f} more seconds.")

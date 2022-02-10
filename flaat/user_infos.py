@@ -1,5 +1,6 @@
 from json import JSONEncoder
 import logging
+from time import time
 from typing import Optional
 
 from flaat.access_tokens import AccessTokenInfo
@@ -11,9 +12,8 @@ class UserInfos:
     """Infos represents infos about an access token and the user it belongs to"""
 
     user_info: dict
-    access_token_info: Optional[AccessTokenInfo]
-    introspection_info: Optional[dict]
-    valid_for_secs: int = -1
+    access_token_info: Optional[AccessTokenInfo] = None
+    introspection_info: Optional[dict] = None
 
     def __init__(
         self,
@@ -22,9 +22,6 @@ class UserInfos:
         introspection_info: Optional[dict],
     ):
         self.access_token_info = access_token_info
-        if self.access_token_info is not None:
-            self.valid_for_secs = self.access_token_info.timeleft
-
         self.user_info = user_info
         self.introspection_info = introspection_info
 
@@ -32,7 +29,7 @@ class UserInfos:
         self.post_process_dictionaries()
 
     def _strip_duplicate_infos(self):
-        """ strip duplicate infos from the introspection_info and access_token_info.body """
+        """strip duplicate infos from the introspection_info and access_token_info.body"""
         if self.introspection_info is not None:
             for key in self.user_info.keys():
                 if key in self.introspection_info:
@@ -55,6 +52,28 @@ class UserInfos:
         # striping duplicates is somewhat opinionated and is therefore not included here
         # self._strip_duplicate_infos()
 
+    @property
+    def valid_for_secs(self) -> Optional[int]:
+        def _timeleft(info_dict, claim="exp") -> Optional[int]:
+            """Get expiry from info dictionary (either from access token or introspection"""
+            if claim in info_dict:
+                now = time()
+                timeleft = info_dict[claim] - now
+                return timeleft
+
+            return None
+
+        if self.access_token_info is not None:
+            timeleft = _timeleft(self.access_token_info.body)
+            if timeleft is not None:
+                return timeleft
+
+        if self.introspection_info is not None:
+            timeleft = _timeleft(self.introspection_info)
+            if timeleft is not None:
+                return timeleft
+
+        return None
 
     @property
     def issuer(self) -> str:
