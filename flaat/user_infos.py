@@ -28,7 +28,7 @@ class UserInfos:
         # trigger possible post processing here
         self.post_process_dictionaries()
 
-    def _strip_duplicate_infos(self):
+    def _strip_duplicate_infos(self):  # pragma: no cover
         """strip duplicate infos from the introspection_info and access_token_info.body"""
         if self.introspection_info is not None:
             for key in self.user_info.keys():
@@ -61,19 +61,16 @@ class UserInfos:
                 timeleft = info_dict[claim] - now
                 return timeleft
 
-            return None
+            return None  # pragma: no cover
 
-        if self.access_token_info is not None:
-            timeleft = _timeleft(self.access_token_info.body)
-            if timeleft is not None:
-                return timeleft
-
+        timeleft = None
         if self.introspection_info is not None:
             timeleft = _timeleft(self.introspection_info)
-            if timeleft is not None:
-                return timeleft
 
-        return None
+        if timeleft is None and self.access_token_info is not None:
+            timeleft = _timeleft(self.access_token_info.body)
+
+        return timeleft
 
     @property
     def issuer(self) -> str:
@@ -93,10 +90,7 @@ class UserInfos:
             return self.access_token_info.body[key]
         raise KeyError(
             "Claim does not exist in user_info, access_token_info.body and introspection_info"
-        )
-
-    def __setitem__(self, key, val):
-        self.user_info[key] = val
+        )  # pragma: no cover
 
     def has_key(self, key):
         return (

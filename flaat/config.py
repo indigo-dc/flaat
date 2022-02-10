@@ -63,14 +63,12 @@ class FlaatConfig:
         issuers.VERIFY_TLS = param_verify_tls
 
     def set_client_id(self, client_id):
-        """Client id. At the moment this one is sent to all matching providers. This is only
-        required if you need to access the token introspection endpoint. I don't have a use case for
-        that right now."""
+        """Client id for token introspection"""
         # FIXME: consider client_id/client_secret per OP.
         self.client_id = client_id
 
     def set_client_secret(self, client_secret):
-        """Client Secret. At the moment this one is sent to all matching providers."""
+        """client secret for token introspection"""
         self.client_secret = client_secret
 
     def set_client_connect_timeout(self, num):

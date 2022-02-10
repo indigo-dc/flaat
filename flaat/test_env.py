@@ -39,7 +39,12 @@ except liboidcagent.OidcAgentError as e:  # pragma: no cover
 FLAAT_CLAIM_ENTITLEMENT = _mandatory_env_var("FLAAT_CLAIM_ENTITLEMENT")
 FLAAT_CLAIM_GROUP = _mandatory_env_var("FLAAT_CLAIM_GROUP")
 FLAAT_ISS = _mandatory_env_var("FLAAT_ISS")
-FLAAT_TRUSTED_OPS_LIST = [FLAAT_ISS]
+FLAAT_TRUSTED_OPS_LIST = [
+    FLAAT_ISS,
+    "https://accounts.google.com/",  # including google here, because it does not support JWTs
+]
+FLAAT_CLIENT_ID = environment.get("FLAAT_CLIENT_ID", "")
+FLAAT_CLIENT_SECRET = environment.get("FLAAT_CLIENT_SECRET", "")
 
 STATUS_KWARGS_LIST = [
     # Invalid access token -> unauthorized
@@ -75,6 +80,8 @@ class User:
 
     def __init__(self, flaat):
         self.flaat: BaseFlaat = flaat
+        self.flaat.set_client_id(FLAAT_CLIENT_ID)
+        self.flaat.set_client_secret(FLAAT_CLIENT_SECRET)
         self.at = FLAAT_AT
         logger.debug("Fetching user infos for test_env")
         self.user_infos = self.flaat.get_user_infos_from_access_token(self.at)
