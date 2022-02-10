@@ -11,10 +11,10 @@ import logging
 import os
 from typing import Any, Callable, Dict, List, NoReturn, Optional, Tuple, Union
 
-from cachetools import TTLCache, cached
+from cachetools import cached
 
 from flaat.access_tokens import AccessTokenInfo, get_access_token_info
-from flaat.caches import user_infos_cache
+from flaat.caches import user_infos_cache, issuer_config_cache
 from flaat.config import FlaatConfig, OPS_THAT_SUPPORT_JWT
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.issuers import IssuerConfig
@@ -92,7 +92,7 @@ class BaseFlaat(FlaatConfig):
     def _issuer_is_trusted(self, issuer):
         return issuer.rstrip("/") in self.trusted_op_list
 
-    @cached(cache=TTLCache(maxsize=128, ttl=1800))  # cache issuer configs for one hour
+    @cached(cache=issuer_config_cache)
     def _get_issuer_config(self, iss) -> Optional[IssuerConfig]:
         issuer_config = IssuerConfig.get_from_string(iss)
         if issuer_config is None:
