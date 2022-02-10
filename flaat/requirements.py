@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import json
 import logging
 import os
-from typing import Callable, List, Optional, Union
+from typing import Any, Callable, List, Optional, Union
 
 import aarc_entitlement
 
@@ -11,9 +11,6 @@ from flaat.exceptions import FlaatException
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
-
-# USER_INFOS is the type for user infos that are checked against requirements
-USER_INFOS = Optional[UserInfos]
 
 
 def check_environment_for_override(env_key):
@@ -43,7 +40,7 @@ class Requirement:
     Requirement have a method `is_satisfied_by` which returns a `CheckResult` instance.
     """
 
-    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         _ = user_infos
         return CheckResult(False, "method not overwritten")
 
@@ -65,10 +62,10 @@ class Unsatisfiable(Requirement):
 class IsTrue(Requirement):
     """IsTrue is satisfied if the provided func evaluates to True"""
 
-    def __init__(self, func: Callable[[USER_INFOS], bool]):
+    def __init__(self, func: Callable[[UserInfos], bool]):
         self.func = func
 
-    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         return CheckResult(
             self.func(user_infos), f"Evaluation of: {self.func.__name__}"
         )
@@ -89,7 +86,7 @@ class MetaRequirement(Requirement):
 class AllOf(MetaRequirement):
     """AllOf is satisfied if all of its sub-requirements are satisfied"""
 
-    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         satisfied = True
         message = "All sub-requirements are satisfied"
         failed_messages = []
@@ -109,7 +106,7 @@ class AllOf(MetaRequirement):
 class OneOf(MetaRequirement):
     """OneOf is satisfied if at least one of its sub-requirements are satisfied"""
 
-    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         satisfied = True
         message = "All sub-requirements are satisfied"
         failed_messages = []
@@ -133,7 +130,7 @@ class N_Of(MetaRequirement):
         super().__init__(*reqs)
         self.n = n
 
-    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         failed_messages = []
         n = 0
         for req in self.requirements:
@@ -169,7 +166,7 @@ def match_to_meta_requirement(match: Union[str, int]) -> MetaRequirement:
 class HasSubIss(Requirement):
     """HasSubIss is satisfied if the user has a subject and an issuer"""
 
-    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         if user_infos is None:
             return CheckResult(False, "No valid user_infos found")
 
@@ -184,10 +181,9 @@ class HasSubIss(Requirement):
 class HasClaim(Requirement):
     """HasClaim is satisfied if the user has the specified claim value"""
 
-    def __init__(self, required, claim: str, location="user_info"):
+    def __init__(self, required, claim: str):
         """
-        location describes, where the claim is looked up: ["user_info", "access_token"]
-        claim is the name of the claim
+        claim is the name of the claim.
         value is the value the claim needs to have
         """
         # try parsing the value, if it does not work revert to equal comparisons
@@ -199,48 +195,22 @@ class HasClaim(Requirement):
 
         self.claim = claim
 
-        valid_locations = ["user_info", "access_token"]
-        if location not in valid_locations:
-            raise ValueError(
-                f"HasClaim arg location needs to be one of: {valid_locations}"
-            )
-        self.location = location
-
-    def _get_override_claims(self) -> Optional[dict]:
+    def _get_override_claims(self) -> Optional[Any]:
         override_entitlement_entries = check_environment_for_override(
             "DISABLE_AUTHENTICATION_AND_ASSUME_ENTITLEMENTS"
         )
         if override_entitlement_entries is not None:
             logger.info("Using entitlement override: %s", override_entitlement_entries)
-            return {self.claim: override_entitlement_entries}
+            return override_entitlement_entries
 
         return None
 
-    def _get_claim_dict(self, user_infos: USER_INFOS) -> Optional[dict]:
-        if user_infos is None:
-            return None
-
-        override_claims = self._get_override_claims()
-        if override_claims is not None:
-            return override_claims
-
-        claim_dict = None
-        if self.location == "user_info" and user_infos.user_info is not None:
-            claim_dict = user_infos.user_info
-        elif (
-            self.location == "access_token" and user_infos.access_token_info is not None
-        ):
-            claim_dict = user_infos.access_token_info.body
-        return claim_dict
-
-    def is_satisfied_by(self, user_infos: USER_INFOS) -> CheckResult:
-        claim_dict = self._get_claim_dict(user_infos)
-        if claim_dict is None:
-            return CheckResult(
-                False, f"Claim location '{self.location}' does not exist in user_infos"
-            )
-
-        value = claim_dict.get(self.claim, None)
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+        override_claim = self._get_override_claims()
+        if override_claim is not None:
+            value = override_claim
+        else:
+            value = user_infos.get(self.claim, None)
         if value is None:
             return CheckResult(False, f"Claim '{self.claim}' is not available")
 

@@ -12,14 +12,14 @@ from flaat.requirements import HasClaim, get_claim_requirement, get_vo_requireme
 
 logger = logging.getLogger(__name__)
 
-config = {
+environment = {
     **dotenv_values(".env"),
     **os.environ,
 }
 
 
 def _mandatory_env_var(name):
-    val = config.get(name, "")
+    val = environment.get(name, "")
     if val == "":  # pragma: no cover
         raise ValueError(f"Set '{name}' in environment or .env file")
 
