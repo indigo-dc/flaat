@@ -35,6 +35,33 @@ def is_url(string):
     return False
 
 
+def _make_json_request(url, **kwargs) -> Optional[dict]:
+    try:
+        if "data" in kwargs:
+            resp = requests.post(url, verify=VERIFY_TLS, timeout=TIMEOUT, **kwargs)
+        else:
+            resp = requests.get(url, verify=VERIFY_TLS, timeout=TIMEOUT, **kwargs)
+
+        if resp.status_code != 200:
+            logger.debug("Error response: %s %s", resp.text, resp.status_code)
+            return None
+
+        resp_json = dict(resp.json())
+
+        if "error" in resp_json or "error_description" in resp_json:
+            logger.warning(
+                "Error json received: %s %s",
+                resp_json.get("error", ""),
+                resp_json.get("error_description", ""),
+            )
+            return None
+
+        return resp_json
+    except requests.exceptions.RequestException as e:
+        logger.warning("Error making json request to %s: %s", url, e)
+        return None
+
+
 class IssuerConfig:
     issuer_config: dict
     client_id: str
@@ -51,29 +78,19 @@ class IssuerConfig:
 
     @classmethod
     def get_from_url(cls, url) -> Optional[IssuerConfig]:
-        """Get issuer_wellknown/configuration from url; return json if true, None otherwise.
-        Note that this endpoint is called more often than necessary. We rely on requests_cache to keep
-        this efficient"""
-        # If requests_cache is not wanted. Here would be one place to implement caching
-
-        headers = {"Content-type": "application/x-www-form-urlencoded"}
         config_url = url
 
         # remove slashes:
         config_url = re.sub("^https?://", "", config_url)
         config_url = config_url.replace("//", "/")
         config_url = "https://" + config_url
-        logger.info("Fetching issuer config from: %s", config_url)
-        try:
-            resp = requests.get(
-                config_url, verify=VERIFY_TLS, headers=headers, timeout=TIMEOUT
-            )
-            issuer_config: dict = resp.json()
-            return cls(issuer_config=issuer_config)
 
-        except requests.exceptions.RequestException as e:
-            logger.debug("Error fetching issuer config from %s: %s", config_url, e)
+        logger.info("Fetching issuer config from: %s", config_url)
+        issuer_config_dict = _make_json_request(config_url)
+        if issuer_config_dict is None:
             return None
+
+        return cls(issuer_config=issuer_config_dict)
 
     @classmethod
     def get_from_string(cls, string: str) -> Optional[IssuerConfig]:
@@ -105,83 +122,53 @@ class IssuerConfig:
 
         if self.client_id == "" and self.client_secret == "":
             logger.debug(
-                "Skipping introspection endpoint because client_id and client_secret are not configured"
+                "Skipping token introspection because both client_id and client_secret are not configured"
             )
             return None
-
-        if self.client_secret != "":
-            auth = HTTPBasicAuth(self.client_id, self.client_secret)
-        else:
-            auth = HTTPBasicAuth(self.client_id, "")
 
         introspection_endpoint = self.issuer_config.get("introspection_endpoint", "")
         if introspection_endpoint == "":
+            logger.debug(
+                "Skipping token introspection because there is no introspection endpoint"
+            )
             return None
 
-        logger.debug("Getting introspection from %s", introspection_endpoint)
-        headers = {"Content-type": "application/x-www-form-urlencoded"}
         post_data = {"token": access_token}
-        try:
-            resp = requests.post(
-                introspection_endpoint,
-                verify=VERIFY_TLS,
-                headers=headers,
-                data=post_data,
-                timeout=TIMEOUT,
-                auth=auth,
-            )
-            resp_json = dict(resp.json())
-            logger.debug(
-                "Got Introspection from %s: %s",
-                introspection_endpoint,
-                json.dumps(resp_json, sort_keys=True, indent=4, separators=(",", ": ")),
-            )
-            return resp_json
-        except requests.exceptions.RequestException as e:
-            logger.warning(
-                "Error fetching introspection info from %s: %s",
-                introspection_endpoint,
-                e,
-            )
-            return None
+        introspection_info_dict = _make_json_request(
+            introspection_endpoint,
+            data=post_data,
+            auth=HTTPBasicAuth(self.client_id, self.client_secret),
+        )
+        logger.debug(
+            "Got introspection info from %s: %s",
+            introspection_endpoint,
+            json.dumps(
+                introspection_info_dict,
+                sort_keys=True,
+                indent=4,
+                separators=(",", ": "),
+            ),
+        )
+        return introspection_info_dict
 
     def _get_user_info(self, access_token: str) -> Optional[dict]:
         """Query the userinfo endpoint, using the AT as authentication"""
-        headers = {}
-        headers = {"Content-type": "application/x-www-form-urlencoded"}
-        headers["Authorization"] = f"Bearer {access_token}"
-        userinfo_endpoint = self.issuer_config.get("userinfo_endpoint", "")
 
+        userinfo_endpoint = self.issuer_config.get("userinfo_endpoint", "")
         if userinfo_endpoint == "":
             return None
 
+        headers = {"Authorization": f"Bearer {access_token}"}
         logger.debug("Trying to get userinfo from %s", userinfo_endpoint)
-        try:
-            resp = requests.get(
-                userinfo_endpoint,
-                verify=VERIFY_TLS,
-                headers=headers,
-                timeout=TIMEOUT,
-            )
-
-            resp_json = dict(resp.json())
-            logger.debug(
-                "Got Userinfo from %s: %s",
-                userinfo_endpoint,
-                json.dumps(resp_json, sort_keys=True, indent=4, separators=(",", ": ")),
-            )
-            if "error_description" in resp_json:
-                logger.warning(
-                    "Error fetching userinfo from %s: %s",
-                    userinfo_endpoint,
-                    resp_json["error_description"],
-                )
-                return None
-            return resp_json
-
-        except requests.exceptions.RequestException as e:
-            logger.warning("Error fetching userinfo from %s: %s", userinfo_endpoint, e)
-            return None
+        user_info_dict = _make_json_request(userinfo_endpoint, headers=headers)
+        logger.debug(
+            "Got userinfo from %s: %s",
+            userinfo_endpoint,
+            json.dumps(
+                user_info_dict, sort_keys=True, indent=4, separators=(",", ": ")
+            ),
+        )
+        return user_info_dict
 
     def get_user_infos(
         self, access_token, access_token_info=None
