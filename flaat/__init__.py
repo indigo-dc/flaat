@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from functools import wraps
 import logging
 import os
-from typing import Any, Callable, Dict, List, NoReturn, Optional, Tuple, Union
+from typing import Any, Callable, List, NoReturn, Optional, Tuple, Union
 
 from cachetools import cached
 
@@ -83,7 +83,7 @@ class BaseFlaat(FlaatConfig):
     def map_exception(self, exception: FlaatException) -> NoReturn:  # pragma: no cover
         raise exception
 
-    def get_access_token_from_request(self, request) -> str:  # pragma: no cover
+    def _get_access_token_from_request(self, request) -> str:  # pragma: no cover
         """Helper function to obtain the OIDC AT from the flask request variable"""
         _ = request
         return ""
@@ -104,20 +104,29 @@ class BaseFlaat(FlaatConfig):
         issuer_config.client_secret = self.client_secret
         return issuer_config
 
-    def _find_issuer_config_everywhere(
-        self, access_token, access_token_info: Optional[AccessTokenInfo]
+    def _find_issuer_config(
+        self, access_token, access_token_info: Optional[AccessTokenInfo], issuer_hint=""
     ) -> Optional[IssuerConfig]:
 
-        # 0: Manually set in the config
+        # Issuer hint provided by user
+        if issuer_hint != "":
+            iss_config = self._get_issuer_config(issuer_hint)
+            if iss_config is None:
+                raise FlaatException(
+                    f"Unable to retrieve issuer config: Issuer '{issuer_hint}' is probably invalid."
+                )
+            return iss_config
+
+        # Manually set in the config
         if self.iss != "":
             iss_config = self._get_issuer_config(self.iss)
             if iss_config is None:
                 raise FlaatException(
-                    f"Misconfigured: issuer is set to '{self.iss}', but we cant find a config for that issuer"
+                    f"Unable to retrieve issuer config: Issuer from flaat config '{self.iss}' is probably invalid. Use `set_iss` to set a different issuer."
                 )
             return iss_config
 
-        # 1: JWT AT
+        # JWT AT
         if access_token_info is not None:
             logger.debug("Access token is a JWT")
             at_iss = access_token_info.issuer
@@ -133,7 +142,7 @@ class BaseFlaat(FlaatConfig):
 
                 return iss_config
 
-        # 2: Try AT -> Issuer cache
+        # Try AT -> Issuer cache
         if access_token in access_token_issuer_cache:
             logger.debug("Cache hit for access_token")
             issuer = access_token_issuer_cache[access_token]
@@ -143,17 +152,8 @@ class BaseFlaat(FlaatConfig):
 
         return None
 
-    @cached(cache=user_infos_cache)
-    def get_user_infos_from_access_token(self, access_token) -> Optional[UserInfos]:
-        logger.debug("Access token: %s", access_token)
-        access_token_info = get_access_token_info(access_token)
-        issuer_config = self._find_issuer_config_everywhere(
-            access_token, access_token_info
-        )
-        if issuer_config is not None:
-            return issuer_config.get_user_infos(access_token)
-
-        logger.debug("Issuer could not be determined -> trying all trusted OPs")
+    def _get_user_infos_brute_force(self, access_token) -> Optional[UserInfos]:
+        logger.info("Issuer could not be determined -> trying all trusted OPs")
         # Nice to have: parallel would speed up things here
         for issuer in self.trusted_op_list:
             # skip OPs that would have provided a JWT

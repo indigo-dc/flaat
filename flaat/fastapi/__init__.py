@@ -32,7 +32,7 @@ class Flaat(BaseFlaat):
 
         return kwargs["request"]
 
-    def get_access_token_from_request(self, request: Request) -> str:
+    def _get_access_token_from_request(self, request: Request) -> str:
         if not "Authorization" in request.headers:
             raise FlaatUnauthenticated("No authorization header in request")
 

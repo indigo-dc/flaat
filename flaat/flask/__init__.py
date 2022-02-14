@@ -25,7 +25,7 @@ class Flaat(BaseFlaat):
     def _get_request(self, *_, **__):
         return request
 
-    def get_access_token_from_request(self, _) -> str:
+    def _get_access_token_from_request(self, _) -> str:
         # using flask global "request" here, not an argument
         if not "Authorization" in request.headers:
             raise FlaatUnauthenticated("No authorization header in request")

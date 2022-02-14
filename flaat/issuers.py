@@ -77,7 +77,7 @@ class IssuerConfig:
         return self.issuer_config.get("issuer", "")
 
     @classmethod
-    def get_from_url(cls, url) -> Optional[IssuerConfig]:
+    def _get_from_url(cls, url) -> Optional[IssuerConfig]:
         config_url = url
 
         # remove slashes:
@@ -85,7 +85,7 @@ class IssuerConfig:
         config_url = config_url.replace("//", "/")
         config_url = "https://" + config_url
 
-        logger.info("Fetching issuer config from: %s", config_url)
+        logger.debug("Fetching issuer config from: %s", config_url)
         issuer_config_dict = _make_json_request(config_url)
         if issuer_config_dict is None:
             return None
@@ -93,26 +93,27 @@ class IssuerConfig:
         return cls(issuer_config=issuer_config_dict)
 
     @classmethod
-    def get_from_string(cls, string: str) -> Optional[IssuerConfig]:
+    def get_from_string(cls, iss: str) -> Optional[IssuerConfig]:
         """If the string provided is a URL: try several well known endpoints until the ISS config is
         found"""
-        if string is None or not is_url(string):
+        if iss is None or not is_url(iss):
             return None
 
         well_known_path = "/.well-known/openid-configuration"
 
-        if string.endswith(well_known_path):
-            return cls.get_from_url(string)
+        if iss.endswith(well_known_path):
+            return cls._get_from_url(iss)
 
-        if string.endswith(("/oauth2", "/oauth2/")):
-            return cls.get_from_url(string + well_known_path)
+        if iss.endswith(("/oauth2", "/oauth2/")):
+            return cls._get_from_url(iss + well_known_path)
 
         for url in [
-            string + well_known_path,
-            string + "/oauth2" + well_known_path,
+            iss + well_known_path,
+            iss + "/oauth2" + well_known_path,
         ]:
-            iss_config = cls.get_from_url(url)
+            iss_config = cls._get_from_url(url)
             if iss_config is not None:
+                logger.info("Retrieved config for issuer: %s", iss)
                 return iss_config
 
         return None
@@ -176,9 +177,6 @@ class IssuerConfig:
         user_info = self._get_user_info(access_token)
         if user_info is None:
             return None
-
-        if access_token_info is None:
-            access_token_info = access_tokens.get_access_token_info(access_token)
 
         introspection_info = self._get_introspected_token_info(access_token)
 
