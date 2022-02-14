@@ -162,20 +162,40 @@ class BaseFlaat(FlaatConfig):
 
             issuer_config = self._get_issuer_config(issuer)
             if issuer_config is not None:
-                user_infos = issuer_config.get_user_infos(
-                    access_token, access_token_info=access_token_info
-                )
+                user_infos = issuer_config.get_user_infos(access_token)
                 if user_infos is not None:
                     logger.debug(
                         "Found issuer for access token: %s", issuer_config.issuer
                     )
                     access_token_issuer_cache[access_token] = issuer_config.issuer
                     return user_infos
-
         return None
 
+    @cached(cache=user_infos_cache)
+    def get_user_infos_from_access_token(
+        self, access_token: str, issuer_hint: str = ""
+    ) -> Optional[UserInfos]:
+        if access_token == "":
+            raise FlaatUnauthenticated("No access token")
+
+        logger.debug("Access token: %s", access_token)
+        access_token_info = get_access_token_info(access_token)
+        issuer_config = self._find_issuer_config(
+            access_token, access_token_info, issuer_hint=issuer_hint
+        )
+        if issuer_config is not None:
+            return issuer_config.get_user_infos(
+                access_token, access_token_info=access_token_info
+            )
+
+        # Last resort: Try all OPs
+        return self._get_user_infos_brute_force(access_token)
+
     def get_user_infos_from_request(self, request_object) -> Optional[UserInfos]:
-        access_token = self.get_access_token_from_request(request_object)
+        access_token = self._get_access_token_from_request(request_object)
+        if access_token == "":
+            raise FlaatException("No access token from request")
+
         user_infos = self.get_user_infos_from_access_token(access_token)
         return user_infos
 

@@ -7,16 +7,14 @@ import sys
 from typing import Optional
 
 import configargparse
+from humanfriendly import format_timespan
 import liboidcagent as agent
 
 from flaat import BaseFlaat
+from flaat.exceptions import FlaatException
 from flaat.user_infos import UserInfos
-import conftest as _
 
-root = logging.getLogger()
-root.setLevel(logging.DEBUG)
-handler = logging.StreamHandler(sys.stderr)
-root.addHandler(handler)
+logger = logging.getLogger(__name__)
 
 TRUSTED_OP_LIST = [
     "https://b2access.eudat.eu/oauth2/",
@@ -61,11 +59,16 @@ def get_arg_parser():  # pragma: no cover
     parser.add_argument(
         "--my-config", "-c", is_config_file=True, help="config file path"
     )
-    parser.add_argument("--verbose", "-v", action="count", default=0, help="Verbosity")
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", dest="verbose", help="Verbosity"
+    )
     parser.add_argument("--client_id", default="")
     parser.add_argument("--client_secret", default="")
     parser.add_argument(
-        "--verify_tls", default=True, action="store_false", help="disable verify"
+        "--verify_tls",
+        default=True,
+        action="store_false",
+        help="Disable TLS verification",
     )
 
     parser.add_argument(
@@ -74,9 +77,15 @@ def get_arg_parser():  # pragma: no cover
         default=False,
         action="store_true",
         dest="show_access_token",
+        help="Show access token info (default)",
     )
     parser.add_argument(
-        "--userinfo", "-ui", default=False, action="store_true", dest="show_user_info"
+        "--userinfo",
+        "-ui",
+        default=False,
+        action="store_true",
+        dest="show_user_info",
+        help="Show user info (default)",
     )
     parser.add_argument(
         "--introspection",
@@ -84,28 +93,45 @@ def get_arg_parser():  # pragma: no cover
         default=False,
         action="store_true",
         dest="show_introspection_info",
+        help="Show introspection info (default)",
     )
     parser.add_argument(
-        "--all", "-a", default=True, action="store_true", dest="show_all"
+        "--all",
+        "-a",
+        default=True,
+        action="store_false",
+        dest="show_all",
     )
-    parser.add_argument("--quiet", "-q", default=False, action="store_true")
+    parser.add_argument(
+        "--quiet",
+        "-q",
+        default=False,
+        action="store_true",
+        help="Only show requested information, no explanatory text",
+    )
     parser.add_argument(
         "--machine-readable",
         "-m",
         default=False,
         action="store_true",
         dest="machine_readable",
+        help="Make stdout machine readable",
     )
 
-    parser.add_argument("--oidc-agent-account", "--oidc", "--oidc-agent", default=None)
-
     parser.add_argument(
-        "--issuersconf",
-        default="/etc/oidc-agent/issuer.config",
-        help="issuer.config, e.g. from oidc-agent",
+        "--oidc-agent-account",
+        "--oidc-agent",
+        "--oidc",
+        "-o",
+        default="",
+        help="Name of oidc-agent account for access token retrieval",
     )
     parser.add_argument(
-        "--issuer", "--iss", "-i", help="Specify issuer (OIDC Provider)"
+        "--issuer",
+        "--iss",
+        "-i",
+        default="",
+        help="Specify issuer (OIDC Provider)",
     )
     parser.add_argument(dest="access_token", default=None, nargs="*")
     return parser
@@ -115,19 +141,27 @@ def get_args():  # pragma: no cover
     parser = get_arg_parser()
     args = parser.parse_args()
     # if -in -ui or -at are specified, we set all to false:
-    if (
-        args.show_user_info
-        or args.show_access_token
-        or args.show_introspection_info
-        or args.quiet
-    ):
+    if args.show_user_info or args.show_access_token or args.show_introspection_info:
         args.show_all = False
     return args
 
 
 def get_flaat(args, trusted_op_list=None):
     flaat = BaseFlaat()
-    flaat.set_verbosity(args.verbose)
+
+    verbosity = 2  # info
+    # quiet has precedence over verbose
+    if args.quiet:
+        verbosity = 1  # warn
+    elif args.verbose:
+        verbosity = 3  # debug
+    flaat.set_verbosity(verbosity, set_global=True)
+
+    # Log to stderr
+    handler = logging.StreamHandler(sys.stderr)
+    root = logging.getLogger()
+    root.addHandler(handler)
+
     if trusted_op_list is not None:
         flaat.set_trusted_OP_list(trusted_op_list)
     else:
@@ -145,37 +179,41 @@ def get_access_token(args) -> Optional[str]:
         # use only the first one for now:
         access_token = args.access_token[0]
         if access_token is not None:
-            if args.verbose > 1:
-                print("Using AccessToken from Commandline")
+            logger.info("Using access token from commandline")
             return access_token
 
     # try commandline
-    if args.oidc_agent_account is not None:
+    if args.oidc_agent_account != "":
         try:
             access_token = agent.get_access_token(args.oidc_agent_account)
         except agent.OidcAgentError as e:
-            print(f"Could not use oidc-agent: {e}")
+            raise FlaatException(
+                f"Could not use oidc-agent account '{args.oidc_agent_account}': {e}"
+            ) from e
 
         if access_token is not None:
-            if args.verbose > 1:
-                print("Using AccessToken from oidc-agent (specified via commandline)")
+            logger.info(
+                "Using access token from oidc-agent (account specified via commandline)"
+            )
             return access_token
+        raise FlaatException("Access token from oidc-agent is none")
 
     # try environment  for config
     env_vars_to_try = ["OIDC_AGENT_ACCOUNT"]
     for env_var in env_vars_to_try:
         account_name = os.getenv(env_var)
         if account_name is not None:
-            if args.verbose > 2:
-                print(f"Using agent account {env_var}")
+            logger.debug("Using agent account '%s'", env_var)
             try:
                 access_token = agent.get_access_token(account_name)
                 if access_token is not None:
-                    if args.verbose > 1:
-                        print("Using AccessToken from oidc-agent")
+                    logger.info(
+                        "Using access token from oidc-agent (from environment variable '%s')",
+                        env_var,
+                    )
                     return access_token
             except agent.OidcAgentError as e:
-                print(f"Could not use oidc-agent: {e}")
+                logger.warning("Could not use oidc-agent: %s", e)
 
     # try environment for Access Token:
     env_vars_to_try = [
@@ -189,8 +227,7 @@ def get_access_token(args) -> Optional[str]:
     for env_var in env_vars_to_try:
         access_token = os.getenv(env_var)
         if access_token is not None:
-            if args.verbose > 1:
-                print(f"Using AccessToken from Environment variable {env_var}")
+            logger.info("Using access token from environment variable '%s'", env_var)
             return access_token
 
     return access_token
@@ -227,57 +264,58 @@ class UserInfosPrinter:
 
     def print_human_readable(self, args):
         if self.user_infos is None:
-            print("Error: No user infos found")
+            logger.error("Error: No user infos found")
             sys.exit(2)
 
         if args.show_access_token or args.show_all:
             if self.user_infos.access_token_info is None:
-                print(
-                    "Info: Your access token is not a JWT. I.e. it does not contain information (at least I cannot find it.)"
-                )
+                logger.warning("Your access token is not a JWT")
             else:
-                if args.verbose > 0:
-                    print("Information stored inside the access token:")
+                logger.info("Information stored inside the access token:")
                 self.print_json(self.user_infos.access_token_info.__dict__)
+            print("")
 
         if args.show_user_info or args.show_all:
-            print("")
-            if args.verbose > 0:
-                print("Information retrieved from userinfo endpoint:")
+            logger.info("Information retrieved from userinfo endpoint:")
             self.print_json(self.user_infos.user_info)
+            print("")
 
         if args.show_introspection_info or args.show_all:
-            print("")
             if self.user_infos.introspection_info is None:
-                print(
-                    """The response from the introspection endpoint does not contain information (at least I cannot find it.)
-        Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong"""
-                )
+                if args.client_id != "":
+                    logger.warning(
+                        """Error retrieving token introspection info
+            Submit an issue at https://github.com/indigo-dc/flaat if you feel this is wrong"""
+                    )
             else:
-                print("Information retrieved from introspection endpoint:")
+                logger.info("Information retrieved from introspection endpoint:")
                 self.print_json(self.user_infos.introspection_info)
+            print("")
 
-        if self.user_infos.valid_for_secs is None:
-            return
-
-        print("")
-        if self.user_infos.valid_for_secs > 0:
-            print(f"Token valid for {self.user_infos.valid_for_secs:.1f} more seconds.")
-        else:
-            print(
-                f"Your token is already EXPIRED for {self.user_infos.valid_for_secs:.1f} seconds!"
+        if self.user_infos.valid_for_secs is not None:
+            logger.info(
+                "Your token is valid for %s."
+                if self.user_infos.valid_for_secs > 0
+                else "Your token has EXPIRED for %s!",
+                format_timespan(self.user_infos.valid_for_secs),
             )
 
 
 def main():
-    args = get_args()
-    flaat = get_flaat(args)
-    access_token = get_access_token(args)
-    if access_token is None:
-        print("No access token found")
-        sys.exit(1)
-    user_infos = flaat.get_user_infos_from_access_token(access_token)
-    UserInfosPrinter(user_infos).print(args)
+    try:
+        args = get_args()
+        flaat = get_flaat(args)
+        access_token = get_access_token(args)
+        if access_token is None:
+            logger.error("No access token found")
+            sys.exit(1)
+        user_infos = flaat.get_user_infos_from_access_token(
+            access_token, issuer_hint=args.issuer
+        )
+        UserInfosPrinter(user_infos).print(args)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error("Error: %s", e)
+        sys.exit(3)
 
 
 if __name__ == "__main__":

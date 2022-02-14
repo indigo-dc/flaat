@@ -5,6 +5,18 @@ from flaat import issuers
 
 logger = logging.getLogger(__name__)
 
+LOG_LEVEL_OVERRIDES = {
+    "requests_cache": logging.WARN,
+    "urllib3": logging.WARN,
+    "asyncio": logging.WARN,
+}
+
+
+def _apply_log_level_overrides():
+    for name, level in LOG_LEVEL_OVERRIDES.items():
+        logging.getLogger(name).setLevel(level)
+
+
 # DEFAULT VALUES
 
 # No leading slash ('/') in ops_that_support_jwt !!!
@@ -36,17 +48,31 @@ class FlaatConfig:
         self.client_secret: str = ""
         self.client_connect_timeout: float = 1.2  # seconds
 
-    def set_verbosity(self, verbosity: int):
+    def set_verbosity(self, verbosity: int, set_global=False):
+        """
+        Set the logging verbosity.
+
+        :param verbosity: Verbosity integer from 0 (= error) to 3 (= debug)
+        :param set_global: If set to `True` the logging level will be set for all loggers
+        """
         if verbosity < 0 or verbosity > 3:
             raise ValueError("Verbosity needs to be [0-3]")
+
         level = {
             0: logging.ERROR,
             1: logging.WARN,
             2: logging.INFO,
             3: logging.DEBUG,
         }[verbosity]
-        # TODO also set the framework specific loggers
-        logger.setLevel(level)
+
+        if set_global:
+            logging.getLogger().setLevel(level)
+            logger.debug("Setting global log level to: %s", level)
+        else:
+            logger.setLevel(level)
+            logger.debug("Setting flaat log level to: %s", level)
+
+        _apply_log_level_overrides()
 
     def set_issuer(self, iss):
         """Pins the given issuer. Only users of this issuer can be used."""

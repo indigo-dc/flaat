@@ -11,7 +11,8 @@ from flaat.test_env import FLAAT_AT, FLAAT_ISS, OIDC_AGENT_ACCOUNT
 
 @dataclass
 class ArgsMock:
-    verbose = 3
+    quiet = False
+    verbose = True
     client_id = ""
     client_secret = ""
     access_token = []
@@ -19,8 +20,9 @@ class ArgsMock:
     show_access_token = False
     show_user_info = False
     show_introspection_info = False
-    show_all = False
+    show_all = True
     machine_readable = False
+    verify_tls = False
 
 
 def test_print_infos():
@@ -30,7 +32,6 @@ def test_print_infos():
     printer = UserInfosPrinter(user_infos)
 
     args = ArgsMock()
-    args.show_all = True
     printer.print(args)
 
     args.machine_readable = True
