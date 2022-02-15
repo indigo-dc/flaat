@@ -160,6 +160,7 @@ class BaseFlaat(FlaatConfig):
             if issuer in OPS_THAT_SUPPORT_JWT:
                 continue
 
+            logger.debug("Trying issuer: %s", issuer)
             issuer_config = self._get_issuer_config(issuer)
             if issuer_config is not None:
                 user_infos = issuer_config.get_user_infos(access_token)
@@ -169,6 +170,8 @@ class BaseFlaat(FlaatConfig):
                     )
                     access_token_issuer_cache[access_token] = issuer_config.issuer
                     return user_infos
+
+        logger.warning("No trusted OP produced a user info for access token")
         return None
 
     @cached(cache=user_infos_cache)

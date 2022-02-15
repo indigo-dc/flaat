@@ -3,6 +3,7 @@ pylint
 pytest
 pytest-aiohttp
 pytest-cov
+pylint-pytest
 
 aiohttp
 fastapi>=0.61.2

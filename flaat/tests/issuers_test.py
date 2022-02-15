@@ -27,9 +27,8 @@ class TestURLs:
 def test_token_introspection():
     client_id = environment.get("FLAAT_CLIENT_ID")
     client_secret = environment.get("FLAAT_CLIENT_SECRET")
-    if client_id is None or client_secret is None:
+    if client_id is None or client_secret is None:  # pragma: no cover
         pytest.skip("FLAAT_CLIENT_ID and FLAAT_CLIENT_SECRET are not set")
-        return
 
     issuer_config = IssuerConfig.get_from_string(FLAAT_ISS)
     assert issuer_config is not None
