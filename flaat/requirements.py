@@ -84,9 +84,15 @@ class MetaRequirement(Requirement):
 
 
 class AllOf(MetaRequirement):
-    """AllOf is satisfied if all of its sub-requirements are satisfied"""
+    """
+    AllOf is satisfied if all of its sub-requirements are satisfied.
+    If there are no sub requirements, this class is never satisfied.
+    """
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+        if len(self.requirements) == 0:
+            return CheckResult(False, "No sub requirements")
+
         satisfied = True
         message = "All sub-requirements are satisfied"
         failed_messages = []
@@ -104,9 +110,15 @@ class AllOf(MetaRequirement):
 
 
 class OneOf(MetaRequirement):
-    """OneOf is satisfied if at least one of its sub-requirements are satisfied"""
+    """
+    OneOf is satisfied if at least one of its sub-requirements are satisfied.
+    If there are no sub requirements, this class is never satisfied.
+    """
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+        if len(self.requirements) == 0:
+            return CheckResult(False, "No sub requirements")
+
         satisfied = True
         message = "All sub-requirements are satisfied"
         failed_messages = []
@@ -124,13 +136,19 @@ class OneOf(MetaRequirement):
 
 
 class N_Of(MetaRequirement):
-    """N_Of is satisfied if at least `n` of its sub requirements are satisfied"""
+    """
+    N_Of is satisfied if at least `n` of its sub requirements are satisfied.
+    If there are no sub requirements, this class is never satisfied.
+    """
 
     def __init__(self, n: int, *reqs: Requirement):
         super().__init__(*reqs)
         self.n = n
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+        if len(self.requirements) == 0:
+            return CheckResult(False, "No sub requirements")
+
         failed_messages = []
         n = 0
         for req in self.requirements:

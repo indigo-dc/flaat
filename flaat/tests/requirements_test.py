@@ -67,6 +67,7 @@ def test_possible_requirements_success(user):
     for req in user.success_requirements:
         assert req.is_satisfied_by(user.user_infos).is_satisfied
 
+
 def test_possible_requirements_failure(user):
     for req in user.failure_requirements:
         assert not req.is_satisfied_by(user.user_infos).is_satisfied
@@ -77,3 +78,10 @@ def test_claim_override(user):
     assert not req.is_satisfied_by(user.user_infos).is_satisfied
     os.environ["DISABLE_AUTHENTICATION_AND_ASSUME_ENTITLEMENTS"] = json.dumps(["bar"])
     assert req.is_satisfied_by(user.user_infos).is_satisfied
+
+
+def test_empty_meta_requirements(user):
+    user_infos = user.user_infos
+    assert not AllOf().is_satisfied_by(user_infos).is_satisfied
+    assert not OneOf().is_satisfied_by(user_infos).is_satisfied
+    assert not N_Of(1).is_satisfied_by(user_infos).is_satisfied
