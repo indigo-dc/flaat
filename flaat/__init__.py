@@ -26,6 +26,7 @@ from flaat.requirements import (
     CheckResult,
     REQUEST_REQUIREMENT,
     REQUIREMENT,
+    HasSubIss,
     Requirement,
 )
 from flaat.user_infos import UserInfos
@@ -51,7 +52,7 @@ class BaseFlaat(FlaatConfig):
     Use the framework specific classes :class:`flaat.flask.Flaat`, :class:`flaat.aio.Flaat` and :class:`flaat.fastapi.Flaat` directly.
 
     You usually use a global instance of Flaat, configure it (see :class:`flaat.config.FlaatConfig`) and then access its decorators
-    (e.g. :meth:`requires`, :meth:`inject_object` and :meth:`access_level`).
+    (e.g. :meth:`is_authenticated`, :meth:`requires`, :meth:`inject_object` and :meth:`access_level`).
     """
 
     @property
@@ -312,6 +313,17 @@ class BaseFlaat(FlaatConfig):
         return self.requires(
             self._get_access_level_requirement(access_level_name), on_failure=on_failure
         )
+
+    def is_authenticated(self, on_failure: ON_FAILURE = None) -> Callable:
+        """
+        This can be used to make sure that users are identified (as in they have a subject and an issuer).
+        If you actually want to access the users infos we recommend using :meth:`inject_user_infos` or
+        :meth:`inject_object` instead.
+
+        :param on_failure: Can be used to either deliver an error response to the user, or raise a specific exception.
+        :return: A decorator for a view function
+        """
+        return self.requires(HasSubIss, on_failure=on_failure)
 
 
 class AuthWorkflow:
