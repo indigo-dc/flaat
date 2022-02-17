@@ -56,16 +56,39 @@ def get_arg_parser():  # pragma: no cover
         ignore_unknown_config_file_keys=True,
     )
 
+    # Arguments below
     parser.add_argument(
-        "--my-config", "-c", is_config_file=True, help="config file path"
+        "--my-config",
+        "-c",
+        is_config_file=True,
+        help="config file path",
     )
     parser.add_argument(
-        "--verbose", "-v", action="store_true", dest="verbose", help="Verbosity"
+        "--client_id",
+        default="",
+        help="Specify the client_id of an oidc client. This is needed for token introspection.",
     )
-    parser.add_argument("--client_id", default="")
-    parser.add_argument("--client_secret", default="")
     parser.add_argument(
-        "--verify_tls",
+        "--client_secret",
+        default="",
+        help="Specify the client_secret of an oidc client. This is may be needed for token introspection.",
+    )
+    parser.add_argument(
+        "--oidc-agent-account",
+        "-o",
+        default="",
+        help="Name of oidc-agent account for access token retrieval",
+    )
+    parser.add_argument(
+        "--issuer",
+        "-i",
+        default="",
+        help="Specify issuer (OIDC Provider)",
+    )
+
+    # FLAGS below
+    parser.add_argument(
+        "--skip_tls_verify",
         default=True,
         action="store_false",
         help="Disable TLS verification",
@@ -107,7 +130,14 @@ def get_arg_parser():  # pragma: no cover
         "-q",
         default=False,
         action="store_true",
-        help="Only show requested information, no explanatory text",
+        help="Enable quiet mode. This will only show requested information, no explanatory text",
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        dest="verbose",
+        help="Enable verbose mode. This will also print debug messages.",
     )
     parser.add_argument(
         "--machine-readable",
@@ -117,27 +147,16 @@ def get_arg_parser():  # pragma: no cover
         dest="machine_readable",
         help="Make stdout machine readable",
     )
-
     parser.add_argument(
-        "--oidc-agent-account",
-        "--oidc-agent",
-        "--oidc",
-        "-o",
-        default="",
-        help="Name of oidc-agent account for access token retrieval",
+        dest="access_token",
+        default=None,
+        nargs="*",
+        help="An access token (without 'Bearer ')",
     )
-    parser.add_argument(
-        "--issuer",
-        "--iss",
-        "-i",
-        default="",
-        help="Specify issuer (OIDC Provider)",
-    )
-    parser.add_argument(dest="access_token", default=None, nargs="*")
     return parser
 
 
-def get_args():  # pragma: no cover
+def get_args():
     parser = get_arg_parser()
     args = parser.parse_args()
     # if -in -ui or -at are specified, we set all to false:

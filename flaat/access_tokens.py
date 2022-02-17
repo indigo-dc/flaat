@@ -10,7 +10,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-def base64url_encode(data):
+def _base64_url_encode(data):
     """Decode base64 encode data"""
     if not isinstance(data, bytes):
         data = data.encode("utf-8")
@@ -18,7 +18,7 @@ def base64url_encode(data):
     return encode.decode("utf-8").rstrip("=")
 
 
-def base64url_decode(data):
+def _base64_url_decode(data):
     """Encode base64 encode data"""
     size = len(data) % 4
     if size == 2:
@@ -32,9 +32,16 @@ def base64url_decode(data):
 
 @dataclass
 class AccessTokenInfo:
+    """Infos from a JWT access token"""
+
     header: dict
+    """ The JWT header """
+
     body: dict
+    """ The JWT body """
+
     signature: str
+    """ The JWT signature """
 
     @property
     def issuer(self) -> str:
@@ -42,7 +49,7 @@ class AccessTokenInfo:
 
 
 def get_access_token_info(access_token) -> Optional[AccessTokenInfo]:
-    """Return information contained in the access token. Maybe None"""
+
     # FIXME: Add a parameter verify=True, then go and verify the token
 
     splits = access_token.split(".")
@@ -53,9 +60,9 @@ def get_access_token_info(access_token) -> Optional[AccessTokenInfo]:
     (header_enc, body_enc, signature_enc) = splits
 
     try:
-        header = json.loads(base64url_decode(header_enc))
+        header = json.loads(_base64_url_decode(header_enc))
         logger.debug("JWT Header: %s", header)
-        body = json.loads(base64url_decode(body_enc))
+        body = json.loads(_base64_url_decode(body_enc))
         logger.debug("JWT Body:   %s", body)
         return AccessTokenInfo(header, body, signature_enc)
     except ValueError as e:

@@ -9,11 +9,17 @@ logger = logging.getLogger(__name__)
 
 
 class UserInfos:
-    """Infos represents infos about an access token and the user it belongs to"""
+    """Infos about an access token and the user it belongs to.
+    This class acts like a dictionary with regards to claims.
+    So `infos["foo"]` will give you the claim if it does exist in one of the underlying dicts.
+    """
 
     user_info: dict
+    """ user_info is the user info dictionary from the user info endpoint of the issuer."""
     access_token_info: Optional[AccessTokenInfo] = None
+    """ Is set to `AccessTokenInfo` if the respective access token was a JWT."""
     introspection_info: Optional[dict] = None
+    """ Is the data returned from the token intropsection endpoint of the issuer."""
 
     def __init__(
         self,
@@ -42,7 +48,7 @@ class UserInfos:
     def post_process_dictionaries(self):
         """post_process_dictionaries can be used to do post processing on the raw dictionaries after initialization.
         Extend this class and overwrite this method to do custom post processing.
-        Make sure to call super().post_process_dictionaries(), so the post processing done here is picked up.
+        Make sure to call `super().post_process_dictionaries()`, so the post processing done here is picked up.
         """
         # copy a possible 'iss' fields into the user info if it does not exist
         # This is useful if someone extracts only the user_info dictionary from us
@@ -54,6 +60,8 @@ class UserInfos:
 
     @property
     def valid_for_secs(self) -> Optional[int]:
+        """Is set if we now about the expiry of these user infos."""
+
         def _timeleft(info_dict, claim="exp") -> Optional[int]:
             """Get expiry from info dictionary (either from access token or introspection"""
             if claim in info_dict:
@@ -74,10 +82,12 @@ class UserInfos:
 
     @property
     def issuer(self) -> str:
+        """The issuer of the access token"""
         return self.get("iss", "")
 
     @property
     def subject(self) -> str:
+        """The users subject at the issuer"""
         return self.get("sub", "")
 
     # make the UserInfos act like a dictionary with regard to claims
@@ -111,6 +121,8 @@ class UserInfos:
         return f"{self.subject}@{self.issuer}"
 
     def toJSON(self) -> str:
+        """Render these infos to JSON"""
+
         class ATEncoder(JSONEncoder):
             def default(self, o):
                 return o.__dict__

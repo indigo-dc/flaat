@@ -1,4 +1,10 @@
-"""This module contains classes to express diverse requiremnts which a user needs to satisfy in order to use a view function"""
+"""
+This module contains classes to express diverse requirements which a user needs to satisfy in order to use a view function.
+
+The convenience functions :meth:`get_claim_requirement` and :meth:`get_vo_requirement` are recommended to construct individual requirements.
+
+If you want to combine multiple requirements use the "meta requirements"  :class:`AllOf`, :class:`OneOf` and :class:`N_Of`.
+"""
 from dataclasses import dataclass
 import json
 import logging
@@ -13,7 +19,7 @@ from flaat.user_infos import UserInfos
 logger = logging.getLogger(__name__)
 
 
-def check_environment_for_override(env_key):
+def _check_environment_for_override(env_key):
     """Override the actual group membership, if environment is set."""
     env_val = os.getenv(env_key)
     try:
@@ -32,12 +38,15 @@ class CheckResult:
     """CheckResult is the result of an `is_satisfied_by` check"""
 
     is_satisfied: bool
+    """ Is True if the requirement was satisfied by the user info """
+
     message: str
+    """ Message describing the check result. This could be an error message. """
 
 
 class Requirement:
     """Requirement is the base class of all requirements.
-    Requirement have a method `is_satisfied_by` which returns a `CheckResult` instance.
+    The have a method `is_satisfied_by` which returns a `CheckResult` instance.
     """
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
@@ -60,7 +69,12 @@ class Unsatisfiable(Requirement):
 
 
 class IsTrue(Requirement):
-    """IsTrue is satisfied if the provided func evaluates to True"""
+    """
+    IsTrue is satisfied if the provided func evaluates to True
+
+    :param func: A function that is used to determine if a user info
+        satisfies custom requirements.
+    """
 
     def __init__(self, func: Callable[[UserInfos], bool]):
         self.func = func
@@ -86,12 +100,12 @@ class MetaRequirement(Requirement):
 class AllOf(MetaRequirement):
     """
     AllOf is satisfied if all of its sub-requirements are satisfied.
-    If there are no sub requirements, this class is never satisfied.
+    If there are no sub-requirements, this class is never satisfied.
     """
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         if len(self.requirements) == 0:
-            return CheckResult(False, "No sub requirements")
+            return CheckResult(False, "No sub-requirements")
 
         satisfied = True
         message = "All sub-requirements are satisfied"
@@ -112,12 +126,12 @@ class AllOf(MetaRequirement):
 class OneOf(MetaRequirement):
     """
     OneOf is satisfied if at least one of its sub-requirements are satisfied.
-    If there are no sub requirements, this class is never satisfied.
+    If there are no sub-requirements, this class is never satisfied.
     """
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         if len(self.requirements) == 0:
-            return CheckResult(False, "No sub requirements")
+            return CheckResult(False, "No sub-requirements")
 
         satisfied = True
         message = "All sub-requirements are satisfied"
@@ -137,8 +151,8 @@ class OneOf(MetaRequirement):
 
 class N_Of(MetaRequirement):
     """
-    N_Of is satisfied if at least `n` of its sub requirements are satisfied.
-    If there are no sub requirements, this class is never satisfied.
+    N_Of is satisfied if at least `n` of its sub-requirements are satisfied.
+    If there are no sub-requirements, this class is never satisfied.
     """
 
     def __init__(self, n: int, *reqs: Requirement):
@@ -147,7 +161,7 @@ class N_Of(MetaRequirement):
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         if len(self.requirements) == 0:
-            return CheckResult(False, "No sub requirements")
+            return CheckResult(False, "No sub-requirements")
 
         failed_messages = []
         n = 0
@@ -163,11 +177,11 @@ class N_Of(MetaRequirement):
 
         return CheckResult(
             False,
-            f"Only {n} of {self.n} sub requirments were satisfied: {failed_messages}",
+            f"Only {n} of {self.n} sub-requirments were satisfied: {failed_messages}",
         )
 
 
-def match_to_meta_requirement(match: Union[str, int]) -> MetaRequirement:
+def _match_to_meta_requirement(match: Union[str, int]) -> MetaRequirement:
     """translates a match argument to meta requirements
     Valid values are: "all", "one" or int"""
 
@@ -214,11 +228,11 @@ class HasClaim(Requirement):
         self.claim = claim
 
     def _get_override_claims(self) -> Optional[Any]:
-        override_entitlement_entries = check_environment_for_override(
-            "DISABLE_AUTHENTICATION_AND_ASSUME_ENTITLEMENTS"
+        override_entitlement_entries = _check_environment_for_override(
+            "DISABLE_AUTHENTICATION_AND_ASSUME_CLAIM"
         )
         if override_entitlement_entries is not None:
-            logger.info("Using entitlement override: %s", override_entitlement_entries)
+            logger.info("Using override: %s", override_entitlement_entries)
             return override_entitlement_entries
 
         return None
@@ -289,20 +303,19 @@ class HasAARCEntitlement(HasClaim):
         return available.satisfies(required)
 
 
-def get_claim_requirement(
+def _get_claim_requirement(
     required: Union[str, List[str]],
     claim: str,  # claim in the user info
     match: Union[str, int] = "all",
     claim_requirement_class=HasClaim,
 ) -> Requirement:
-    """get_claim_requirement returns a requirement that is satisfied if the user has the claim value(s) of `required`.
-    Depending on the `match` argument all or a specific number of values are required to be matched.
-
-    If the claim values need specific handling, claim_requirement_class can be used to specify, a class
-    for the handling, see `get_vo_requirement`)
     """
+    :param claim_requirement_class: If the claim values need specific handling this can be used to specify a class
+        for the handling, like in :meth:`get_vo_requirement`.
+    """
+
     if isinstance(required, list):
-        requirement = match_to_meta_requirement(match)
+        requirement = _match_to_meta_requirement(match)
 
         for req in required:
             requirement.add_requirement(claim_requirement_class(req, claim=claim))
@@ -312,13 +325,29 @@ def get_claim_requirement(
     return requirement
 
 
+def get_claim_requirement(
+    required: Union[str, List[str]],
+    claim: str,  # claim in the user info
+    match: Union[str, int] = "all",
+) -> Requirement:
+    """
+    :param required: The claim values that the user needs to have.
+    :param claim: The claim of the value in `required`, e.g. `eduperson_entitlement`.
+    :param match: May be "all" if all required values need to be matched, or "one" or an integer if a specific amount needs to be matched.
+
+    :return: A requirement that is satisfied if the user has the claim value(s) of `required`.
+    """
+
+    return _get_claim_requirement(required, claim, match, HasClaim)
+
+
 def get_vo_requirement(
     required: Union[str, List[str]],
     claim: str,  # claim in the user info
     match: Union[str, int] = "all",
 ) -> Requirement:
-    """Equivalent to `get_claim_requirement`, but works for both groups and AARC entitlements"""
-    return get_claim_requirement(
+    """Equivalent to :meth:`get_claim_requirement`, but works for both groups and AARC entitlements."""
+    return _get_claim_requirement(
         required, claim, match, claim_requirement_class=HasAARCEntitlement
     )
 

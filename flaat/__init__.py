@@ -1,11 +1,11 @@
-"""Python support for OIDC Access Tokens -- FLAAT.
+"""
+Python support for OIDC Access Tokens -- FLAAT.
 Use decorators for authorising access to OIDC authenticated REST APIs.
 """
 # This code is distributed under the MIT License
 
 from __future__ import annotations
 from asyncio import iscoroutinefunction
-from dataclasses import dataclass
 from functools import wraps
 import logging
 import os
@@ -15,21 +15,18 @@ from cachetools import cached
 
 from flaat.access_tokens import AccessTokenInfo, get_access_token_info
 from flaat.caches import (
-    user_infos_cache,
-    issuer_config_cache,
     access_token_issuer_cache,
+    issuer_config_cache,
+    user_infos_cache,
 )
 from flaat.config import FlaatConfig, OPS_THAT_SUPPORT_JWT
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.issuers import IssuerConfig
 from flaat.requirements import (
     CheckResult,
-    HasSubIss,
     REQUEST_REQUIREMENT,
     REQUIREMENT,
     Requirement,
-    Satisfied,
-    Unsatisfiable,
 )
 from flaat.user_infos import UserInfos
 
@@ -45,32 +42,17 @@ MAP_EXCEPTION = Callable[[FlaatException], NoReturn]
 ON_FAILURE = Callable[[FlaatException, Optional[UserInfos]], Union[Any, NoReturn]]
 
 
-@dataclass
-class AccessLevel:
-    name: str
-    requirement: REQUIREMENT
-
-
-Anyone = AccessLevel("ANYONE", Satisfied())
-NoOne = AccessLevel("NOONE", Unsatisfiable())
-Identified = AccessLevel("IDENTIFIED", HasSubIss())
-
-DEFAULT_ACCESS_LEVELS = [
-    Anyone,
-    NoOne,
-    Identified,
-]
-
-
 class BaseFlaat(FlaatConfig):
-    """FLAsk support for OIDC Access Tokens.
-    Provide decorators and configuration for OIDC"""
+    """
+    Uses OIDC access tokens to provide authentication and authorization for multiple webframe works. This is the base class.
+    Use the framework specific classes :class:`flaat.flask.Flaat`, :class:`flaat.aio.Flaat` and :class:`flaat.fastapi.Flaat` directly.
+
+    You usually use a global instance of Flaat, configure it (see :class:`flaat.config.FlaatConfig`) and then access its decorators
+    (e.g. :meth:`requires`, :meth:`inject_object` and :meth:`access_level`).
+    """
 
     def __init__(self):
         super().__init__()
-
-        # access levels for the self.access_level decorator
-        self.access_levels = DEFAULT_ACCESS_LEVELS
 
     # SUBCLASS STUBS
     def _get_request(self, *args, **kwargs):  # pragma: no cover
@@ -95,7 +77,9 @@ class BaseFlaat(FlaatConfig):
 
     @cached(cache=issuer_config_cache)
     def _get_issuer_config(self, iss) -> Optional[IssuerConfig]:
-        issuer_config = IssuerConfig.get_from_string(iss)
+        issuer_config = IssuerConfig.get_from_string(
+            iss, timeout=self.request_timeout, verify_tls=self.verify_tls
+        )
         if issuer_config is None:
             return None
 
@@ -178,6 +162,15 @@ class BaseFlaat(FlaatConfig):
     def get_user_infos_from_access_token(
         self, access_token: str, issuer_hint: str = ""
     ) -> Optional[UserInfos]:
+        """
+        This method is used to retrieve all infos about an user.
+        You don't need to call this manually, as the decorators will automatically do it for you.
+
+
+        :param access_token: The access token of the user. The token must not start with 'Bearer '.
+        :return: A :class:`flaat.user_infos.UserInfos` instance with all the infos that could be retrieved.
+            If no info could be retrieved, then `None` is returned.
+        """
         if access_token == "":
             raise FlaatUnauthenticated("No access token")
 
@@ -214,9 +207,14 @@ class BaseFlaat(FlaatConfig):
         key="object",
         strict=True,
     ) -> Callable:
-        """Injects a object into a view function given a method to translate a UserInfos instance into the object.
-        This is useful for injecting user instances.
-        If `strict` is set to True this decorator will fail when there is nothing to inject
+        """
+        Injects an object into a view function given a method to translate a UserInfos instance into the object.
+        This is useful for injecting user model instances.
+
+        :param infos_to_object: A function that translates a :class:`flaat.user_infos.UserInfos` instance to a custom object.
+        :param key: The key with which the generated object is injected into the `kwargs` of the view function.
+        :param strict: If set to `True` this decorator if fail when there is nothing to inject.
+        :return: A decorator for a view function.
         """
 
         def _add_value_to_kwargs(kwargs: dict, key: str, value) -> dict:
@@ -243,6 +241,15 @@ class BaseFlaat(FlaatConfig):
         ).decorate_view_func
 
     def inject_user_infos(self, key="user_infos", strict=True) -> Callable:
+        """
+        A decorator which injects the current users :class:`flaat.user_infos.UserInfos` into
+        the view function.
+
+        :param key: The key with which the user info is injected.
+        :param strict: If set to `True`, an unauthenticated user will not be able to use the view functions
+            and cause an error instead.
+        :return: A decorator for a view function.
+        """
         return self.inject_object(key=key, strict=strict)
 
     def _requirement_auth_disabled(self):
@@ -257,11 +264,18 @@ class BaseFlaat(FlaatConfig):
         self,
         requirements: Union[REQUIREMENT, List[REQUIREMENT]],
         on_failure: Optional[ON_FAILURE] = None,
-    ):
-        """returns decorator that only allows users, which fit the requirements
-        If the requirements are callables, they are evaluated at runtime of the view_func,
-        not at import time.
+    ) -> Callable:
         """
+        This returns a decorator that will make sure, that the user fits the requirements before the view function is called. If the user does not, an exception
+            for the respective web framework will be thrown, so the user sees the correct error.
+
+        :param requirements: One :class:`flaat.requirements.Requirement` instance or a list of requirements the user needs to fit to have access to the decorated function.
+            If the requirements are wrapped in a callable, it will be lazy evaluated once the view_func is called.
+        :param on_failure: Optional function to customize the handling of an error. This function can
+            either raise an exception or return a response which should be returned in place of the response
+            from the view function.
+        :return: A decorator for a view function."""
+
         return AuthWorkflow(
             self, user_requirements=requirements, on_failure=on_failure
         ).decorate_view_func
@@ -287,8 +301,10 @@ class BaseFlaat(FlaatConfig):
     def access_level(
         self, access_level_name: str, on_failure: Optional[ON_FAILURE] = None
     ):
-        """access_level only allows users which fit the requirement of the given access level.
-        The requirements are specified in self.access_level_requirement
+        """
+        :param access_level_name: The name of the access_level that the user needs to use the view function.
+        :param on_failure: Can be used to either deliver an error response to the user, or raise a specific exception.
+        :return: A decorator, that can be used to decorate a view function.
         """
 
         return self.requires(
@@ -298,11 +314,17 @@ class BaseFlaat(FlaatConfig):
 
 class AuthWorkflow:
     """
-    Encapsulate the complete workflow of a decorator
-    - authenticating the users
-    - checking its authorization
-    - checking the request parameters against the authorization
-    - ...
+    This class can be used if you need maximum customizability for your decorator.
+    It encapsulates the complete workflow of a decorator.
+
+    :param flaat: The flaat instance that is currently in use.
+    :param user_requirements: Requirement which the user all needs to match, like with :meth:`requires`.
+    :param request_requirements: A callable which determines if a users request is allowed to proceed.
+        This function is handy if you want to evaluate the arguments for the view function before against the users permissions.
+    :param process_arguments: As with :meth:`inject_object`, this can be used to inject data into the view function.
+    :param on_failure: Can be used to either deliver an error response to the user, or raise a specific exception.
+    :param ignore_no_authn: If set to `True` a failing authentication of the user will not cause exceptions.
+    :returns: A class instance, which is used by decorating view functions with its :meth:`decorate_view_func` method.
     """
 
     def __init__(
@@ -455,6 +477,11 @@ class AuthWorkflow:
         return (self.process_arguments(user_infos, *args, **kwargs), None)
 
     def decorate_view_func(self, view_func: Callable) -> Callable:
+        """
+        :param view_func: The view function to decorate.
+        :return: The decorated view function.
+        """
+
         @wraps(view_func)
         def wrapper(*args, **kwargs):
             ((args, kwargs), error_response) = self._run_work_flow(*args, **kwargs)
