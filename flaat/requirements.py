@@ -6,10 +6,8 @@ The convenience functions :meth:`get_claim_requirement` and :meth:`get_vo_requir
 If you want to combine multiple requirements use the "meta requirements"  :class:`AllOf`, :class:`OneOf` and :class:`N_Of`.
 """
 from dataclasses import dataclass
-import json
 import logging
-import os
-from typing import Any, Callable, List, Optional, Union
+from typing import Callable, List, Union
 
 import aarc_entitlement
 
@@ -17,20 +15,6 @@ from flaat.exceptions import FlaatException
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
-
-
-def _check_environment_for_override(env_key):
-    """Override the actual group membership, if environment is set."""
-    env_val = os.getenv(env_key)
-    try:
-        if env_val is not None:
-            avail_entitlement_entries = json.loads(env_val)
-            return avail_entitlement_entries
-    except (TypeError, json.JSONDecodeError) as e:  # pragma: no cover
-        logger.error(
-            "Cannot decode JSON group list from the environment: %s\n%s", env_val, e
-        )
-    return None
 
 
 @dataclass
@@ -227,22 +211,8 @@ class HasClaim(Requirement):
 
         self.claim = claim
 
-    def _get_override_claims(self) -> Optional[Any]:
-        override_entitlement_entries = _check_environment_for_override(
-            "DISABLE_AUTHENTICATION_AND_ASSUME_CLAIM"
-        )
-        if override_entitlement_entries is not None:
-            logger.info("Using override: %s", override_entitlement_entries)
-            return override_entitlement_entries
-
-        return None
-
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
-        override_claim = self._get_override_claims()
-        if override_claim is not None:
-            value = override_claim
-        else:
-            value = user_infos.get(self.claim, None)
+        value = user_infos.get(self.claim, None)
         if value is None:
             return CheckResult(False, f"Claim '{self.claim}' is not available")
 

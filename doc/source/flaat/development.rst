@@ -3,21 +3,32 @@
 Development
 ===========
 
+Tox
+---
 
-Override authentication using environment variables
----------------------------------------------------
+We use tox to run the tests for supported python versions, lint the code using pylint and build this beautiful documentation:
+
+
+.. code-block:: console
+
+   cd <..>/flaat    # in the project root
+
+   tox              # Do everything
+   tox -e docs      # Only build the docs
+   tox -e pylint    # Only lint the code
+
+
+
+Override auth using environment variables
+-----------------------------------------
+
+.. important::
+
+    Be careful with these variables and never use them in production.
+
 You may find setting the following environment variable useful:
 
-- `DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER=YES`: Assumes a valid user
-- `DISABLE_AUTHENTICATION_AND_ASSUME_SATISFIED=YES`: Assumes all group membership requriements to be true
-- `DISABLE_AUTHENTICATION_AND_ASSUME_CLAIM=<string of json list>`: Assumes the user in question to be member of the groups specified.
-
-Example for the json list:
-
-.. code-block:: json
-
-    [
-      "urn:geant:h-df.de:group:m-team:feudal-developers",
-      "urn:geant:h-df.de:group:MyExampleColab#unity.helmholtz.de"
-    ]
-
+- `export DISABLE_AUTHORIZATION_AND_ASSUME_AUTHORIZED_USER=YES`
+    Bypasses user authorization done by the decorators.
+- `export DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER=YES`
+    Bypasses user authentication done by the decorators. This also bypasses the authorization.

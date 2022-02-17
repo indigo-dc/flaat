@@ -32,6 +32,9 @@ from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)
 
+ENV_VAR_AUTHN_OVERRIDE = "DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER"
+ENV_VAR_AUTHZ_OVERRIDE = "DISABLE_AUTHORIZATION_AND_ASSUME_AUTHORIZED_USER"
+
 # MAP_EXCEPTION is the type for self.map_exception
 # It map our exceptions to framework specific or custom exceptions
 MAP_EXCEPTION = Callable[[FlaatException], NoReturn]
@@ -51,8 +54,13 @@ class BaseFlaat(FlaatConfig):
     (e.g. :meth:`requires`, :meth:`inject_object` and :meth:`access_level`).
     """
 
-    def __init__(self):
-        super().__init__()
+    @property
+    def authentication_disabled(self):
+        return "YES" == os.environ.get(ENV_VAR_AUTHN_OVERRIDE, "")
+
+    @property
+    def authorization_disabled(self):
+        return "YES" == os.environ.get(ENV_VAR_AUTHZ_OVERRIDE, "")
 
     # SUBCLASS STUBS
     def _get_request(self, *args, **kwargs):  # pragma: no cover
@@ -252,14 +260,6 @@ class BaseFlaat(FlaatConfig):
         """
         return self.inject_object(key=key, strict=strict)
 
-    def _requirement_auth_disabled(self):
-        return (
-            "yes"
-            == os.environ.get(
-                "DISABLE_AUTHENTICATION_AND_ASSUME_AUTHENTICATED_USER", ""
-            ).lower()
-        )
-
     def requires(
         self,
         requirements: Union[REQUIREMENT, List[REQUIREMENT]],
@@ -277,7 +277,9 @@ class BaseFlaat(FlaatConfig):
         :return: A decorator for a view function."""
 
         return AuthWorkflow(
-            self, user_requirements=requirements, on_failure=on_failure
+            self,
+            user_requirements=requirements,
+            on_failure=on_failure,
         ).decorate_view_func
 
     def _get_access_level_requirement(self, access_level_name: str) -> Requirement:
@@ -442,6 +444,13 @@ class AuthWorkflow:
         """
         returns: (((args, kwargs) | None), (error_response | None))
         """
+        if self.flaat.authentication_disabled:
+            logger.info(
+                "Authentication and authorization are bypassed: Environment variable is set"
+            )
+            # No error, but also do nothing else
+            return ((args, kwargs), None)
+
         user_infos = self.authenticate_user(*args, **kwargs)
         if user_infos is None:
             if self.ignore_no_authn:
@@ -456,23 +465,28 @@ class AuthWorkflow:
                 ),
             )
 
-        user_authz_check = self.check_user_authorization(user_infos)
-        if not user_authz_check.is_satisfied:
-            return (
-                (args, kwargs),
-                self.handle_no_user_authorization(user_authz_check.message, user_infos),
-            )
+        if self.flaat.authorization_disabled:
+            logger.info("Authorization is bypassed: Environment variable is set")
+        else:
+            user_authz_check = self.check_user_authorization(user_infos)
+            if not user_authz_check.is_satisfied:
+                return (
+                    (args, kwargs),
+                    self.handle_no_user_authorization(
+                        user_authz_check.message, user_infos
+                    ),
+                )
 
-        request_authz_check = self.check_request_authorization(
-            user_infos, *args, **kwargs
-        )
-        if not request_authz_check.is_satisfied:
-            return (
-                (args, kwargs),
-                self.handle_no_request_authorization(
-                    request_authz_check.message, user_infos
-                ),
+            request_authz_check = self.check_request_authorization(
+                user_infos, *args, **kwargs
             )
+            if not request_authz_check.is_satisfied:
+                return (
+                    (args, kwargs),
+                    self.handle_no_request_authorization(
+                        request_authz_check.message, user_infos
+                    ),
+                )
 
         return (self.process_arguments(user_infos, *args, **kwargs), None)
 
