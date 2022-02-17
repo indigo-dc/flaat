@@ -25,13 +25,6 @@ class Flaat(BaseFlaat):
     def _get_request(self, *_, **__):
         return request
 
-    def _get_access_token_from_request(self, _) -> str:
+    def _get_header_from_request(self, _, name) -> str:
         # using flask global "request" here, not an argument
-        if not "Authorization" in request.headers:
-            raise FlaatUnauthenticated("No authorization header in request")
-
-        header = request.headers.get("Authorization")
-        if not header.startswith("Bearer "):
-            raise FlaatUnauthenticated("Authorization header must contain bearer token")
-
-        return header.replace("Bearer ", "")
+        return request.headers.get(name, "")

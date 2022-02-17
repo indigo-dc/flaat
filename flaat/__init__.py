@@ -74,12 +74,23 @@ class BaseFlaat(FlaatConfig):
     def map_exception(self, exception: FlaatException) -> NoReturn:  # pragma: no cover
         raise exception
 
-    def _get_access_token_from_request(self, request) -> str:  # pragma: no cover
-        """Helper function to obtain the OIDC AT from the flask request variable"""
+    def _get_header_from_request(self, request, name: str) -> str:  # pragma: no cover
+        """overwritten in subclasses"""
         _ = request
         return ""
 
     # END SUBCLASS STUBS
+
+    def _get_access_token_from_request(self, request) -> str:
+        value = self._get_header_from_request(request, "Authorization")
+        if value == "":
+            raise FlaatUnauthenticated("No authorization header")
+
+        prefix = "Bearer "
+        if not value.startswith(prefix):
+            raise FlaatUnauthenticated("No bearer token in authorization header")
+
+        return value.replace(prefix, "")
 
     def _issuer_is_trusted(self, issuer):
         return issuer.rstrip("/") in self.trusted_op_list

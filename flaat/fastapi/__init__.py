@@ -27,17 +27,10 @@ class Flaat(BaseFlaat):
         ) from exception
 
     def _get_request(self, *_, **kwargs):
-        if "request" not in kwargs:
+        if "request" not in kwargs:  # pragma: no cover
             raise FlaatException("No request parameter in view function!")
 
         return kwargs["request"]
 
-    def _get_access_token_from_request(self, request: Request) -> str:
-        if not "Authorization" in request.headers:
-            raise FlaatUnauthenticated("No authorization header in request")
-
-        header = request.headers.get("Authorization")
-        if not header.startswith("Bearer "):
-            raise FlaatUnauthenticated("Authorization header must contain bearer token")
-
-        return header.replace("Bearer ", "")
+    def _get_header_from_request(self, request: Request, name: str) -> str:
+        return request.headers.get(name, "")

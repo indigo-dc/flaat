@@ -153,7 +153,7 @@ def test_env_override_authorization_without_user(monkeypatch):
 
     @workflow.decorate_view_func
     def view_func():
-        pass
+        pass  # pragma: no cover
 
     with pytest.raises(FlaatUnauthenticated):
         view_func()

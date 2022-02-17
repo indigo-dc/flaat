@@ -32,11 +32,5 @@ class Flaat(BaseFlaat):
             f"Need argument 'request' for framework 'aio': Got args={args} kwargs={kwargs}"
         )
 
-    def _get_access_token_from_request(self, request) -> str:
-        logger.debug("Request headers: %s", request.headers)
-        if request.headers.get("Authorization", "").startswith("Bearer "):
-            temp = request.headers["Authorization"].split("authorization header: ")[0]
-            token = temp.split(" ")[1]
-            return token
-
-        raise FlaatUnauthenticated("No access token")
+    def _get_header_from_request(self, request: Request, name) -> str:
+        return request.headers.get(name, "")
