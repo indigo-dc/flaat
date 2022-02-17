@@ -463,7 +463,12 @@ class AuthWorkflow:
             # No error, but also do nothing else
             return ((args, kwargs), None)
 
-        user_infos = self.authenticate_user(*args, **kwargs)
+        user_infos = None
+        try:
+            user_infos = self.authenticate_user(*args, **kwargs)
+        except FlaatException as e:
+            return ((args, kwargs), self.handle_failure(e, None))
+
         if user_infos is None:
             if self.ignore_no_authn:
                 # No error, but also do nothing else

@@ -64,6 +64,8 @@ NON_JWT_FLAAT_ISS = env_var("NON_JWT_FLAAT_ISS", mandatory=False)
 
 # List to parametrize framework tests
 STATUS_KWARGS_LIST = [
+    # No access token -> unauthorized
+    (401, {"headers": {}}),
     # Invalid access token -> unauthorized
     (401, {"headers": {"Authorization": "Bearer invalid_at"}}),
     # Good access token with the right entitlements
