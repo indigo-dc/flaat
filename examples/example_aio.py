@@ -1,24 +1,25 @@
-import json
-
 from aiohttp import web
 
 from examples.logsetup import setup_logging
+from flaat import AuthWorkflow
 from flaat.aio import Flaat
-from flaat.requirements import HasAARCEntitlement, HasGroup, ValidLogin
+from flaat.exceptions import FlaatException
+from flaat.requirements import get_claim_requirement, get_vo_requirement, CheckResult
 from flaat.user_infos import UserInfos
 
+# do some log setup so we can see something
 setup_logging()
 
 
 ##########
-## Basic config
-# AIOHTTP
+# aio application
 app = web.Application()
 routes = web.RouteTableDef()
 
-# FLAAT
+# Our FLAAT instance
 flaat = Flaat()
-flaat.set_cache_lifetime(120)  # seconds; default is 300
+
+# Insert OPs that you trust here
 flaat.set_trusted_OP_list(
     [
         "https://b2access.eudat.eu/oauth2/",
@@ -42,17 +43,13 @@ flaat.set_trusted_OP_list(
         "https://wlcg.cloud.cnaf.infn.it/",
     ]
 )
-# flaat.set_trusted_OP_file('/etc/oidc-agent/issuer.config')
-# flaat.set_OP_hint("helmholtz")
-# flaat.set_OP_hint("google")
 
 # verbosity:
-#     0: No output
-#     1: Errors
-#     2: More info, including token info
-#     3: Max
-# flaat.set_verbosity(0)
-# flaat.set_verify_tls(True)
+#     0: Errors
+#     1: Warnings
+#     2: Infos
+#     3: Debug output
+flaat.set_verbosity(3)
 
 
 # # Required for using token introspection endpoint:
@@ -60,143 +57,124 @@ flaat.set_trusted_OP_list(
 # flaat.set_client_secret('')
 
 
-def my_failure_callback(message=""):
-    return f"User define failure callback.\nError Message: {message}"
+# this will customize error responses for the user (used down below)
+def my_on_failure(exception: FlaatException, user_infos: UserInfos = None):
+    user = "no auth"
+    if user_infos is not None:
+        user = str(user_infos)
+    return web.Response(
+        text=f"Custom my_on_failure invoked:\nError Message: {exception}\nUser: {user}"
+    )
 
 
 @routes.get("/")
 async def root(request):
     text = """This is an example for useing flaat with AIO. These endpoints are available:
-    /info               General info about the access_token (if provided)
-    /valid_user         Requires a valid user
-    /valid_user_2       Requires a valid user, uses a custom callback on error
-    /group_test_kit     Requires user to have two "eduperson_scoped_affiliation" of
-                            ['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
-    /group_test_iam     Requires user to be in the group "KIT-Cloud" transported in "groups"
-    /group_test_hdf     Requires user to be in all groups found in "eduperson_entitlement"
-                            ['urn:geant:h-df.de:group:aai-admin', 'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de']
-
-    /group_test_hdf2     Requires user to be in all groups found in "eduperson_entitlement"
-                            ['urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
-    /group_test_hdf3     Requires user to be in all groups found in "eduperson_entitlement"
-                            ['urn:geant:h-df.de:group:aai-admin'],
-    /group_test_hack    A hack to use any other field for authorisation
-    /group_test_wlcg    Requires user to be in the '/wlcg' group
+    /info                       General info about the access_token (if provided)
+    /authenticated              Requires a valid user
+    /authenticated_callback     Requires a valid user, uses a custom callback on error
+    /authorized_claim           Requires user to have one of two claims
+    /authorized_vo              Requires user to have an entitlement
+    /full_custom                Fully custom auth handling
         """
     return web.Response(text=text)
 
 
 @routes.get("/info")
-async def info(request):
-    infos = flaat.get_all_info_from_request(request)
-    x = json.dumps(infos.__dict__, sort_keys=True, indent=4, separators=(",", ": "))
-    return web.Response(text=str(x))
-
-
-@routes.get("/info2")
-@flaat.inject_user_infos
-async def info2(request, user_infos: UserInfos = None):
-    if user_infos is not None:
-        message = json.dumps(
-            user_infos.__dict__, sort_keys=True, indent=4, separators=(",", ": ")
-        )
-        return web.Response(text=message)
-
-    return web.Response(text="No userinfo")
-
-
-@routes.get("/valid_user")
-@flaat.requires(ValidLogin())
-async def valid_user(request):
-    return web.Response(text="This worked: there was a valid login")
-
-
-@routes.get("/valid_user_2")
-@flaat.requires(ValidLogin(), on_failure=my_failure_callback)
-async def valid_user_own_callback(request):
-    return web.Response(text="This worked: there was a valid login")
-
-
-@routes.get("/group_test_kit")
-@flaat.requires(
-    HasGroup(
-        ["admins@kit.edu", "employee@kit.edu", "member@kit.edu"],
-        claim="eduperson_scoped_affiliation",
-        match=2,
-    ),
-    on_failure=my_failure_callback,
+@flaat.inject_user_infos(
+    strict=False,  # we don't fail if there is no user
 )
-async def demo_groups_kit(request):
-    return web.Response(text="This worked: user is member of the requested group")
+async def info(
+    request,
+    user_infos: UserInfos = None,  # here is the variable that gets injected, this should have a default value
+):
+    message = "No userinfo"
+    if user_infos is not None:
+        message = user_infos.toJSON()
+
+    return web.Response(text=message)
 
 
-@routes.get("/group_test_iam")
-@flaat.requires(HasGroup("KIT-Cloud", "groups"))
-async def demo_groups_iam(request):
-    return web.Response(text="This worked: user is member of the requested group")
+@routes.get("/authenticated")
+@flaat.is_authenticated()
+async def authenticated_user(request):
+    return web.Response(text="This worked: there was a valid login")
 
 
-@routes.get("/group_test_hdf")
+@routes.get("/authenticated_callback")
+@flaat.is_authenticated(
+    on_failure=my_on_failure,  # called if there is no authentication
+)
+async def valid_user_own_callback(request):
+    """instead of giving an error this will return the custom error response from `my_on_failure`"""
+    return web.Response(text="This worked: there was a valid login")
+
+
+@routes.get("/authorized_claim")
 @flaat.requires(
-    HasAARCEntitlement(
+    get_claim_requirement(  # the user needs to satisfy this requirement (having one of the email claims)
+        ["admin@foo.org", "dev@foo.org"],
+        claim="email",
+        match=1,
+    ),
+)
+async def authorized_claim(request):
+    return web.Response(text="This worked: User has the claim")
+
+
+@routes.get("/authorized_vo")
+@flaat.requires(
+    get_vo_requirement(
         [
             "urn:geant:h-df.de:group:m-team:feudal-developers",
             "urn:geant:h-df.de:group:MyExampleColab#unity.helmholtz.de",
         ],
         "eduperson_entitlement",
+        match=1,
     )
 )
-async def demo_groups_hdf(request):
-    return web.Response(text="This worked: user has the required entitlement(s)")
+async def authorized_vo(request):
+    return web.Response(text="This worked: user has the required entitlement")
 
 
-@routes.get("/group_test_hdf2")
-@flaat.requires(
-    HasAARCEntitlement(
-        "urn:geant:h-df.de:group:MyExampleColab",
-        "eduperson_entitlement",
-    )
+# If you need maxmimum customizability, there is AuthWorkflow:
+
+# User requirements
+user_reqs = get_claim_requirement("bar", "foo")
+
+
+def my_request_check(user_infos: UserInfos, *args, **kwargs):
+    if len(args) != 1:
+        return CheckResult(False, "Missing request object")
+
+    return CheckResult(True, "The request is allowed")
+
+
+def my_process_args(user_infos: UserInfos, *args, **kwargs):
+    """
+    We can manipulate the view functions arguments here
+    The user is already authenticated at this point, therefore we have `user_infos`,
+    therefore we can base our manipulations on the users identity.
+    """
+    kwargs["email"] = user_infos.get("email", "")
+    return (args, kwargs)
+
+
+custom = AuthWorkflow(
+    flaat,  # needs the flaat instance
+    user_requirements=user_reqs,
+    request_requirements=my_request_check,
+    process_arguments=my_process_args,
+    on_failure=my_on_failure,
+    ignore_no_authn=True,  # Don't fail if there is no authentication
 )
-async def demo_groups_hdf2(request):
-    return web.Response(text="This worked: user has the required entitlement(s)")
 
 
-@routes.get("/group_test_hdf3")
-@flaat.requires(
-    HasAARCEntitlement(
-        [
-            "urn:geant:h-df.de:group:MyExampleColab",
-            "urn:geant:h-df.de:group:m-team:feudal-developers",
-        ],
-        "eduperson_entitlement",
-    )
-)
-async def demo_groups_hdf3(request):
-    return web.Response(text="This worked: user has the required entitlement(s)")
-
-
-@routes.get("/group_test_hack")
-@flaat.requires(HasGroup("Hardt", claim="family_name"))
-async def demo_groups_hack(request):
-    return web.Response(text="This worked: user has the required Group Membership")
-
-
-@routes.get("/group_test_wlcg")
-@flaat.requires(HasGroup("/wlcg", "wlcg.groups"))
-async def demo_groups_wlcg(request):
-    return web.Response(text="This worked: user has the required Group Membership")
-
-
-@routes.get("/role_test_egi")
-@flaat.requires(
-    HasAARCEntitlement(
-        "urn:mace:egi.eu:group:mteam.data.kit.edu:role=member",
-        "eduperson_entitlement",
-    )
-)
-async def demo_role_egi(request):
+@routes.get("/full_custom")
+@custom.decorate_view_func  # invoke the workflow here
+async def full_custom(request, email=""):
     return web.Response(
-        text="This worked: user is member of the requested group and role"
+        text=f"This worked: The custom workflow did succeed\nThe users email is: {email}"
     )
 
 
@@ -206,4 +184,4 @@ app.add_routes(routes)
 # Main
 
 if __name__ == "__main__":
-    web.run_app(app, host="0.0.0.0", port=8083)
+    web.run_app(app, host="0.0.0.0", port=8080)
