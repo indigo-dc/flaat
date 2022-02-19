@@ -1,30 +1,26 @@
+import json
 import logging
 
-from werkzeug.exceptions import Unauthorized, Forbidden, InternalServerError
-
 from flask import request
+from flask.wrappers import Response
+from werkzeug.exceptions import Forbidden, InternalServerError, Unauthorized
 
-from flaat import BaseFlaat, FlaatException, FlaatUnauthenticated, FlaatForbidden
+from flaat import BaseFlaat, FlaatException, FlaatForbidden, FlaatUnauthenticated
 
 logger = logging.getLogger(__name__)
 
 
 class Flaat(BaseFlaat):
-    def map_exception(self, exception: FlaatException):
-        framework_exception = InternalServerError
-
-        if isinstance(exception, FlaatForbidden):
-            framework_exception = Forbidden
-        elif isinstance(exception, FlaatUnauthenticated):
-            framework_exception = Unauthorized
-
-        message = str(exception)
-        logger.info("%s: %s", framework_exception, message)
-        raise framework_exception(description=message) from exception
-
     def _get_request(self, *_, **__):
         return request
 
     def _get_header_from_request(self, _, name) -> str:
         # using flask global "request" here, not an argument
         return request.headers.get(name, "")
+
+    def _make_response(self, data, status_code: int):
+        return Response(
+            response=json.dumps(data),
+            status=status_code,
+            mimetype="application/json",
+        )

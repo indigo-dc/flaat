@@ -44,20 +44,12 @@ def _make_json_request(
             resp = requests.get(url, verify=verify_tls, timeout=timeout, **kwargs)
 
         if resp.status_code != 200:
-            logger.debug("Error response: %s %s", resp.text, resp.status_code)
+            logger.debug("Error response: %s %s", resp.status_code, resp.text)
             return None
 
         resp_json = dict(resp.json())
-
-        if "error" in resp_json or "error_description" in resp_json:
-            logger.debug(
-                "Error json received: %s %s",
-                resp_json.get("error", ""),
-                resp_json.get("error_description", ""),
-            )
-            return None
-
         return resp_json
+
     except requests.exceptions.RequestException as e:
         logger.debug("Error making json request to %s: %s", url, e)
         return None

@@ -7,7 +7,7 @@ If you want to combine multiple requirements use the "meta requirements"  :class
 """
 from dataclasses import dataclass
 import logging
-from typing import Callable, List, Union
+from typing import Callable, List, Optional, Union, Any
 
 import aarc_entitlement
 
@@ -27,6 +27,17 @@ class CheckResult:
     message: str
     """ Message describing the check result. This could be an error message. """
 
+    data: Optional[Any] = None
+
+    def render(self) -> Union[dict, str]:
+        if self.data is None:
+            return self.message
+
+        return {
+            "check": self.message,
+            "check_details": self.data,
+        }
+
 
 class Requirement:
     """Requirement is the base class of all requirements.
@@ -36,6 +47,12 @@ class Requirement:
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         _ = user_infos
         return CheckResult(False, "method not overwritten")
+
+
+# REQUIREMENT is the type of requirements, either lazy or not
+REQUIREMENT = Union[Requirement, Callable[[], Requirement]]
+
+REQUEST_REQUIREMENT = Callable[[UserInfos, tuple, dict], CheckResult]
 
 
 class Satisfied(Requirement):
@@ -74,11 +91,21 @@ class MetaRequirement(Requirement):
     Use the childs AllOf, OneOf or N_Of directly.
     """
 
-    def __init__(self, *reqs: Requirement):
-        self.requirements = list(reqs)
+    def __init__(self, *reqs: REQUIREMENT):
+        self._requirements: List[REQUIREMENT] = list(reqs)
 
-    def add_requirement(self, req: Requirement):
-        self.requirements.append(req)
+    def add_requirement(self, req: REQUIREMENT):
+        self._requirements.append(req)
+
+    @property
+    def requirements(self) -> List[Requirement]:
+        """do the lazy loading of callables"""
+        reqs = []
+        for _req in self._requirements:
+            req = _req() if callable(_req) else _req
+            reqs.append(req)
+
+        return reqs
 
 
 class AllOf(MetaRequirement):
@@ -93,18 +120,18 @@ class AllOf(MetaRequirement):
 
         satisfied = True
         message = "All sub-requirements are satisfied"
-        failed_messages = []
+        failed_checks = []
 
         for req in self.requirements:
             check_result = req.is_satisfied_by(user_infos)
             if not check_result.is_satisfied:
-                failed_messages.append(check_result.message)
+                failed_checks.append(check_result.render())
                 satisfied = False
 
         if not satisfied:
-            message = f"Unsatisfied sub-requirements: {failed_messages}"
+            message = f"{self.__class__.__name__}: Unsatisfied sub-requirements"
 
-        return CheckResult(satisfied, message)
+        return CheckResult(satisfied, message, data=failed_checks)
 
 
 class OneOf(MetaRequirement):
@@ -119,18 +146,18 @@ class OneOf(MetaRequirement):
 
         satisfied = True
         message = "All sub-requirements are satisfied"
-        failed_messages = []
+        failed_checks = []
 
         for req in self.requirements:
             check_result = req.is_satisfied_by(user_infos)
             if not check_result.is_satisfied:
                 satisfied = False
-                failed_messages.append(check_result.message)
+                failed_checks.append(check_result.render())
 
         if not satisfied:
-            message = f"No sub-requirements are satisfied: {failed_messages}"
+            message = f"{self.__class__.__name__}: No sub-requirements are satisfied"
 
-        return CheckResult(satisfied, message)
+        return CheckResult(satisfied, message, data=failed_checks)
 
 
 class N_Of(MetaRequirement):
@@ -147,12 +174,12 @@ class N_Of(MetaRequirement):
         if len(self.requirements) == 0:
             return CheckResult(False, "No sub-requirements")
 
-        failed_messages = []
+        failed_checks = []
         n = 0
         for req in self.requirements:
             check_result = req.is_satisfied_by(user_infos)
             if not check_result.is_satisfied:
-                failed_messages.append(check_result.message)
+                failed_checks.append(check_result.render())
             else:
                 n += 1
 
@@ -161,7 +188,8 @@ class N_Of(MetaRequirement):
 
         return CheckResult(
             False,
-            f"Only {n} of {self.n} sub-requirments were satisfied: {failed_messages}",
+            f"Only {n} of {self.n} sub-requirments were satisfied",
+            data=failed_checks,
         )
 
 
@@ -174,9 +202,13 @@ def _match_to_meta_requirement(match: Union[str, int]) -> MetaRequirement:
     if match == "one":
         return OneOf()
     if isinstance(match, int):
+        if match == 1:
+            return OneOf()
         return N_Of(match)
 
-    raise FlaatException("Argument 'match' has invalid value: Must be 'all' or int")
+    raise FlaatException(
+        "Argument 'match' has invalid value: Must be 'all', 'one' or int"
+    )
 
 
 class HasSubIss(Requirement):
@@ -228,7 +260,7 @@ class HasClaim(Requirement):
         if not matched:
             return CheckResult(
                 False,
-                f"No match for the required value '{self.value}' of claim '{self.claim}'",
+                f"User has no claim '{self.claim}' with value: {self.value}",
             )
 
         return CheckResult(
@@ -320,9 +352,3 @@ def get_vo_requirement(
     return _get_claim_requirement(
         required, claim, match, claim_requirement_class=HasAARCEntitlement
     )
-
-
-# REQUIREMENT is the type of requirements, either lazy or not
-REQUIREMENT = Union[Requirement, Callable[[], Requirement]]
-
-REQUEST_REQUIREMENT = Callable[[UserInfos, tuple, dict], CheckResult]

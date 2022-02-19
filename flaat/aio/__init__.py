@@ -1,27 +1,14 @@
 import logging
 
-from aiohttp.web_exceptions import HTTPForbidden, HTTPServerError, HTTPUnauthorized
-from aiohttp.web import Request
+from aiohttp.web import Request, json_response
 
 from flaat import BaseFlaat
-from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
+from flaat.exceptions import FlaatException
 
 logger = logging.getLogger(__name__)
 
 
 class Flaat(BaseFlaat):
-    def map_exception(self, exception: FlaatException):
-        framework_exception = HTTPServerError
-
-        if isinstance(exception, FlaatUnauthenticated):
-            framework_exception = HTTPUnauthorized
-        elif isinstance(exception, FlaatForbidden):
-            framework_exception = HTTPForbidden
-
-        message = str(exception)
-        logger.info("%s: %s", framework_exception.__name__, message)
-        raise framework_exception(reason=message) from exception
-
     def _get_request(self, *args, **kwargs):
         for arg in list(args) + list(kwargs.values()):
             if isinstance(arg, Request):
@@ -34,3 +21,9 @@ class Flaat(BaseFlaat):
 
     def _get_header_from_request(self, request: Request, name) -> str:
         return request.headers.get(name, "")
+
+    def _make_response(self, data: dict, status_code: int):
+        return json_response(
+            data=data,
+            status=status_code,
+        )

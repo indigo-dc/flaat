@@ -43,4 +43,7 @@ async def test_decorator(cli, decorator, status, kwargs):
     logger.debug("Decorator: %s", decorator.name)
     resp = await cli.get(f"/{decorator.name}", **kwargs)
     expected = decorator.get_expected_status_code(status)
+    if resp.status != 200:
+        err_json = await resp.json()
+        logger.debug("Error JSON repsonse: %s", err_json)
     assert resp.status == expected
