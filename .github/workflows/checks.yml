@@ -7,4 +7,4 @@ jobs:
       - name: pyright
         uses: jakebailey/pyright-action@v1
         with:
-          extra-args: ./flaat
+          extra-args: .
