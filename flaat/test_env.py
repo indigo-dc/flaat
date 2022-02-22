@@ -8,8 +8,12 @@ from dotenv import dotenv_values
 
 from flaat import AuthWorkflow, BaseFlaat
 from flaat.exceptions import FlaatException
-from flaat.requirements import (CheckResult, HasClaim, get_claim_requirement,
-                                get_vo_requirement)
+from flaat.requirements import (
+    CheckResult,
+    HasClaim,
+    get_claim_requirement,
+    get_vo_requirement,
+)
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)

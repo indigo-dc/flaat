@@ -4,8 +4,7 @@ from examples.logsetup import setup_logging
 from flaat import AuthWorkflow
 from flaat.aio import Flaat
 from flaat.exceptions import FlaatException
-from flaat.requirements import (CheckResult, get_claim_requirement,
-                                get_vo_requirement)
+from flaat.requirements import CheckResult, get_claim_requirement, get_vo_requirement
 from flaat.user_infos import UserInfos
 
 # do some log setup so we can see something

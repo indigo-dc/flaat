@@ -4,10 +4,20 @@ from dataclasses import dataclass
 import pytest
 
 from flaat import BaseFlaat, flaat_userinfo
-from flaat.flaat_userinfo import (TRUSTED_OP_LIST, UserInfosPrinter,
-                                  get_access_token, get_flaat, main)
-from flaat.test_env import (FLAAT_AT, FLAAT_CLIENT_ID, FLAAT_CLIENT_SECRET,
-                            FLAAT_ISS, OIDC_AGENT_ACCOUNT)
+from flaat.flaat_userinfo import (
+    TRUSTED_OP_LIST,
+    UserInfosPrinter,
+    get_access_token,
+    get_flaat,
+    main,
+)
+from flaat.test_env import (
+    FLAAT_AT,
+    FLAAT_CLIENT_ID,
+    FLAAT_CLIENT_SECRET,
+    FLAAT_ISS,
+    OIDC_AGENT_ACCOUNT,
+)
 
 
 @dataclass

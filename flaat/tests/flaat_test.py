@@ -2,14 +2,16 @@ import os
 
 import pytest
 
-from flaat import (ENV_VAR_AUTHN_OVERRIDE, ENV_VAR_AUTHZ_OVERRIDE,
-                   AuthWorkflow, BaseFlaat)
+from flaat import (
+    ENV_VAR_AUTHN_OVERRIDE,
+    ENV_VAR_AUTHZ_OVERRIDE,
+    AuthWorkflow,
+    BaseFlaat,
+)
 from flaat.caches import user_infos_cache
-from flaat.exceptions import (FlaatException, FlaatForbidden,
-                              FlaatUnauthenticated)
+from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.requirements import HasSubIss, get_claim_requirement
-from flaat.test_env import (FLAAT_AT, FLAAT_ISS, NON_JWT_FLAAT_AT,
-                            NON_JWT_FLAAT_ISS)
+from flaat.test_env import FLAAT_AT, FLAAT_ISS, NON_JWT_FLAAT_AT, NON_JWT_FLAAT_ISS
 from flaat.user_infos import UserInfos
 
 

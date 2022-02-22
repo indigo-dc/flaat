@@ -2,8 +2,11 @@ import json
 
 import pytest
 
-from flaat.access_tokens import (_base64_url_decode, _base64_url_encode,
-                                 get_access_token_info)
+from flaat.access_tokens import (
+    _base64_url_decode,
+    _base64_url_encode,
+    get_access_token_info,
+)
 
 
 class TestBase64:
