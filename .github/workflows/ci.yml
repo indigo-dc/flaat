@@ -1,0 +1,33 @@
+# from: https://github.com/marketplace/actions/restore-or-create-a-python-virtualenv
+
+name: CI
+
+on: [push]
+
+jobs:
+  create-virtualenv:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v2
+    - uses: syphar/restore-virtualenv@v1
+      id: cache-virtualenv
+
+    - uses: syphar/restore-pip-download-cache@v1
+      if: steps.cache-virtualenv.outputs.cache-hit != 'true'
+
+    - run: pip install -r requirements.txt -r test-requirements.txt
+      if: steps.cache-virtualenv.outputs.cache-hit != 'true'
+
+  linter:
+    needs: create-virtualenv
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions/setup-python@v2
+    - uses: syphar/restore-virtualenv@v1
+      id: cache-virtualenv
+
+    - run: isort . --diff --check-only
+    - run: black --check --diff .
+    - run: pyright .
