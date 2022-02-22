@@ -18,6 +18,11 @@ We use tox to run the tests for supported python versions, lint the code using p
    tox -e pylint    # Only lint the code
 
 
+Code conventions
+----------------
+We use `pyright <https://github.com/microsoft/pyright>`_ for static type checking. Code is formatted using `black <https://github.com/psf/black>`_.
+
+
 
 Override auth using environment variables
 -----------------------------------------
