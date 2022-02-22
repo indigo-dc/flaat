@@ -1,37 +1,9 @@
-# from: https://github.com/marketplace/actions/restore-or-create-a-python-virtualenv
-
+# from: https://github.com/ymyzk/tox-gh-actions
 name: CI
 
 on: [push]
 
 jobs:
-  create-virtualenv:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v1
-    - uses: actions/setup-python@v2
-    - uses: syphar/restore-virtualenv@v1
-      id: cache-virtualenv
-
-    - uses: syphar/restore-pip-download-cache@v1
-      if: steps.cache-virtualenv.outputs.cache-hit != 'true'
-
-    - run: pip install -r requirements.txt -r test-requirements.txt
-      if: steps.cache-virtualenv.outputs.cache-hit != 'true'
-
-  linter:
-    needs: create-virtualenv
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v1
-    - uses: actions/setup-python@v2
-    - uses: syphar/restore-virtualenv@v1
-      id: cache-virtualenv
-
-    - run: black ./flaat --check --diff
-    - run: pyright ./flaat
-    - run: pylint ./flaat
-
   tests:
     runs-on: ubuntu-latest
     strategy:
@@ -48,4 +20,4 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install tox tox-gh-actions
       - run: tox
-        name: Test with tox
+        name: Linting and testing with tox

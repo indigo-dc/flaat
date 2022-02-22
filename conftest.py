@@ -1,3 +1,8 @@
+"""
+Setup for all tests.
+
+If the tests are run by CI, we mock user infos here.
+"""
 import logging
 from typing import Optional
 
