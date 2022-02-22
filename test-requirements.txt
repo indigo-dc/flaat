@@ -1,5 +1,4 @@
 python-dotenv
-pylint
 pytest
 pytest-aiohttp
 pytest-cov
