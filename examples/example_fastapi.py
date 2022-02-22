@@ -1,3 +1,4 @@
+# type: ignore
 import uvicorn
 from fastapi import Depends, FastAPI, Request
 from fastapi.security import HTTPBearer
