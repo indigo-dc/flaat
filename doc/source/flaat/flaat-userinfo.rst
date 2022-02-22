@@ -18,7 +18,7 @@ The tool can be used in multiple ways:
 
 Options
 -------
-.. code-block:: console
+.. code-block:: bash
 
     usage: flaat-userinfo [-h] [--my-config MY_CONFIG] [--client_id CLIENT_ID] [--client_secret CLIENT_SECRET] [--oidc-agent-account OIDC_AGENT_ACCOUNT] [--issuer ISSUER]
                           [--skip_tls_verify] [--accesstoken] [--userinfo] [--introspection] [--all] [--quiet] [--verbose] [--machine-readable]
@@ -56,12 +56,12 @@ Quick examples
 
 To use a raw access token with :program:`flaat-userinfo`, just pass it as an argument:
 
-.. code-block:: console
+.. code-block:: bash
 
    flaat-userinfo eyJraWQ...
 
 If you have a loaded `oidc-agent` account called "foo", you can use :program:`flaat-userinfo` using:
 
-.. code-block:: console
+.. code-block:: bash
 
    flaat-userinfo -o foo

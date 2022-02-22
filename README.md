@@ -1,5 +1,6 @@
 [![eosc-synergy-logo](https://readthedocs.org/projects/flaat/badge/?version=latest)](https://flaat.readthedocs.io/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # FLAAT
 Use decorators for authorising access to OIDC authenticated REST APIs.
@@ -21,5 +22,8 @@ pip install -e ./flaat
 ## Documentation
 The documentation is available at [readthedocs](https://flaat.readthedocs.io/en/latest/).
 
+## Development
+Instructions on development, testing and releasing versions can be found [here](https://flaat.readthedocs.io/en/latest/flaat/development.html).
+
 ## License
-FLAAT is provided under the [MIT License](https://opensource.org/licenses/MIT)
+FLAAT is provided under the [MIT License](https://opensource.org/licenses/MIT).
