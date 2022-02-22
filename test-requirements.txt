@@ -13,3 +13,6 @@ types-Flask
 black
 pyright
 isort
+
+tox
+tox-gh-actions
