@@ -5,30 +5,24 @@ Use decorators for authorising access to OIDC authenticated REST APIs.
 # This code is distributed under the MIT License
 
 from __future__ import annotations
-from asyncio import iscoroutinefunction
-from functools import wraps
+
 import logging
 import os
+from asyncio import iscoroutinefunction
+from functools import wraps
 from typing import Any, Callable, List, NoReturn, Optional, Tuple, Union
 
 from cachetools import cached
 
 from flaat.access_tokens import AccessTokenInfo, get_access_token_info
-from flaat.caches import (
-    access_token_issuer_cache,
-    issuer_config_cache,
-    user_infos_cache,
-)
-from flaat.config import FlaatConfig, OPS_THAT_SUPPORT_JWT
-from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
+from flaat.caches import (access_token_issuer_cache, issuer_config_cache,
+                          user_infos_cache)
+from flaat.config import OPS_THAT_SUPPORT_JWT, FlaatConfig
+from flaat.exceptions import (FlaatException, FlaatForbidden,
+                              FlaatUnauthenticated)
 from flaat.issuers import IssuerConfig
-from flaat.requirements import (
-    AllOf,
-    HasSubIss,
-    REQUEST_REQUIREMENT,
-    REQUIREMENT,
-    Requirement,
-)
+from flaat.requirements import (REQUEST_REQUIREMENT, REQUIREMENT, AllOf,
+                                HasSubIss, Requirement)
 from flaat.user_infos import UserInfos
 
 logger = logging.getLogger(__name__)

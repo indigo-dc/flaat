@@ -1,11 +1,10 @@
 # This code is distributed under the MIT License
 
 import base64
-from dataclasses import dataclass
 import json
 import logging
+from dataclasses import dataclass
 from typing import Optional
-
 
 logger = logging.getLogger(__name__)
 

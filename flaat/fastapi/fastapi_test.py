@@ -2,12 +2,12 @@
 
 import logging
 
+import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
-import pytest
 
 from flaat.fastapi import Flaat
-from flaat.test_env import User, STATUS_KWARGS_LIST, FLAAT_TRUSTED_OPS_LIST
+from flaat.test_env import FLAAT_TRUSTED_OPS_LIST, STATUS_KWARGS_LIST, User
 
 logger = logging.getLogger(__name__)
 

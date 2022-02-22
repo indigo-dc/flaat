@@ -1,8 +1,8 @@
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from typing import List
 
-from flaat.requirements import HasSubIss, REQUIREMENT, Satisfied, Unsatisfiable
+from flaat.requirements import REQUIREMENT, HasSubIss, Satisfied, Unsatisfiable
 
 logger = logging.getLogger(__name__)
 

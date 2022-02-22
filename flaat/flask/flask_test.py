@@ -1,11 +1,10 @@
 # pylint: disable=redefined-outer-name
-from flask.app import Flask
 import pytest
+from flask.app import Flask
 from werkzeug import Response
 
 from flaat.flask import Flaat
-from flaat.test_env import User, FLAAT_TRUSTED_OPS_LIST, STATUS_KWARGS_LIST
-
+from flaat.test_env import FLAAT_TRUSTED_OPS_LIST, STATUS_KWARGS_LIST, User
 
 flaat = Flaat()
 flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)

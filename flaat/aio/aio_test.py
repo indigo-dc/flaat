@@ -1,11 +1,12 @@
 # pylint: disable=redefined-outer-name
 
 import logging
-from aiohttp import web
+
 import pytest
+from aiohttp import web
 
 from flaat.aio import Flaat
-from flaat.test_env import User, STATUS_KWARGS_LIST, FLAAT_TRUSTED_OPS_LIST
+from flaat.test_env import FLAAT_TRUSTED_OPS_LIST, STATUS_KWARGS_LIST, User
 
 flaat = Flaat()
 flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)

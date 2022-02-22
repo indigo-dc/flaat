@@ -7,19 +7,9 @@ from typing import List
 import pytest
 
 from flaat import BaseFlaat
-from flaat.requirements import (
-    AllOf,
-    HasClaim,
-    HasSubIss,
-    IsTrue,
-    N_Of,
-    OneOf,
-    Requirement,
-    Satisfied,
-    Unsatisfiable,
-    get_claim_requirement,
-    get_vo_requirement,
-)
+from flaat.requirements import (AllOf, HasClaim, HasSubIss, IsTrue, N_Of,
+                                OneOf, Requirement, Satisfied, Unsatisfiable,
+                                get_claim_requirement, get_vo_requirement)
 from flaat.test_env import FLAAT_ISS, User
 
 INVALID_ENTITLEMENT = "foo-bar"

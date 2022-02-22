@@ -1,11 +1,11 @@
+import uvicorn
 from fastapi import Depends, FastAPI, Request
 from fastapi.security import HTTPBearer
 from starlette.responses import PlainTextResponse
-import uvicorn
 
 from examples import logsetup
 from flaat.fastapi import Flaat
-from flaat.requirements import OneOf, ValidLogin, HasGroup, HasAARCEntitlement
+from flaat.requirements import HasAARCEntitlement, HasGroup, OneOf, ValidLogin
 from flaat.user_infos import UserInfos
 
 logger = logsetup.setup_logging()
