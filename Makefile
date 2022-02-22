@@ -10,13 +10,9 @@ dist: clean
 upload: dist
 	twine upload $(TWINE_ARGS) dist/*
 
-.PHONY: coverage
-coverage:
-	pytest --cov=flaat --cov-report=term-missing --show-capture=log
-
 .PHONY: test
 test:
-	pytest --show-capture=log --log-cli-level=debug
+	tox -e py310
 
 .PHONY: clean
 clean:
@@ -31,3 +27,4 @@ clean:
 	@rm -f .coverage.*
 	@rm -f ChangeLog
 	@rm -f AUTHORS
+	@rm -f coverage.svg
