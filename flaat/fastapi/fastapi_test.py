@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
 from flaat.fastapi import Flaat
-from flaat.test_env import FLAAT_TRUSTED_OPS_LIST, STATUS_KWARGS_LIST, User
+from flaat.test_env import FLAAT_TRUSTED_OPS_LIST, User, get_status_kwargs_list
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def client(app):
     return TestClient(app)
 
 
-@pytest.mark.parametrize("status,kwargs", STATUS_KWARGS_LIST)
+@pytest.mark.parametrize("status,kwargs", get_status_kwargs_list())
 @pytest.mark.parametrize("decorator", DECORATORS)
 def test_decorator(client, decorator, status, kwargs):
     resp = client.get(f"/{decorator.name}", **kwargs)

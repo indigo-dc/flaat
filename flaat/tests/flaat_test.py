@@ -1,18 +1,9 @@
-import os
-
 import pytest
 
-from flaat import (
-    ENV_VAR_AUTHN_OVERRIDE,
-    ENV_VAR_AUTHZ_OVERRIDE,
-    AuthWorkflow,
-    BaseFlaat,
-)
+from flaat import BaseFlaat
 from flaat.caches import user_infos_cache
-from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
-from flaat.requirements import HasSubIss, get_claim_requirement
+from flaat.exceptions import FlaatException, FlaatUnauthenticated
 from flaat.test_env import FLAAT_AT, FLAAT_ISS, NON_JWT_FLAAT_AT, NON_JWT_FLAAT_ISS
-from flaat.user_infos import UserInfos
 
 
 def get_user_infos(flaat):
@@ -29,6 +20,7 @@ def test_success():
 
 def test_issuer_hint_success():
     flaat = BaseFlaat()
+    flaat.set_trusted_OP_list([FLAAT_ISS])
     info = flaat.get_user_infos_from_access_token(FLAAT_AT, issuer_hint=FLAAT_ISS)
     assert info is not None
 

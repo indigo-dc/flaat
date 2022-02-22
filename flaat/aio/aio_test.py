@@ -6,7 +6,7 @@ import pytest
 from aiohttp import web
 
 from flaat.aio import Flaat
-from flaat.test_env import FLAAT_TRUSTED_OPS_LIST, STATUS_KWARGS_LIST, User
+from flaat.test_env import FLAAT_TRUSTED_OPS_LIST, User, get_status_kwargs_list
 
 flaat = Flaat()
 flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
@@ -38,7 +38,7 @@ def cli(event_loop, aiohttp_client, app):
     return event_loop.run_until_complete(aiohttp_client(app))
 
 
-@pytest.mark.parametrize("status,kwargs", STATUS_KWARGS_LIST)
+@pytest.mark.parametrize("status,kwargs", get_status_kwargs_list())
 @pytest.mark.parametrize("decorator", DECORATORS)
 async def test_decorator(cli, decorator, status, kwargs):
     logger.debug("Decorator: %s", decorator.name)

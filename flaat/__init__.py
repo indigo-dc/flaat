@@ -106,10 +106,15 @@ class BaseFlaat(FlaatConfig):
         return value.replace(prefix, "")
 
     def _issuer_is_trusted(self, issuer):
+        if self.iss == issuer:  # always trust the issuer pin
+            return True
         return issuer.rstrip("/") in self.trusted_op_list
 
     @cached(cache=issuer_config_cache)
     def _get_issuer_config(self, iss) -> Optional[IssuerConfig]:
+        if not self._issuer_is_trusted(iss):
+            raise FlaatUnauthenticated(f"Issuer not trusted: {iss}")
+
         issuer_config = IssuerConfig.get_from_string(
             iss, timeout=self.request_timeout, verify_tls=self.verify_tls
         )
@@ -119,6 +124,7 @@ class BaseFlaat(FlaatConfig):
         # FIXME Having per issuer secrets would make more sense
         issuer_config.client_id = self.client_id
         issuer_config.client_secret = self.client_secret
+
         return issuer_config
 
     def _find_issuer_config(

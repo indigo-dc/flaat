@@ -62,19 +62,22 @@ def test_get_flaat():
     assert get_flaat(ArgsMock(), trusted_op_list) is not None
 
 
-def test_get_at_environment_oidc_agent(args):
-    # from environment: OIDC_AGENT_ACCOUNT
-    os.environ["OIDC_AGENT_ACCOUNT"] = OIDC_AGENT_ACCOUNT
+def test_get_at_environment_oidc_agent(args, monkeypatch):
+    if OIDC_AGENT_ACCOUNT == "":
+        pytest.skip("No oidc agent")
+    monkeypatch.setenv("OIDC_AGENT_ACCOUNT", OIDC_AGENT_ACCOUNT)
     assert get_access_token(args) == FLAAT_AT
 
 
-def test_get_at_environment_access_token(args):
-    os.environ["ACCESS_TOKEN"] = "bar"
-    del os.environ["OIDC_AGENT_ACCOUNT"]
+def test_get_at_environment_access_token(args, monkeypatch):
+    monkeypatch.delenv("OIDC_AGENT_ACCOUNT", raising=False)
+    monkeypatch.setenv("ACCESS_TOKEN", "bar")
     assert get_access_token(args) == "bar"
 
 
 def test_get_at_oidc_agent(args):
+    if OIDC_AGENT_ACCOUNT == "":
+        pytest.skip("No oidc agent")
     args.oidc_agent_account = OIDC_AGENT_ACCOUNT
     assert get_access_token(args) == FLAAT_AT
 
@@ -85,6 +88,8 @@ def test_get_at_access_token(args):
 
 
 def test_main(args, monkeypatch):
-    os.environ["OIDC_AGENT_ACCOUNT"] = OIDC_AGENT_ACCOUNT
+    monkeypatch.delenv("OIDC_AGENT_ACCOUNT", raising=False)
+    monkeypatch.setenv("ACCESS_TOKEN", FLAAT_AT)
     monkeypatch.setattr(flaat_userinfo, "get_arg_parser", lambda: args)
+    monkeypatch.setattr(flaat_userinfo, "TRUSTED_OP_LIST", [FLAAT_ISS])
     main()
