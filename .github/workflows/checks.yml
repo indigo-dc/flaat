@@ -2,6 +2,7 @@ name: Checks
 on: [push]
 jobs:
   run-checks:
+    runs-on: ubuntu-latest
     steps:
       - name: pyright
         uses: jakebailey/pyright-action@v1
