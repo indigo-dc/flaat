@@ -1,2 +1,0 @@
-- name: Run pyright
-  uses: jakebailey/pyright-action@v1.0.3
