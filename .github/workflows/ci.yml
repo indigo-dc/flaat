@@ -30,4 +30,4 @@ jobs:
 
     - run: black ./flaat --check --diff
     - run: pyright ./flaat
-    - run: pylint ./flaat --fail-under=9.5
+    - run: pylint ./flaat
