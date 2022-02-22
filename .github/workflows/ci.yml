@@ -28,6 +28,6 @@ jobs:
     - uses: syphar/restore-virtualenv@v1
       id: cache-virtualenv
 
-    - run: isort . --diff --check-only
-    - run: black --check --diff .
-    - run: pyright .
+    - run: black ./flaat --check --diff
+    - run: pyright ./flaat
+    - run: pylint ./flaat --fail-under=9.5
