@@ -374,12 +374,12 @@ class AuthWorkflow:
     def __init__(
         self,
         flaat: BaseFlaat,
-        user_requirements: Union[REQUIREMENT, List[REQUIREMENT]] = None,
-        request_requirements: Union[
-            REQUEST_REQUIREMENT, List[REQUEST_REQUIREMENT]
+        user_requirements: Optional[Union[REQUIREMENT, List[REQUIREMENT]]] = None,
+        request_requirements: Optional[
+            Union[REQUEST_REQUIREMENT, List[REQUEST_REQUIREMENT]]
         ] = None,
-        process_arguments: Callable[
-            [UserInfos, tuple, dict], Tuple[tuple, dict]
+        process_arguments: Optional[
+            Callable[[UserInfos, tuple, dict], Tuple[tuple, dict]]
         ] = None,
         on_failure: Optional[ON_FAILURE] = None,
         ignore_no_authn=False,
