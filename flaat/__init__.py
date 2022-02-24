@@ -5,10 +5,11 @@ Use decorators for authorising access to OIDC authenticated REST APIs.
 # This code is distributed under the MIT License
 
 from __future__ import annotations
-from asyncio import iscoroutinefunction
-from functools import wraps
+
 import logging
 import os
+from asyncio import iscoroutinefunction
+from functools import wraps
 from typing import Any, Callable, List, NoReturn, Optional, Tuple, Union
 
 from cachetools import cached
@@ -19,14 +20,14 @@ from flaat.caches import (
     issuer_config_cache,
     user_infos_cache,
 )
-from flaat.config import FlaatConfig, OPS_THAT_SUPPORT_JWT
+from flaat.config import OPS_THAT_SUPPORT_JWT, FlaatConfig
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.issuers import IssuerConfig
 from flaat.requirements import (
-    AllOf,
-    HasSubIss,
     REQUEST_REQUIREMENT,
     REQUIREMENT,
+    AllOf,
+    HasSubIss,
     Requirement,
 )
 from flaat.user_infos import UserInfos
@@ -105,10 +106,15 @@ class BaseFlaat(FlaatConfig):
         return value.replace(prefix, "")
 
     def _issuer_is_trusted(self, issuer):
+        if self.iss == issuer:  # always trust the issuer pin
+            return True
         return issuer.rstrip("/") in self.trusted_op_list
 
     @cached(cache=issuer_config_cache)
     def _get_issuer_config(self, iss) -> Optional[IssuerConfig]:
+        if not self._issuer_is_trusted(iss):
+            raise FlaatUnauthenticated(f"Issuer not trusted: {iss}")
+
         issuer_config = IssuerConfig.get_from_string(
             iss, timeout=self.request_timeout, verify_tls=self.verify_tls
         )
@@ -118,6 +124,7 @@ class BaseFlaat(FlaatConfig):
         # FIXME Having per issuer secrets would make more sense
         issuer_config.client_id = self.client_id
         issuer_config.client_secret = self.client_secret
+
         return issuer_config
 
     def _find_issuer_config(

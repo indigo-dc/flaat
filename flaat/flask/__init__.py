@@ -3,9 +3,8 @@ import logging
 
 from flask import request
 from flask.wrappers import Response
-from werkzeug.exceptions import Forbidden, InternalServerError, Unauthorized
 
-from flaat import BaseFlaat, FlaatException, FlaatForbidden, FlaatUnauthenticated
+from flaat import BaseFlaat
 
 logger = logging.getLogger(__name__)
 

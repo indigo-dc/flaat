@@ -7,8 +7,8 @@ import sys
 from typing import Optional
 
 import configargparse
-from humanfriendly import format_timespan
 import liboidcagent as agent
+from humanfriendly import format_timespan
 
 from flaat import BaseFlaat
 from flaat.exceptions import FlaatException

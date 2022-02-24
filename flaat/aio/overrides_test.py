@@ -6,14 +6,10 @@ FIXME The environment overrides in here are crude and will not work if run concu
 import os
 from typing import Optional
 
-from aiohttp import web
 import pytest
+from aiohttp import web
 
-from flaat import (
-    AuthWorkflow,
-    ENV_VAR_AUTHN_OVERRIDE,
-    ENV_VAR_AUTHZ_OVERRIDE,
-)
+from flaat import ENV_VAR_AUTHN_OVERRIDE, ENV_VAR_AUTHZ_OVERRIDE, AuthWorkflow
 from flaat.aio import Flaat
 from flaat.aio.aio_test import flaat
 from flaat.requirements import get_claim_requirement

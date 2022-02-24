@@ -1,11 +1,10 @@
 # pylint: disable=redefined-outer-name
-from flask.app import Flask
 import pytest
+from flask.app import Flask
 from werkzeug import Response
 
 from flaat.flask import Flaat
-from flaat.test_env import User, FLAAT_TRUSTED_OPS_LIST, STATUS_KWARGS_LIST
-
+from flaat.test_env import FLAAT_TRUSTED_OPS_LIST, User, get_status_kwargs_list
 
 flaat = Flaat()
 flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
@@ -38,7 +37,7 @@ def client(app: Flask):
     return app.test_client()
 
 
-@pytest.mark.parametrize("status,kwargs", STATUS_KWARGS_LIST)
+@pytest.mark.parametrize("status,kwargs", get_status_kwargs_list())
 @pytest.mark.parametrize("decorator", DECORATORS)
 def test_decorator(client, decorator, status, kwargs):
     resp = client.get(f"/{decorator.name}", **kwargs)

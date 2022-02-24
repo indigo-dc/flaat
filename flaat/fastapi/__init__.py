@@ -6,7 +6,6 @@ from fastapi.responses import JSONResponse
 from flaat import BaseFlaat
 from flaat.exceptions import FlaatException
 
-
 logger = logging.getLogger(__name__)
 
 

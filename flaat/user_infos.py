@@ -1,5 +1,5 @@
-from json import JSONEncoder
 import logging
+from json import JSONEncoder
 from time import time
 from typing import Optional
 

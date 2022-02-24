@@ -5,9 +5,9 @@ The convenience functions :meth:`get_claim_requirement` and :meth:`get_vo_requir
 
 If you want to combine multiple requirements use the "meta requirements"  :class:`AllOf`, :class:`OneOf` and :class:`N_Of`.
 """
-from dataclasses import dataclass
 import logging
-from typing import Callable, List, Optional, Union, Any
+from dataclasses import dataclass
+from typing import Any, Callable, List, Optional, Union
 
 import aarc_entitlement
 

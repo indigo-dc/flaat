@@ -2,9 +2,9 @@ import logging
 import os
 from typing import Callable, List, Optional
 
+import liboidcagent
 from attr import dataclass
 from dotenv import dotenv_values
-import liboidcagent
 
 from flaat import AuthWorkflow, BaseFlaat
 from flaat.exceptions import FlaatException
@@ -27,12 +27,13 @@ environment = {
 def env_var(name, mandatory=True):
     val = environment.get(name, "")
     if mandatory and val == "":  # pragma: no cover
-        raise ValueError(f"Set '{name}' in environment or .env file")
+        return ""
+        # raise ValueError(f"Set '{name}' in environment or .env file")
 
     return val
 
 
-def load_at(short_name: str, mandatory=True) -> str:
+def load_at(short_name: str, mandatory=False) -> str:
     try:
         return liboidcagent.get_access_token(short_name)
     except liboidcagent.OidcAgentError as e:  # pragma: no cover
@@ -63,16 +64,17 @@ NON_JWT_FLAAT_ISS = env_var("NON_JWT_FLAAT_ISS", mandatory=False)
 
 
 # List to parametrize framework tests
-STATUS_KWARGS_LIST = [
-    # No access token -> unauthorized
-    (401, {"headers": {}}),
-    # Invalid access token -> unauthorized
-    (401, {"headers": {"Authorization": "Bearer invalid_at"}}),
-    # Good access token with the right entitlements
-    # If the decorator has a status_code then that one overrides the 200 set here
-    # see get_expected_status_code
-    (200, {"headers": {"Authorization": f"Bearer {FLAAT_AT}"}}),
-]
+def get_status_kwargs_list():
+    return [
+        # No access token -> unauthorized
+        (401, {"headers": {}}),
+        # Invalid access token -> unauthorized
+        (401, {"headers": {"Authorization": "Bearer invalid_at"}}),
+        # Good access token with the right entitlements
+        # If the decorator has a status_code then that one overrides the 200 set here
+        # see get_expected_status_code
+        (200, {"headers": {"Authorization": f"Bearer {FLAAT_AT}"}}),
+    ]
 
 
 @dataclass
@@ -89,6 +91,9 @@ class NamedDecorator:
 
 
 def check_request(user_infos: UserInfos, *args, **kwargs) -> CheckResult:
+    _ = user_infos
+    _ = args
+    _ = kwargs
     return CheckResult(True, "No checks applied")
 
 
