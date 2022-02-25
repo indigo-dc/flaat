@@ -15,6 +15,8 @@ class TestTokens:
 
     def test_get_accesstoken_info_jwt(self):
         access_token = FLAAT_AT
+        if access_token == "":
+            pytest.skip("No JWT access token")
         access_token_info = get_access_token_info(access_token)
         assert access_token_info is not None
         assert access_token_info.verification is not None
