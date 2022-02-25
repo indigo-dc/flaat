@@ -3,7 +3,7 @@ This module contains classes to express diverse requirements which a user needs 
 
 The convenience functions :meth:`get_claim_requirement` and :meth:`get_vo_requirement` are recommended to construct individual requirements.
 
-If you want to combine multiple requirements use the "meta requirements"  :class:`AllOf`, :class:`OneOf` and :class:`N_Of`.
+If you want to combine multiple requirements use the "meta requirements"  :class:`AllOf` and :class:`N_Of`.
 """
 import logging
 from dataclasses import dataclass
@@ -81,12 +81,14 @@ class IsTrue(Requirement):
         self.func = func
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
-        return CheckResult(self.func(user_infos), f"Evaluation of: {self.func.__name__}")
+        return CheckResult(
+            self.func(user_infos), f"Evaluation of: {self.func.__name__}"
+        )
 
 
 class MetaRequirement(Requirement):
     """MetaRequirement is a requirements consisting of multiple sub-requirements
-    Use the childs AllOf, OneOf or N_Of directly.
+    Use the childs AllOf or N_Of directly.
     """
 
     def __init__(self, *reqs: REQUIREMENT):
@@ -179,7 +181,9 @@ def _match_to_meta_requirement(match: Union[str, int]) -> MetaRequirement:
             return N_Of(n=1)
         return N_Of(match)
 
-    raise FlaatException("Argument 'match' has invalid value: Must be 'all', 'one' or int")
+    raise FlaatException(
+        "Argument 'match' has invalid value: Must be 'all', 'one' or int"
+    )
 
 
 class HasSubIss(Requirement):
@@ -190,7 +194,9 @@ class HasSubIss(Requirement):
             return CheckResult(False, "No valid user_infos found")
 
         if user_infos.subject != "" and user_infos.issuer != "":
-            return CheckResult(True, "Valid user: {user_infos.subject} @ {user_infos.issuer}")
+            return CheckResult(
+                True, "Valid user: {user_infos.subject} @ {user_infos.issuer}"
+            )
 
         return CheckResult(False, "user_infos have no subject / issuer")
 
@@ -272,7 +278,9 @@ class HasAARCEntitlement(HasClaim):
             logger.debug("Error parsing aarc entitlement: %s", e)
             return None
 
-    def _matches(self, required: aarc_entitlement.Base, available: aarc_entitlement.Base) -> bool:
+    def _matches(
+        self, required: aarc_entitlement.Base, available: aarc_entitlement.Base
+    ) -> bool:
         return available.satisfies(required)
 
 
