@@ -132,32 +132,6 @@ class AllOf(MetaRequirement):
         return CheckResult(satisfied, message, data=failed_checks)
 
 
-class OneOf(MetaRequirement):
-    """
-    OneOf is satisfied if at least one of its sub-requirements are satisfied.
-    If there are no sub-requirements, this class is never satisfied.
-    """
-
-    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
-        if len(self.requirements) == 0:
-            return CheckResult(False, "No sub-requirements")
-
-        satisfied = True
-        message = "All sub-requirements are satisfied"
-        failed_checks = []
-
-        for req in self.requirements:
-            check_result = req.is_satisfied_by(user_infos)
-            if not check_result.is_satisfied:
-                satisfied = False
-                failed_checks.append(check_result.render())
-
-        if not satisfied:
-            message = f"{self.__class__.__name__}: No sub-requirements are satisfied"
-
-        return CheckResult(satisfied, message, data=failed_checks)
-
-
 class N_Of(MetaRequirement):
     """
     N_Of is satisfied if at least `n` of its sub-requirements are satisfied.
@@ -199,10 +173,10 @@ def _match_to_meta_requirement(match: Union[str, int]) -> MetaRequirement:
     if match == "all":
         return AllOf()
     if match == "one":
-        return OneOf()
+        return N_Of(n=1)
     if isinstance(match, int):
         if match == 1:
-            return OneOf()
+            return N_Of(n=1)
         return N_Of(match)
 
     raise FlaatException("Argument 'match' has invalid value: Must be 'all', 'one' or int")
