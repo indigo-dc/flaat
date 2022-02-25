@@ -81,9 +81,7 @@ class IsTrue(Requirement):
         self.func = func
 
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
-        return CheckResult(
-            self.func(user_infos), f"Evaluation of: {self.func.__name__}"
-        )
+        return CheckResult(self.func(user_infos), f"Evaluation of: {self.func.__name__}")
 
 
 class MetaRequirement(Requirement):
@@ -197,6 +195,7 @@ def _match_to_meta_requirement(match: Union[str, int]) -> MetaRequirement:
     """translates a match argument to meta requirements
     Valid values are: "all", "one" or int"""
 
+    logger.debug(f"meta requirement: match {match}")
     if match == "all":
         return AllOf()
     if match == "one":
@@ -206,9 +205,7 @@ def _match_to_meta_requirement(match: Union[str, int]) -> MetaRequirement:
             return OneOf()
         return N_Of(match)
 
-    raise FlaatException(
-        "Argument 'match' has invalid value: Must be 'all', 'one' or int"
-    )
+    raise FlaatException("Argument 'match' has invalid value: Must be 'all', 'one' or int")
 
 
 class HasSubIss(Requirement):
@@ -219,9 +216,7 @@ class HasSubIss(Requirement):
             return CheckResult(False, "No valid user_infos found")
 
         if user_infos.subject != "" and user_infos.issuer != "":
-            return CheckResult(
-                True, "Valid user: {user_infos.subject} @ {user_infos.issuer}"
-            )
+            return CheckResult(True, "Valid user: {user_infos.subject} @ {user_infos.issuer}")
 
         return CheckResult(False, "user_infos have no subject / issuer")
 
@@ -260,7 +255,7 @@ class HasClaim(Requirement):
         if not matched:
             return CheckResult(
                 False,
-                f"User has no claim '{self.claim}' with value: {self.value}",
+                f"User has no claim '{self.claim}' with value: '{self.value}'",
             )
 
         return CheckResult(
@@ -299,9 +294,7 @@ class HasAARCEntitlement(HasClaim):
             logger.debug("Error parsing aarc entitlement: %s", e)
             return None
 
-    def _matches(
-        self, required: aarc_entitlement.Base, available: aarc_entitlement.Base
-    ) -> bool:
+    def _matches(self, required: aarc_entitlement.Base, available: aarc_entitlement.Base) -> bool:
         return available.satisfies(required)
 
 
@@ -339,7 +332,6 @@ def get_claim_requirement(
 
     :return: A requirement that is satisfied if the user has the claim value(s) of `required`.
     """
-
     return _get_claim_requirement(required, claim, match, HasClaim)
 
 
