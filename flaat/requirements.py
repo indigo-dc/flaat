@@ -3,7 +3,7 @@ This module contains classes to express diverse requirements which a user needs 
 
 The convenience functions :meth:`get_claim_requirement` and :meth:`get_vo_requirement` are recommended to construct individual requirements.
 
-If you want to combine multiple requirements use the "meta requirements"  :class:`AllOf`, :class:`OneOf` and :class:`N_Of`.
+If you want to combine multiple requirements use the "meta requirements"  :class:`AllOf` and :class:`N_Of`.
 """
 import logging
 from dataclasses import dataclass
@@ -88,7 +88,7 @@ class IsTrue(Requirement):
 
 class MetaRequirement(Requirement):
     """MetaRequirement is a requirements consisting of multiple sub-requirements
-    Use the childs AllOf, OneOf or N_Of directly.
+    Use the childs AllOf or N_Of directly.
     """
 
     def __init__(self, *reqs: REQUIREMENT):
@@ -134,32 +134,6 @@ class AllOf(MetaRequirement):
         return CheckResult(satisfied, message, data=failed_checks)
 
 
-class OneOf(MetaRequirement):
-    """
-    OneOf is satisfied if at least one of its sub-requirements are satisfied.
-    If there are no sub-requirements, this class is never satisfied.
-    """
-
-    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
-        if len(self.requirements) == 0:
-            return CheckResult(False, "No sub-requirements")
-
-        satisfied = True
-        message = "All sub-requirements are satisfied"
-        failed_checks = []
-
-        for req in self.requirements:
-            check_result = req.is_satisfied_by(user_infos)
-            if not check_result.is_satisfied:
-                satisfied = False
-                failed_checks.append(check_result.render())
-
-        if not satisfied:
-            message = f"{self.__class__.__name__}: No sub-requirements are satisfied"
-
-        return CheckResult(satisfied, message, data=failed_checks)
-
-
 class N_Of(MetaRequirement):
     """
     N_Of is satisfied if at least `n` of its sub-requirements are satisfied.
@@ -193,17 +167,28 @@ class N_Of(MetaRequirement):
         )
 
 
+class OneOf(N_Of):
+    """
+    OneOf is satisfied if at least one of its sub-requirements are satisfied.
+    If there are no sub-requirements, this class is never satisfied.
+    """
+
+    def __init__(self, *reqs: Requirement):
+        super().__init__(1, *reqs)
+
+
 def _match_to_meta_requirement(match: Union[str, int]) -> MetaRequirement:
     """translates a match argument to meta requirements
     Valid values are: "all", "one" or int"""
 
+    logger.debug(f"meta requirement: match {match}")
     if match == "all":
         return AllOf()
     if match == "one":
-        return OneOf()
+        return N_Of(n=1)
     if isinstance(match, int):
         if match == 1:
-            return OneOf()
+            return N_Of(n=1)
         return N_Of(match)
 
     raise FlaatException(
@@ -256,11 +241,15 @@ class HasClaim(Requirement):
                     matched_value = val
                     matched = True
                     break
+        else:
+            if self.matches(self.value, self.parse(value)):
+                matched_value = value
+                matched = True
 
         if not matched:
             return CheckResult(
                 False,
-                f"User has no claim '{self.claim}' with value: {self.value}",
+                f"User has no claim '{self.claim}' with value: '{self.value}'",
             )
 
         return CheckResult(
@@ -339,7 +328,6 @@ def get_claim_requirement(
 
     :return: A requirement that is satisfied if the user has the claim value(s) of `required`.
     """
-
     return _get_claim_requirement(required, claim, match, HasClaim)
 
 
