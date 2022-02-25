@@ -251,6 +251,10 @@ class HasClaim(Requirement):
                     matched_value = val
                     matched = True
                     break
+        else:
+            if self.matches(self.value, self.parse(value)):
+                matched_value = value
+                matched = True
 
         if not matched:
             return CheckResult(
