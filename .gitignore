@@ -110,3 +110,4 @@ test-tokens.sh
 .vimspector.json
 install_certs.sh
 test.py
+coverage.svg

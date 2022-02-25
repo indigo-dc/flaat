@@ -1,9 +1,6 @@
-flask
-aiohttp
-fastapi>=0.61.2
-liboidcagent
-requests
-requests_cache
-aarc_g002_entitlement >= 0.3
-configargparse
-sphinx-argparse
+aarc-entitlement==1.*
+cachetools==5.*
+configargparse==1.*
+humanfriendly==10.*
+liboidcagent==0.*
+requests==2.*

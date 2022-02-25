@@ -1,6 +1,6 @@
-flask
-aiohttp
-requests
-requests_cache
-aarc_g002_entitlement >= 0.2
-configargparse
+Sphinx
+sphinx-argparse
+sphinx-autodoc-typehints
+sphinx-rtd-theme
+pbr
+six
