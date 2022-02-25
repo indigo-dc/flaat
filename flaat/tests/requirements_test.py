@@ -13,6 +13,7 @@ from flaat.requirements import (
     HasSubIss,
     IsTrue,
     N_Of,
+    OneOf,
     Requirement,
     Satisfied,
     Unsatisfiable,
@@ -49,6 +50,7 @@ class RequirementsUser(User):
 
         self.success_requirements.append(AllOf(*self.success_requirements))
         self.success_requirements.append(N_Of(2, *self.success_requirements))
+        self.success_requirements.append(OneOf(*self.success_requirements))
 
         self.failure_requirements = [Unsatisfiable()]
 
@@ -74,4 +76,5 @@ def test_possible_requirements_failure(user):
 def test_empty_meta_requirements(user):
     user_infos = user.user_infos
     assert not AllOf().is_satisfied_by(user_infos).is_satisfied
+    assert not OneOf().is_satisfied_by(user_infos).is_satisfied
     assert not N_Of(1).is_satisfied_by(user_infos).is_satisfied
