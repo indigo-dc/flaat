@@ -1,9 +1,8 @@
 import logging
 from json import JSONEncoder
 from time import time
-from typing import Optional
+from typing import Any, Optional
 
-from flaat.access_tokens import AccessTokenInfo
 
 logger = logging.getLogger(__name__)
 
@@ -16,14 +15,14 @@ class UserInfos:
 
     user_info: dict
     """ user_info is the user info dictionary from the user info endpoint of the issuer."""
-    access_token_info: Optional[AccessTokenInfo] = None
+    access_token_info: Optional[Any] = None  # Optional AccessTokenInfo
     """ Is set to `AccessTokenInfo` if the respective access token was a JWT."""
     introspection_info: Optional[dict] = None
     """ Is the data returned from the token intropsection endpoint of the issuer."""
 
     def __init__(
         self,
-        access_token_info: Optional[AccessTokenInfo],
+        access_token_info: Optional[Any],  # Optional AccessTokenInfo
         user_info: dict,
         introspection_info: Optional[dict],
     ):

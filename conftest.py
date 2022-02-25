@@ -24,11 +24,7 @@ logging.getLogger("asyncio").setLevel(logging.WARN)
 _jwt_issuer = "https://mock.issuer.jwt"
 _non_jwt_issuer = "https://mock.issuer.non.jwt"
 _jwt_user_infos = UserInfos(
-    AccessTokenInfo(
-        {},
-        {},
-        "",
-    ),
+    AccessTokenInfo({}, verification=None),
     {
         "iss": _jwt_issuer,
         "sub": "mock_sub",
