@@ -167,6 +167,16 @@ class N_Of(MetaRequirement):
         )
 
 
+class OneOf(N_Of):
+    """
+    OneOf is satisfied if at least one of its sub-requirements are satisfied.
+    If there are no sub-requirements, this class is never satisfied.
+    """
+
+    def __init__(self, *reqs: Requirement):
+        super().__init__(1, *reqs)
+
+
 def _match_to_meta_requirement(match: Union[str, int]) -> MetaRequirement:
     """translates a match argument to meta requirements
     Valid values are: "all", "one" or int"""
