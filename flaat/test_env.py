@@ -128,7 +128,7 @@ class User:
             not isinstance(self.groups, list) or len(self.groups) < 2
         ):  # pragma: no cover
             raise FlaatException(
-                "CLAIM_GROUP must point to list of at least two groups"
+                "FLAAT_CLAIM_GROUP must point to list of at least two groups"
             )
 
         self.entitlements = self.user_infos.user_info.get(self.claim_entitlements, None)
@@ -136,7 +136,7 @@ class User:
             not isinstance(self.entitlements, list) or len(self.entitlements) < 2
         ):  # pragma: no cover
             raise FlaatException(
-                "CLAIM_ENTITLEMENT must point to list of at least two entitlements"
+                "FLAAT_CLAIM_ENTITLEMENT must point to list of at least two entitlements"
             )
 
     def get_named_decorators(self):
