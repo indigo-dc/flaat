@@ -1,47 +1,22 @@
-import json
-
 import pytest
 
-from flaat.access_tokens import (
-    _base64_url_decode,
-    _base64_url_encode,
-    get_access_token_info,
-)
-
-
-class TestBase64:
-    @pytest.mark.parametrize(
-        "name,teststring",
-        [
-            ("simple", "this is a static teststring without strange chars"),
-            ("newline", "this is a static teststring with\nnewline\rand\tstuff"),
-            ("evil", "this is a static\nteststring\rwith mäni€ strange characters"),
-            (
-                "evil_unicode",
-                "this is a static\nteststring\rwith mäni€ strange characters",
-            ),
-        ],
-    )
-    def test_encode_decode(self, name, teststring):
-        _ = name
-        b64 = _base64_url_encode(teststring)
-        assert teststring == _base64_url_decode(b64)
+from flaat.access_tokens import get_access_token_info
+from flaat.test_env import FLAAT_AT, NON_JWT_FLAAT_AT
 
 
 class TestTokens:
-    def test_get_accesstoken_info_unity(self):
-        at = "g9b2LEMq2cHjup73HMtYjYo11tNDJ-6UoTd_rblDTdU"
-        assert get_access_token_info(at) is None
+    def test_get_accesstoken_info_non_jwt(self):
+        access_token = NON_JWT_FLAAT_AT
+        if access_token == "":
+            pytest.skip("No non JWT access token")
 
-    def test_get_accesstoken_info_iam(self):
-        at = """eyJraWQiOiJyc2ExIiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiJhMWVhM2FhMi04ZGFmLTQxYmItYjRmYi1lYjg4ZjQzOWU0NDYiLCJpc3MiOiJodHRwczpcL1wvaWFtLXRlc3QuaW5kaWdvLWRhdGFjbG91ZC5ldVwvIiwiZXhwIjoxNTY3Njc2MTY1LCJpYXQiOjE1Njc2NzI1NjUsImp0aSI6ImIxOTJkY2RjLWQ3OTAtNDA4OC1iNzFlLTBkYTgwMDQ0ZmZhNSJ9.T4EyIub8rkFh1mlz1lUBFmwn8GqMX-QXtWIkUyw-NylnvxNkmL0I4cjNwF-BFgnshGkVHC2f0kiSs799iEwMPuzzSeMxzCydyqo1f77Z7_R-Lh1UCWWATPoUY-oZmnzuQd9rTW8WDrbQFisW1Ig0FAsxyiJ3EMMhEie6kys2jRo"""
-        header = json.loads('{"kid": "rsa1", "alg": "RS256"}')
-        body = json.loads(
-            '{"sub": "a1ea3aa2-8daf-41bb-b4fb-eb88f439e446", "iss": "https://iam-test.indigo-datacloud.eu/", "exp": 1567676165, "iat": 1567672565, "jti": "b192dcdc-d790-4088-b71e-0da80044ffa5"}'
-        )
-        signature = """T4EyIub8rkFh1mlz1lUBFmwn8GqMX-QXtWIkUyw-NylnvxNkmL0I4cjNwF-BFgnshGkVHC2f0kiSs799iEwMPuzzSeMxzCydyqo1f77Z7_R-Lh1UCWWATPoUY-oZmnzuQd9rTW8WDrbQFisW1Ig0FAsxyiJ3EMMhEie6kys2jRo"""
-        info = get_access_token_info(at)
-        assert info is not None
-        assert header == info.header
-        assert body == info.body
-        assert signature == info.signature
+        access_token_info = get_access_token_info(access_token)
+        assert access_token_info is None
+
+    def test_get_accesstoken_info_jwt(self):
+        access_token = FLAAT_AT
+        if access_token in ["", "mock_jwt_at"]:
+            pytest.skip("No JWT access token")
+        access_token_info = get_access_token_info(access_token)
+        assert access_token_info is not None
+        assert access_token_info.verification is not None
