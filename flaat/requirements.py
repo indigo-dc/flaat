@@ -17,6 +17,15 @@ from flaat.user_infos import UserInfos
 logger = logging.getLogger(__name__)
 
 
+# No leading slash ('/') in ops_that_support_audience !!!
+OPS_THAT_SUPPORT_AUDIENCE = [
+    "https://iam-test.indigo-datacloud.eu",
+    "https://iam.deep-hybrid-datacloud.eu",
+    "https://iam.extreme-datacloud.eu",
+    "https://wlcg.cloud.cnaf.infn.it",
+]
+
+
 @dataclass
 class CheckResult:
     """CheckResult is the result of an `is_satisfied_by` check"""
@@ -276,6 +285,25 @@ class HasClaim(Requirement):
         return required == available
 
 
+class HasAudience(HasClaim):
+    """HasAudience is satisfied if the user's access token was issued for a specific audience"""
+
+    def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
+        if (
+            user_infos is not None
+            and user_infos.issuer.rstrip("/") not in OPS_THAT_SUPPORT_AUDIENCE
+        ):
+            logger.warning(
+                "Issuer %s does not support audience setting, ignoring audience requirement.",
+                user_infos.issuer,
+            )
+            return CheckResult(
+                True,
+                "Issuer does not support audience setting, ignoring audience requirement.",
+            )
+        return super().is_satisfied_by(user_infos)
+
+
 class HasAARCEntitlement(HasClaim):
     """HasAARCEntitlement is satisfies if the user has the provided AARC-G002/G069 entitlement
     If the argument `required` is not a parseable AARC entitlement, we revert to equals comparisons.
@@ -339,4 +367,14 @@ def get_vo_requirement(
     """Equivalent to :meth:`get_claim_requirement`, but works for both groups and AARC entitlements."""
     return _get_claim_requirement(
         required, claim, match, claim_requirement_class=HasAARCEntitlement
+    )
+
+
+def get_audience_requirement(required: Union[str, List[str]]) -> Requirement:
+    """Equivalent to :meth:`get_claim_requirement`, but specific to audience claim."""
+    if required == "" or required == []:
+        logger.debug("Required audience empty or not specified.")
+        return Satisfied()
+    return _get_claim_requirement(
+        required, "aud", "one", claim_requirement_class=HasAudience
     )
