@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from typing import List
+from typing import List, Union
 
 from flaat.requirements import REQUIREMENT, HasSubIss, Satisfied, Unsatisfiable
 
@@ -79,6 +79,7 @@ class FlaatConfig:
         self.client_secret: str = ""
         self.request_timeout: float = 1.2  # seconds
         self.verify_tls = True
+        self.verify_jwt = True
 
         # access levels for the self.access_level decorator
         self.access_levels = DEFAULT_ACCESS_LEVELS
@@ -141,6 +142,10 @@ class FlaatConfig:
         Set to `False` to skip TLS certificate verification while processing requests.
         """
         self.verify_tls = verify_tls
+
+    def set_verify_jwt(self, verify_jwt=True):
+        """Set to `False` to skip JWT verification while processing requests."""
+        self.verify_jwt = verify_jwt
 
     def set_client_id(self, client_id=""):
         """Set a client id for token introspection"""

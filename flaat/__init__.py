@@ -214,7 +214,7 @@ class BaseFlaat(FlaatConfig):
             raise FlaatUnauthenticated("No access token")
 
         logger.debug("Access token: %s", access_token)
-        access_token_info = get_access_token_info(access_token)
+        access_token_info = get_access_token_info(access_token, verify=self.verify_jwt)
         issuer_config = self._find_issuer_config(
             access_token, access_token_info, issuer_hint=issuer_hint
         )
