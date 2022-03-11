@@ -57,7 +57,7 @@ class AccessTokenInfo:
         return self.body.get("iss", "")
 
 
-def _get_signing_key_from_jwt(jwks_uri, access_token):
+def _get_signing_key_from_jwt(jwks_uri, access_token) -> str:
     jwk_client = PyJWKClient(jwks_uri)
 
     try:
@@ -73,7 +73,7 @@ def _get_signing_key_from_jwt(jwks_uri, access_token):
 
         # algorithm is none, then signing key is None; signature must be empty octet string
         if alg == "none":
-            return None
+            return ""
         # infer key type from algorithm
         key_type = ""
         if alg.startswith("RS") or alg.startswith("PS"):

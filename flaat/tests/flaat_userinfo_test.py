@@ -95,9 +95,11 @@ def test_get_at_oidc_agent_with_aud(args):
         pytest.skip("No oidc agent account for OP with audience")
     args.oidc_agent_account = AUD_OIDC_AGENT_ACCOUNT
     args.audience = "test-audience"
-    unverified = decode_complete(
-        get_access_token(args), options={"verify_signature": False}
-    )
+
+    at = get_access_token(args)
+    assert at is not None
+
+    unverified = decode_complete(at, options={"verify_signature": False})
     assert unverified["payload"]["aud"] == "test-audience"
 
 
