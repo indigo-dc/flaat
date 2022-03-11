@@ -117,7 +117,7 @@ def test_unset_or_unsupported_aud_success(user):
 
 
 def test_supported_aud_missing(flaat_aud):
-    access_token = load_at(AUD_OIDC_AGENT_ACCOUNT)
+    access_token = load_at(AUD_OIDC_AGENT_ACCOUNT, min_valid_period=3600)
     user_infos = _get_user_infos(flaat_aud, access_token)
     assert (
         not get_audience_requirement(INVALID_AUDIENCE)
@@ -127,7 +127,9 @@ def test_supported_aud_missing(flaat_aud):
 
 
 def test_supported_aud_success(flaat_aud):
-    access_token = load_at(AUD_OIDC_AGENT_ACCOUNT, audience=VALID_AUDIENCE)
+    access_token = load_at(
+        AUD_OIDC_AGENT_ACCOUNT, min_valid_period=3600, audience=VALID_AUDIENCE
+    )
     user_infos = _get_user_infos(flaat_aud, access_token)
     assert (
         get_audience_requirement(VALID_AUDIENCE)
@@ -147,7 +149,9 @@ def test_supported_aud_success(flaat_aud):
 
 
 def test_supported_aud_invalid(flaat_aud):
-    access_token = load_at(AUD_OIDC_AGENT_ACCOUNT, audience=VALID_AUDIENCE)
+    access_token = load_at(
+        AUD_OIDC_AGENT_ACCOUNT, min_valid_period=3600, audience=VALID_AUDIENCE
+    )
     user_infos = _get_user_infos(flaat_aud, access_token)
     assert (
         not get_audience_requirement(INVALID_AUDIENCE)
@@ -157,7 +161,9 @@ def test_supported_aud_invalid(flaat_aud):
 
 
 def test_supported_aud_multiple(flaat_aud):
-    access_token = load_at(AUD_OIDC_AGENT_ACCOUNT, audience=f"{VALID_AUDIENCE} bar")
+    access_token = load_at(
+        AUD_OIDC_AGENT_ACCOUNT, min_valid_period=3600, audience=f"{VALID_AUDIENCE} bar"
+    )
     user_infos = _get_user_infos(flaat_aud, access_token)
     assert (
         get_audience_requirement(VALID_AUDIENCE)

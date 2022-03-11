@@ -33,9 +33,11 @@ def env_var(name, mandatory=True):
     return val
 
 
-def load_at(short_name: str, mandatory=False, audience=None) -> str:
+def load_at(short_name: str, mandatory=False, min_valid_period=0, audience=None) -> str:
     try:
-        return liboidcagent.get_access_token(short_name, audience=audience)
+        return liboidcagent.get_access_token(
+            short_name, min_valid_period=min_valid_period, audience=audience
+        )
     except liboidcagent.OidcAgentError as e:  # pragma: no cover
         if mandatory:
             raise FlaatException(
