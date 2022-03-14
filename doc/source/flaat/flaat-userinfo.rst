@@ -20,8 +20,8 @@ Options
 -------
 .. code-block:: bash
 
-    usage: flaat-userinfo [-h] [--my-config MY_CONFIG] [--client_id CLIENT_ID] [--client_secret CLIENT_SECRET] [--oidc-agent-account OIDC_AGENT_ACCOUNT] [--issuer ISSUER]
-                          [--skip_tls_verify] [--accesstoken] [--userinfo] [--introspection] [--all] [--quiet] [--verbose] [--machine-readable]
+    usage: flaat-userinfo [-h] [--my-config MY_CONFIG] [--client_id CLIENT_ID] [--client_secret CLIENT_SECRET] [--oidc-agent-account OIDC_AGENT_ACCOUNT] [--issuer ISSUER] [--audience AUDIENCE]
+                          [--skip_tls_verify] [--skip_jwt_verify] [--accesstoken] [--userinfo] [--introspection] [--all] [--quiet] [--verbose] [--machine-readable]
                           [access_token ...]
 
     flaat-userinfo
@@ -41,7 +41,14 @@ Options
                             Name of oidc-agent account for access token retrieval
       --issuer ISSUER, -i ISSUER
                             Specify issuer (OIDC Provider)
+      --audience AUDIENCE, --aud AUDIENCE
+                            Specify an intended audience for the requested access
+                            token. Multiple audiences can be provided as a space
+                            separated list. Only used when token is retrieved via
+                            the oidc-agent. Ignored if OP does not support
+                            audience setting.
       --skip_tls_verify     Disable TLS verification
+      --skip_jwt_verify     Disable JWT verification
       --accesstoken, -at    Show access token info (default)
       --userinfo, -ui       Show user info (default)
       --introspection, -in  Show introspection info (default)

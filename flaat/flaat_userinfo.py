@@ -85,6 +85,17 @@ def get_arg_parser():  # pragma: no cover
         default="",
         help="Specify issuer (OIDC Provider)",
     )
+    parser.add_argument(
+        "--audience",
+        "--aud",
+        default=None,
+        help=(
+            "Specify an intended audience for the requested access token. "
+            "Multiple audiences can be provided as a space separated list. "
+            "Only used when token is retrieved via the oidc-agent. "
+            "Ignored if OP does not support audience setting."
+        ),
+    )
 
     # FLAGS below
     parser.add_argument(
@@ -92,6 +103,12 @@ def get_arg_parser():  # pragma: no cover
         default=True,
         action="store_false",
         help="Disable TLS verification",
+    )
+    parser.add_argument(
+        "--skip_jwt_verify",
+        default=False,
+        action="store_true",
+        help="Disable JWT verification",
     )
 
     parser.add_argument(
@@ -189,6 +206,8 @@ def get_flaat(args, trusted_op_list=None):
         flaat.set_client_id(args.client_id)
     if args.client_secret:
         flaat.set_client_secret(args.client_secret)
+    if args.skip_jwt_verify:
+        flaat.set_verify_jwt(not args.skip_jwt_verify)
     return flaat
 
 
@@ -204,7 +223,9 @@ def get_access_token(args) -> Optional[str]:
     # try commandline
     if args.oidc_agent_account != "":
         try:
-            access_token = agent.get_access_token(args.oidc_agent_account)
+            access_token = agent.get_access_token(
+                args.oidc_agent_account, audience=args.audience
+            )
         except agent.OidcAgentError as e:
             raise FlaatException(
                 f"Could not use oidc-agent account '{args.oidc_agent_account}': {e}"
@@ -224,7 +245,9 @@ def get_access_token(args) -> Optional[str]:
         if account_name is not None:
             logger.debug("Using agent account '%s'", env_var)
             try:
-                access_token = agent.get_access_token(account_name)
+                access_token = agent.get_access_token(
+                    account_name, audience=args.audience
+                )
                 if access_token is not None:
                     logger.info(
                         "Using access token from oidc-agent (from environment variable '%s')",

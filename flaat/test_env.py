@@ -33,9 +33,11 @@ def env_var(name, mandatory=True):
     return val
 
 
-def load_at(short_name: str, mandatory=False) -> str:
+def load_at(short_name: str, mandatory=False, min_valid_period=0, audience=None) -> str:
     try:
-        return liboidcagent.get_access_token(short_name)
+        return liboidcagent.get_access_token(
+            short_name, min_valid_period=min_valid_period, audience=audience
+        )
     except liboidcagent.OidcAgentError as e:  # pragma: no cover
         if mandatory:
             raise FlaatException(
@@ -62,6 +64,9 @@ NON_JWT_OIDC_AGENT_ACCOUNT = env_var("NON_JWT_OIDC_AGENT_ACCOUNT", mandatory=Fal
 NON_JWT_FLAAT_AT = load_at(NON_JWT_OIDC_AGENT_ACCOUNT, mandatory=False)
 NON_JWT_FLAAT_ISS = env_var("NON_JWT_FLAAT_ISS", mandatory=False)
 
+# optional oidc agent account from OP that supports setting 'aud' claim
+AUD_OIDC_AGENT_ACCOUNT = env_var("AUD_OIDC_AGENT_ACCOUNT", mandatory=False)
+AUD_FLAAT_ISS = env_var("AUD_FLAAT_ISS", mandatory=False)
 
 # List to parametrize framework tests
 def get_status_kwargs_list():

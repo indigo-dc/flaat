@@ -1,7 +1,7 @@
-import os
 from dataclasses import dataclass
 
 import pytest
+from jwt.api_jwt import decode_complete
 
 from flaat import BaseFlaat, flaat_userinfo
 from flaat.flaat_userinfo import (
@@ -17,6 +17,7 @@ from flaat.test_env import (
     FLAAT_CLIENT_SECRET,
     FLAAT_ISS,
     OIDC_AGENT_ACCOUNT,
+    AUD_OIDC_AGENT_ACCOUNT,
 )
 
 
@@ -35,6 +36,8 @@ class ArgsMock:
     show_all = True
     machine_readable = False
     verify_tls = False
+    skip_jwt_verify = False
+    audience = None
 
     def parse_args(self):
         return self
@@ -85,6 +88,19 @@ def test_get_at_oidc_agent(args):
 def test_get_at_access_token(args):
     args.access_token = ["foo"]
     assert get_access_token(args) == "foo"
+
+
+def test_get_at_oidc_agent_with_aud(args):
+    if AUD_OIDC_AGENT_ACCOUNT == "":
+        pytest.skip("No oidc agent account for OP with audience")
+    args.oidc_agent_account = AUD_OIDC_AGENT_ACCOUNT
+    args.audience = "test-audience"
+
+    at = get_access_token(args)
+    assert at is not None
+
+    unverified = decode_complete(at, options={"verify_signature": False})
+    assert unverified["payload"]["aud"] == "test-audience"
 
 
 def test_main(args, monkeypatch):
