@@ -3,10 +3,9 @@
 import base64
 from dataclasses import dataclass
 import logging
-from typing import Optional
+from typing import Optional, List
 
 import jwt
-from jwt import PyJWKClient
 
 from flaat.exceptions import FlaatUnauthenticated
 from flaat.issuers import IssuerConfig
@@ -57,23 +56,37 @@ class AccessTokenInfo:
         return self.body.get("iss", "")
 
 
-def _get_signing_key_from_jwt(jwks_uri, access_token) -> str:
-    jwk_client = PyJWKClient(jwks_uri)
+class FlaatPyJWKClient(jwt.PyJWKClient):
+    """Fixes the jwt.PyJWKClient class:
 
-    try:
-        return jwk_client.get_signing_key_from_jwt(access_token).key
-    except jwt.exceptions.PyJWKClientError:
-        # keys don't have 'kid' field, retrieve key by type, given the 'alg' in token header
-        unverified = jwt.api_jwt.decode_complete(
-            access_token, options={"verify_signature": False}
-        )
-        alg = unverified["header"][
-            "alg"
-        ]  # MUST be present, possible values defined at https://datatracker.ietf.org/doc/html/rfc7518#section-3.1
+    * get_signing_keys
+        * does not call self.get_jwk_set(), since it fails when "enc" keys are present
+        * returns only keys used for signing (e.g. filters out keys with "use" == "enc")
+    * get_signing_key_from_jwt
+        * tries to retrieve keys by id only if "kid" is specified in token header
+        * otherwise, it tries to infer the key type ("kty") from the algorithm used to sign the token ("alg")
+        * "alg" is always present in JWT header
+    * an additional method get_signing_key_by_alg
+    """
 
+    def get_signing_keys(self) -> List[jwt.api_jwk.PyJWK]:
+        data = self.fetch_data()
+        # filter for signing keys, i.e. "use" in ["sig", None]
+        keys = [
+            key for key in data.get("keys", []) if key.get("use", None) in ["sig", None]
+        ]
+        signing_keys = jwt.PyJWKSet(keys)
+        if not signing_keys:
+            raise jwt.exceptions.PyJWKClientError(
+                "The JWKS endpoint did not contain any signing keys"
+            )
+
+        return signing_keys.keys
+
+    def get_signing_key_by_alg(self, alg: str) -> jwt.api_jwk.PyJWK:
         # algorithm is none, then signing key is None; signature must be empty octet string
         if alg == "none":
-            return ""
+            return jwt.api_jwk.PyJWK({}, algorithm="none")
         # infer key type from algorithm
         key_type = ""
         if alg.startswith("RS") or alg.startswith("PS"):
@@ -84,24 +97,40 @@ def _get_signing_key_from_jwt(jwks_uri, access_token) -> str:
             key_type = "EC"
         if alg.startswith("Ed"):
             key_type = "OKP"
-        # get key from JWKS endpoint by key type
-        jwk_set = jwk_client.get_jwk_set()
-        signing_keys = [
-            jwk_set_key
-            for jwk_set_key in jwk_set.keys
-            if jwk_set_key.key_type == key_type
-        ]
-        if len(signing_keys) == 0:
-            raise FlaatUnauthenticated(
-                "Could not verify JWT: The JWKS endpoint did not contain any signing key "
-                f"of type {key_type}."
+
+        signing_keys = self.get_signing_keys()
+        signing_key = None
+
+        for key in signing_keys:
+            if key.key_type == key_type:
+                signing_key = key
+                break
+
+        if not signing_key:
+            raise jwt.exceptions.PyJWKClientError(
+                f'Unable to find a signing key that matches alg: "{alg}"'
             )
-        if len(signing_keys) > 1:
-            raise FlaatUnauthenticated(
-                f"Could not verify JWT: The JWKS endpoint has too many keys of type {key_type} "
-                "and no 'kid' specified."
-            )
-        return signing_keys[0].key
+
+        return signing_key
+
+    def get_signing_key_from_jwt(self, token: str) -> jwt.api_jwk.PyJWK:
+        unverified = jwt.api_jwt.decode_complete(
+            token, options={"verify_signature": False}
+        )
+        header = unverified["header"]
+
+        kid = header.get("kid", None)
+        if kid:
+            return self.get_signing_key(kid)
+
+        # alg MUST be present, possible values defined at https://datatracker.ietf.org/doc/html/rfc7518#section-3.1
+        alg = header.get("alg", None)
+        if alg:
+            return self.get_signing_key_by_alg(alg)
+
+        raise FlaatUnauthenticated(
+            "Could not verify JWT: The token header did not contain an 'alg'."
+        )
 
 
 def get_access_token_info(access_token, verify=True) -> Optional[AccessTokenInfo]:
@@ -130,12 +159,13 @@ def get_access_token_info(access_token, verify=True) -> Optional[AccessTokenInfo
             "Could not verify JWT: Issuer config has no jwks_uri"
         )
 
-    signing_key = _get_signing_key_from_jwt(jwks_uri, access_token)
+    jwk_client = FlaatPyJWKClient(jwks_uri)
+    signing_key = jwk_client.get_signing_key_from_jwt(access_token)
 
     try:
         complete_decode = jwt.api_jwt.decode_complete(
             access_token,
-            signing_key,
+            signing_key.key,
             algorithms=PERMITTED_SIGNATURE_ALGORITHMS,
             options={"verify_aud": False},
         )
