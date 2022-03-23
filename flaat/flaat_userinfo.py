@@ -29,6 +29,7 @@ TRUSTED_OP_LIST = [
     "https://aai.egi.eu/oidc/",
     "https://aai-demo.egi.eu/oidc/",
     "https://aai-dev.egi.eu/oidc/",
+    "https://aai-dev.egi.eu/auth/realms/egi",
     "https://login.elixir-czech.org/oidc/",
     "https://iam-test.indigo-datacloud.eu/",
     "https://iam.deep-hybrid-datacloud.eu/",
