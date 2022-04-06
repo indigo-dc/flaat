@@ -193,6 +193,8 @@ class IssuerConfig:
         if user_info is None:
             return None
 
+        if "iss" not in user_info:
+            user_info["iss"] = self.issuer
         introspection_info = self._get_introspected_token_info(access_token)
 
         return UserInfos(access_token_info, user_info, introspection_info)
