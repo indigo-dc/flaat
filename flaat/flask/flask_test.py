@@ -1,45 +1,41 @@
 # pylint: disable=redefined-outer-name
 import pytest
-from flask.app import Flask
-from werkzeug import Response
-
-from flaat.flask import Flaat
-from flaat.test_env import FLAAT_TRUSTED_OPS_LIST, User, get_status_kwargs_list
-
-flaat = Flaat()
-flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
-
-DECORATORS = User(flaat).get_named_decorators()
 
 
-def view_func(test_inject=None):
-    _ = test_inject
-    return Response(response="Success")
+@pytest.mark.parametrize("path", ["/info"])
+class TestInjectUserInfos:
+    """Tests for example endpoint 'info'."""
+
+    @pytest.fixture
+    def response(self, client, path, headers):
+        return client.get(path, headers=headers)
+
+    @pytest.mark.parametrize("credentials", ["mytoken"])
+    def test_AUTHORIZED(self, response):
+        assert response.status_code == 200
+        assert b"No userinfo" in response.data
+
+    @pytest.mark.parametrize("credentials", [None])
+    def test_UNAUTHORIZED(self, response):
+        assert response.status_code == 200
+        assert b"No userinfo" in response.data
 
 
-@pytest.fixture
-def app():
-    """flask web app for testing"""
-    app = Flask(__name__)
-    for decorator in DECORATORS:
+@pytest.mark.parametrize("path", ["/info_strict"])
+class TestInjectUserInfoStrict:
+    """Tests for example endpoint 'info_strict'."""
 
-        decorated_view_func = decorator.decorator(view_func)
-        # rename to decorator name, as flask does not allow duplicate view_func names
-        decorated_view_func.__name__ = f"{decorator.name}-view_func"
+    @pytest.fixture
+    def response(self, client, path, headers):
+        return client.get(path, headers=headers)
 
-        app.route(f"/{decorator.name}")(decorated_view_func)
+    @pytest.mark.parametrize("credentials", ["mytoken"])
+    def test_AUTHORIZED(self, response):
+        assert response.status_code == 200
+        assert b"No userinfo" in response.data
 
-    return app
-
-
-@pytest.fixture
-def client(app: Flask):
-    return app.test_client()
-
-
-@pytest.mark.parametrize("status,kwargs", get_status_kwargs_list())
-@pytest.mark.parametrize("decorator", DECORATORS)
-def test_decorator(client, decorator, status, kwargs):
-    resp = client.get(f"/{decorator.name}", **kwargs)
-    expected = decorator.get_expected_status_code(status)
-    assert resp.status_code == expected
+    @pytest.mark.parametrize("credentials", [None])
+    def test_UNAUTHORIZED(self, response):
+        assert response.status_code == 401
+        assert b"No authorization header" in response.data
+        assert b"Unauthenticated" in response.data

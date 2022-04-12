@@ -74,7 +74,6 @@ class FlaatConfig:
     def __init__(self):
         self.trusted_op_list: List[str] = []
         self.iss: str = ""
-        self.op_hint: str = ""
         self.client_id: str = ""
         self.client_secret: str = ""
         self.request_timeout: float = 1.2  # seconds

@@ -120,6 +120,7 @@ def root():
     text = """This is an example for useing flaat with Flask.
     The following endpoints are available:
         /info                       General info about the access_token (if provided)
+        /info_strict                General info with 401 if access_token not provided 
         /authenticated              Requires a valid user
         /authenticated_callback     Requires a valid user, uses a custom callback on error
         /authorized_claim           Requires user to have one of two claims
@@ -137,6 +138,12 @@ def info(user_infos=None):
     if user_infos is not None:
         return user_infos.toJSON()
     return Response("No userinfo", mimetype="text/plain")
+
+
+@frontend.route("/info_strict", methods=["GET"])
+@flaat.inject_user_infos(strict=True)  # Does fail if no user
+def info_strict_mode(user_infos):
+    return user_infos.toJSON()
 
 
 ## ------------------------------------------------------------------
@@ -237,6 +244,6 @@ def full_custom(email=""):
 
 ## ------------------------------------------------------------------
 # Main function -----------------------------------------------------
-if __name__ == "__main__":  
+if __name__ == "__main__":
     app = create_app("ProductionConfig")
     app.run(host="0.0.0.0", port=8081)
