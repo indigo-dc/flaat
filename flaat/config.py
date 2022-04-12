@@ -50,6 +50,7 @@ DEFAULT_ACCESS_LEVELS = [
 OPS_THAT_SUPPORT_JWT = [
     "https://aai-dev.egi.eu/oidc",
     "https://aai.egi.eu/oidc",
+    "https://aai-dev.egi.eu/auth/realms/egi",
     "https://b2access-integration.fz-juelich.de/oauth2",
     "https://b2access.eudat.eu/oauth2",
     "https://iam-test.indigo-datacloud.eu",
