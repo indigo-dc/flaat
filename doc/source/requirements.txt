@@ -4,3 +4,10 @@ sphinx-autodoc-typehints
 sphinx-rtd-theme
 pbr
 six
+aarc-entitlement==1.*
+cachetools==5.*
+configargparse==1.*
+humanfriendly==10.*
+liboidcagent==0.*
+requests==2.*
+pyjwt[crypto]==2.*
