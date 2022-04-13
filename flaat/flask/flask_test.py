@@ -4,38 +4,33 @@ import pytest
 
 @pytest.mark.parametrize("path", ["/info"])
 class TestInjectUserInfos:
-    """Tests for example endpoint 'info'."""
+    """Test request combinations for example using `inject_user_infos`
+    with parameter strict set to `False`.
+    """
 
-    @pytest.fixture
-    def response(self, client, path, headers):
-        return client.get(path, headers=headers)
-
-    @pytest.mark.parametrize("credentials", ["mytoken"])
-    def test_AUTHORIZED(self, response):
+    @pytest.mark.parametrize("credentials", ["A", "B"])
+    def test_is_authorized(self, client, path, headers):
+        response = client.get(path, headers=headers)
         assert response.status_code == 200
-        assert b"No userinfo" in response.data
 
     @pytest.mark.parametrize("credentials", [None])
-    def test_UNAUTHORIZED(self, response):
-        assert response.status_code == 200
-        assert b"No userinfo" in response.data
+    def test_not_authorized(self, client, path, headers):
+        response = client.get(path, headers=headers)
+        assert response.status_code == 401
 
 
 @pytest.mark.parametrize("path", ["/info_strict"])
-class TestInjectUserInfoStrict:
-    """Tests for example endpoint 'info_strict'."""
+class TestStrictUserInfos:
+    """Test request combinations for example using `inject_user_infos`
+    with parameter strict set to `True`.
+    """
 
-    @pytest.fixture
-    def response(self, client, path, headers):
-        return client.get(path, headers=headers)
-
-    @pytest.mark.parametrize("credentials", ["mytoken"])
-    def test_AUTHORIZED(self, response):
+    @pytest.mark.parametrize("credentials", ["A"])
+    def test_is_authorized(self, client, path, headers):
+        response = client.get(path, headers=headers)
         assert response.status_code == 200
-        assert b"No userinfo" in response.data
 
-    @pytest.mark.parametrize("credentials", [None])
-    def test_UNAUTHORIZED(self, response):
+    @pytest.mark.parametrize("credentials", ["B", None])
+    def test_not_authorized(self, client, path, headers):
+        response = client.get(path, headers=headers)
         assert response.status_code == 401
-        assert b"No authorization header" in response.data
-        assert b"Unauthenticated" in response.data
