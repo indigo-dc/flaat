@@ -111,3 +111,4 @@ test-tokens.sh
 install_certs.sh
 test.py
 coverage.svg
+doc/build
