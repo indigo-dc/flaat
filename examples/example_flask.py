@@ -6,7 +6,7 @@ from flaat.requirements import CheckResult, HasSubIss, Satisfied
 from flaat.requirements import get_claim_requirement
 from flaat.requirements import get_vo_requirement
 
-from flask import Blueprint, Flask
+from flask import Blueprint, Flask, abort
 from werkzeug import Response
 
 from examples import logsetup
@@ -160,7 +160,7 @@ def my_on_failure(exception, user_infos=None):
         Error Message: {exception}
         User: {user_infos if user_infos else "No Auth"}
     """
-    return Response(text, mimetype="text/plain")
+    abort(401, description=text)
 
 
 @frontend.route("/authenticated_callback", methods=["GET"])
