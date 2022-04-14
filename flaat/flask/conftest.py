@@ -14,7 +14,7 @@ def app(configuration):
     from examples.example_flask import create_app
 
     app = create_app(configuration)
-    app.config["TRUSTED_OP_LIST"] = ["https://mock.issuer.jwt"]
+    app.config["TRUSTED_OP_LIST"] = ["https://mock.issuer.non.jwt"]
     app.config["TESTING"] = True
     # other setup can go here
     yield app
@@ -33,4 +33,4 @@ def runner(app):
 
 @fixture(scope="function")
 def oidc_token():
-    return "mock_jwt_at"
+    return "mock_non_jwt_at"

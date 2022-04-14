@@ -5,6 +5,7 @@ paths = {
     "/info_no_strict",
     "/authenticated",
     "/authenticated_callback",
+    "/authorized_claim",
 }
 
 
