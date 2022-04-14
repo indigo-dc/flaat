@@ -188,11 +188,11 @@ def authorized_claim():
 # The user needs belong to a certain virtual organization -----------
 vo_requirement = get_vo_requirement(
     [
-        "urn:geant:h-df.de:group:m-team:feudal-developers",
-        "urn:geant:h-df.de:group:MyExampleColab#unity.helmholtz.de",
+        "urn:mace:egi.eu:group:test:foo",
+        "urn:mace:egi.eu:group:test:bar",
     ],
-    "eduperson_entitlement",
-    match=1,
+    "mock_entitlements",
+    match=2,
 )
 
 
