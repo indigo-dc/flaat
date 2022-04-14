@@ -119,8 +119,8 @@ def create_app(config="ProductionConfig"):
 def root():
     text = """This is an example for useing flaat with Flask.
     The following endpoints are available:
-        /info                       General info about the access_token (if provided)
-        /info_strict                General info with 401 if access_token not provided 
+        /info                       General info about the access_token
+        /info_no_strict             General info without token validation
         /authenticated              Requires a valid user
         /authenticated_callback     Requires a valid user, uses a custom callback on error
         /authorized_claim           Requires user to have one of two claims
@@ -133,17 +133,15 @@ def root():
 ## ------------------------------------------------------------------
 # Call with user inforation -----------------------------------------
 @frontend.route("/info", methods=["GET"])
-@flaat.inject_user_infos(strict=False)  # Doesn't fail if no user
-def info(user_infos=None):
-    if user_infos is not None:
-        return user_infos.toJSON()
-    return Response("No userinfo", mimetype="text/plain")
-
-
-@frontend.route("/info_strict", methods=["GET"])
-@flaat.inject_user_infos(strict=True)  # Does fail if no user
+@flaat.inject_user_infos()  # Fail if no valid authentication is provided
 def info_strict_mode(user_infos):
     return user_infos.toJSON()
+
+
+@frontend.route("/info_no_strict", methods=["GET"])
+@flaat.inject_user_infos(strict=False)  # Pass with invalid authentication
+def info(user_infos=None):
+    return user_infos.toJSON() if user_infos else "No userinfo"
 
 
 ## ------------------------------------------------------------------
@@ -173,12 +171,10 @@ def authenticated_callback():
 
 ## ------------------------------------------------------------------
 # The user needs to satisfy a certain requirement -------------------
-email_requirement = (
-    get_claim_requirement(
-        ["admin@foo.org", "dev@foo.org"],
-        claim="email",
-        match=1,
-    ),
+email_requirement = get_claim_requirement(
+    ["admin@foo.org", "dev@foo.org"],
+    claim="email",
+    match=1,
 )
 
 
