@@ -120,7 +120,7 @@ class Flaat(BaseFlaat):
         current_app.config["FLAAT_VERIFY_TLS"] = verify_tls
 
     @property
-    def verify_tls(self):
+    def verify_jwt(self):
         """Skip JWT verification while processing requests.
         :return: Boolean, indicates if TLS is enabled
         """
