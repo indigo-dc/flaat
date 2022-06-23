@@ -1,4 +1,6 @@
 from pytest_cases import parametrize
+from flaat.test_env import FLAAT_AT
+
 
 example_paths = {
     "/info",
@@ -14,8 +16,8 @@ class Authorized:
     """Request should pass."""
 
     @parametrize("path", example_paths)
-    def case_ValidToken(self, path, oidc_token):
-        headers = {"Authorization": f"Bearer {oidc_token}"}
+    def case_ValidToken(self, path):
+        headers = {"Authorization": f"Bearer {FLAAT_AT}"}
         return path, headers
 
     @parametrize("path", {"/info_no_strict"})
