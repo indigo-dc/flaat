@@ -2,6 +2,7 @@
 # https://flask.palletsprojects.com/en/2.1.x/testing/
 # pylint: disable=redefined-outer-name
 import functools
+import copy
 
 from flaat import issuers
 from flaat.test_env import FLAAT_TRUSTED_OPS_LIST
@@ -30,6 +31,17 @@ def client(app):
     return app.test_client()
 
 
+@fixture(scope="module", autouse=True)
+def patch_user_info():
+    original = copy.copy(issuers.IssuerConfig._get_user_info)
+    issuers.IssuerConfig._get_user_info = replace_email(
+        issuers.IssuerConfig._get_user_info)
+    issuers.IssuerConfig._get_user_info = add_entitlements(
+        issuers.IssuerConfig._get_user_info)
+    yield
+    issuers.IssuerConfig._get_user_info = original
+
+
 def replace_email(func):
     """Replaces the original email by a mock"""
     @ functools.wraps(func)
@@ -53,9 +65,3 @@ def add_entitlements(func):
         return user_info
 
     return wrapper
-
-
-issuers.IssuerConfig._get_user_info = replace_email(
-    issuers.IssuerConfig._get_user_info)
-issuers.IssuerConfig._get_user_info = add_entitlements(
-    issuers.IssuerConfig._get_user_info)
