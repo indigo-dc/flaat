@@ -35,20 +35,23 @@ def client(app):
 def patch_user_info():
     original = copy.copy(issuers.IssuerConfig._get_user_info)
     issuers.IssuerConfig._get_user_info = replace_email(
-        issuers.IssuerConfig._get_user_info)
+        issuers.IssuerConfig._get_user_info
+    )
     issuers.IssuerConfig._get_user_info = add_entitlements(
-        issuers.IssuerConfig._get_user_info)
+        issuers.IssuerConfig._get_user_info
+    )
     yield
     issuers.IssuerConfig._get_user_info = original
 
 
 def replace_email(func):
     """Replaces the original email by a mock"""
-    @ functools.wraps(func)
+
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         user_info = func(*args, **kwargs)
         if user_info:
-            user_info['email'] = "dev@foo.org"
+            user_info["email"] = "dev@foo.org"
         return user_info
 
     return wrapper
@@ -56,11 +59,12 @@ def replace_email(func):
 
 def add_entitlements(func):
     """Replaces the original entitlements by a mock"""
-    @ functools.wraps(func)
+
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         user_info = func(*args, **kwargs)
         if user_info:
-            user_info['mock_entitlements'] = [
+            user_info["mock_entitlements"] = [
                 "urn:mace:egi.eu:group:test:foo",
                 "urn:mace:egi.eu:group:test:bar",
             ]
