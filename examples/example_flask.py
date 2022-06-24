@@ -1,23 +1,30 @@
-from flask import Flask, request
+# Flaat example with Flask
+from flaat import AuthWorkflow
+from flaat.config import AccessLevel
+from flaat.flask import Flaat
+from flaat.requirements import CheckResult, HasSubIss, Satisfied
+from flaat.requirements import get_claim_requirement
+from flaat.requirements import get_vo_requirement
+
+from flask import Blueprint, Flask, abort
 from werkzeug import Response
 
 from examples import logsetup
-from flaat.flask import Flaat
-from flaat.requirements import HasAARCEntitlement, HasGroup, ValidLogin
 
+## ------------------------------------------------------------------
+# Basic configuration example ---------------------------------------
 logger = logsetup.setup_logging()
-
-
-##########
-## Basic config
-# FLASK
-app = Flask(__name__)
-
-# FLAAT
 flaat = Flaat()
-flaat.set_cache_lifetime(120)  # seconds; default is 300
-flaat.set_trusted_OP_list(
-    [
+
+# Standard flask blueprint snippet, source:
+# https://flask.palletsprojects.com/en/2.1.x/blueprints
+frontend = Blueprint("frontend", "frontend")
+
+
+class Config(object):
+
+    # Defines the list of Flaat trusted OIDC providers
+    FLAAT_TRUSTED_OP_LIST = [
         "https://aai-demo.egi.eu/oidc",
         "https://aai-dev.egi.eu/oidc",
         "https://aai.egi.eu/oidc/",
@@ -39,144 +46,200 @@ flaat.set_trusted_OP_list(
         "https://unity.helmholtz-data-federation.de/oauth2/",
         "https://wlcg.cloud.cnaf.infn.it/",
     ]
-)
-# flaat.set_trusted_OP_file('/etc/oidc-agent/issuer.config')
-# flaat.set_OP_hint("helmholtz")
-# flaat.set_OP_hint("google")
-flaat.set_timeout(3)
 
-# verbosity:
-#     0: No output
-#     1: Errors
-#     2: More info, including token info
-#     3: Max
-# flaat.set_verbosity(0)
-# flaat.set_verify_tls(True)
+    # Set a list of access levels for use with BaseFlaat.access_level
+    FLAAT_ACCESS_LEVELS = [
+        AccessLevel("user", HasSubIss()),
+        AccessLevel("admin", Satisfied()),
+    ]
 
 
-# # Required for using token introspection endpoint:
-# flaat.set_client_id('')
-# flaat.set_client_secret('')
+## ------------------------------------------------------------------
+# Production configuration example ----------------------------------
+class ProductionConfig(Config):
+
+    # In production you might want to reduce the number of OP
+    TRUSTED_OP_LIST = ["https://aai.egi.eu/oidc/"]
+    FLAAT_ISSUER = "https://aai.egi.eu/oidc/"
+
+    # Define your request timeout for production
+    FLAAT_REQUEST_TIMEOUT = 1.2
+
+    # Required for using token introspection endpoint:
+    FLAAT_CLIENT_ID = "your_production_client_id"
+    FLAAT_CLIENT_SECRET = "your_production_oidc_secret"
 
 
-def my_failure_callback(message=""):
-    return f"User define failure callback.\nError Message: {message}"
+## ------------------------------------------------------------------
+# Development configuration example ---------------------------------
+class DevelopmentConfig(Config):
+
+    # High timeouts might simplify debugging
+    FLAAT_REQUEST_TIMEOUT = 30
+
+    # On development certificate verification might not be needed
+    FLAAT_VERIFY_TLS = False
+    FLAAT_VERIFY_JWT = False
 
 
-@app.route("/")
+## ------------------------------------------------------------------
+# Testing configuration example -------------------------------------
+class TestingConfig(Config):
+
+    # Set TESTING to True to run all Flask plugins on testing mode
+    TESTING = True
+
+    # When testing to run requirements as close as possible to production
+    FLAAT_REQUEST_TIMEOUT = 1.2
+
+
+## ------------------------------------------------------------------
+# Standard flask Application Factories snippet, source --------------
+# https://flask.palletsprojects.com/en/2.1.x/patterns/appfactories
+def create_app(config="ProductionConfig"):
+    app = Flask(__name__)
+    app.config.from_object(f"{__name__}.{config}")
+
+    ### Init application pluggins
+    flaat.init_app(app)
+    # db.init_app(app)
+    # mail.init_app(app)
+
+    ### Register blueprints
+    app.register_blueprint(frontend)
+    # app.register_blueprint(admin)
+    # app.register_blueprint(other)
+
+    return app
+
+
+## ------------------------------------------------------------------
+# Routes definition -------------------------------------------------
+@frontend.route("/", methods=["GET"])
 def root():
-    text = """This is an example for useing flaat with AIO. These endpoints are available:
-    /info               General info about the access_token (if provided)
-    /valid_user         Requires a valid user
-    /valid_user_2       Requires a valid user, uses a custom callback on error
-    /group_test_kit     Requires user to have two "eduperson_scoped_affiliation" of
-                            ['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
-    /group_test_iam     Requires user to be in the group "KIT-Cloud" transported in "groups"
-    /group_test_hdf     Requires user to be in all groups found in "eduperson_entitlement"
-                            ['urn:geant:h-df.de:group:aai-admin', 'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de']
-
-    /group_test_hdf2     Requires user to be in all groups found in "eduperson_entitlement"
-                            ['urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
-    /group_test_hdf3     Requires user to be in all groups found in "eduperson_entitlement"
-                            ['urn:geant:h-df.de:group:aai-admin'],
-    /group_test_hack    A hack to use any other field for authorisation
-    /group_test_wlcg    Requires user to be in the '/wlcg' group
-        """
+    text = """This is an example for useing flaat with Flask.
+    The following endpoints are available:
+        /info                       General info about the access_token
+        /info_no_strict             General info without token validation
+        /authenticated              Requires a valid user
+        /authenticated_callback     Requires a valid user, uses a custom callback on error
+        /authorized_claim           Requires user to have one of two claims
+        /authorized_vo              Requires user to have an entitlement
+        /full_custom                Fully custom auth handling
+    """
     return Response(text, mimetype="text/plain")
 
 
-@app.route("/info")
-@flaat.inject_user_infos
+## ------------------------------------------------------------------
+# Call with user inforation -----------------------------------------
+@frontend.route("/info", methods=["GET"])
+@flaat.inject_user_infos()  # Fail if no valid authentication is provided
+def info_strict_mode(user_infos):
+    return user_infos.toJSON()
+
+
+@frontend.route("/info_no_strict", methods=["GET"])
+@flaat.inject_user_infos(strict=False)  # Pass with invalid authentication
 def info(user_infos=None):
-    if user_infos is not None:
-        return user_infos.toJSON()
-    return "No user infos"
+    return user_infos.toJSON() if user_infos else "No userinfo"
 
 
-@app.route("/valid_user/<int:id>", methods=["POST", "GET"])
-@flaat.requires(ValidLogin())
-def valid_user_id(id):
-    retval = ""
-    if request.method == "POST":
-        retval += "POST\n"
-    if request.method == "GET":
-        retval += "GET\n"
-    retval += f"This worked: there was a valid login, and an id: {id}\n"
-    return retval
-
-
-@app.route("/valid_user")
-@flaat.requires(ValidLogin())
-def valid_user():
-    return "This worked: there was a valid login\n"
-
-
-@app.route("/valid_user_2")
-@flaat.requires(ValidLogin(), on_failure=my_failure_callback)
-def valid_user_own_callback():
+## ------------------------------------------------------------------
+# Endpoint which requires of an authenticated user ------------------
+@frontend.route("/authenticated", methods=["GET"])
+@flaat.is_authenticated()
+def authenticated():
     return "This worked: there was a valid login"
 
 
-@app.route("/group_test_kit")
-@flaat.requires(
-    HasGroup(
-        required=["admins@kit.edu", "employee@kit.edu", "member@kit.edu"],
-        claim="eduperson_scoped_affiliation",
-        match=2,
-    ),
-    on_failure=my_failure_callback,
+## ------------------------------------------------------------------
+# Instead of giving an error this will return the custom error
+# response from `my_on_failure` -------------------------------------
+def my_on_failure(exception, user_infos=None):
+    text = f"""Custom callback 'my_on_failure' invoked:
+        Error Message: {exception}
+        User: {user_infos if user_infos else "No Auth"}
+    """
+    abort(401, description=text)
+
+
+@frontend.route("/authenticated_callback", methods=["GET"])
+@flaat.is_authenticated(on_failure=my_on_failure)
+def authenticated_callback():
+    return "This worked: there was a valid login"
+
+
+## ------------------------------------------------------------------
+# The user needs to satisfy a certain requirement -------------------
+email_requirement = get_claim_requirement(
+    ["admin@foo.org", "dev@foo.org"],
+    claim="email",
+    match=1,
 )
-def demo_groups_kit():
-    return "This worked: user is member of the requested group"
 
 
-@app.route("/group_test_iam")
-@flaat.requires(HasGroup("KIT-Cloud", "groups"))
-def demo_groups_iam():
-    return "This worked: user is member of the requested group"
+@frontend.route("/authorized_claim", methods=["GET"])
+@flaat.requires(email_requirement)
+def authorized_claim():
+    return "This worked: User has the claim"
 
 
-@app.route("/group_test_hdf")
-@flaat.requires(
-    HasAARCEntitlement(
-        required=[
-            "urn:geant:h-df.de:group:m-team:feudal-developers",
-            "urn:geant:h-df.de:group:MyExampleColab#unity.helmholtz.de",
-        ],
-        claim="eduperson_entitlement",
-        match="all",
-    )
+## ------------------------------------------------------------------
+# The user needs belong to a certain virtual organization -----------
+vo_requirement = get_vo_requirement(
+    [
+        "urn:mace:egi.eu:group:test:foo",
+        "urn:mace:egi.eu:group:test:bar",
+    ],
+    "mock_entitlements",
+    match=2,
 )
-def demo_groups_hdf():
-    return "This worked: user is member of the requested group"
 
 
-@app.route("/group_test_hdf2")
-@flaat.requires(
-    HasAARCEntitlement(
-        "urn:geant:h-df.de:group:MyExampleColab", "eduperson_entitlement"
-    )
+@frontend.route("/authorized_vo", methods=["GET"])
+@flaat.requires(vo_requirement)
+def authorized_vo():
+    return "This worked: user has the required entitlement"
+
+
+## ------------------------------------------------------------------
+# For maximum customization use AuthWorkflow ------------------------
+def my_request_check(user_infos, *args, **kwargs):
+    if len(args) != 1:
+        return CheckResult(False, "Missing request object")
+    return CheckResult(True, "The request is allowed")
+
+
+def my_process_args(user_infos, *args, **kwargs):
+    """We can manipulate the view functions arguments here The user is
+    already authenticated at this point, therefore we have `user_infos`,
+    therefore we can base our manipulations on the users identity.
+    """
+    kwargs["email"] = user_infos.get("email", "")
+    return (args, kwargs)
+
+
+custom = AuthWorkflow(
+    flaat,  # needs the flaat instance
+    user_requirements=get_claim_requirement("bar", "foo"),
+    request_requirements=my_request_check,
+    process_arguments=my_process_args,
+    on_failure=my_on_failure,
+    ignore_no_authn=True,  # Don't fail if there is no authentication
 )
-def demo_groups_hdf2():
-    return "This worked: user is member of the requested group"
 
 
-@app.route("/group_test_hdf3")
-@flaat.requires(
-    HasAARCEntitlement(
-        [
-            "urn:geant:h-df.de:group:MyExampleColab",
-            "urn:geant:h-df.de:group:m-team:feudal-developers",
-        ],
-        "eduperson_entitlement",
-    )
-)
-def demo_groups_hdf3():
-    return "This worked: user is member of the requested group"
+@frontend.route("/full_custom", methods=["GET"])
+@custom.decorate_view_func  # invoke the workflow here
+def full_custom(email=""):
+    text = f"""This worked: The custom workflow did succeed:
+        The users email is: {email}
+    """
+    return Response(text, mimetype="text/plain")
 
 
-##########
-# Main
+## ------------------------------------------------------------------
+# Main function -----------------------------------------------------
 if __name__ == "__main__":
-    # app.run(host="127.0.0.1", port=8081, debug=True)
-    app.run(host="0.0.0.0", port=8081, debug=True)
+    app = create_app("ProductionConfig")
+    app.run(host="0.0.0.0", port=8081)

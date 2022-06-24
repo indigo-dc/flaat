@@ -1,45 +1,14 @@
-# pylint: disable=redefined-outer-name
-import pytest
-from flask.app import Flask
-from werkzeug import Response
-
-from flaat.flask import Flaat
-from flaat.test_env import FLAAT_TRUSTED_OPS_LIST, User, get_status_kwargs_list
-
-flaat = Flaat()
-flaat.set_trusted_OP_list(FLAAT_TRUSTED_OPS_LIST)
-
-DECORATORS = User(flaat).get_named_decorators()
+from pytest_cases import parametrize_with_cases
+import flaat.flask.flask_test_cases as cases
 
 
-def view_func(test_inject=None):
-    _ = test_inject
-    return Response(response="Success")
+@parametrize_with_cases("path, headers", cases=cases.Authorized)
+def test_authorized(client, path, headers):
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
 
 
-@pytest.fixture
-def app():
-    """flask web app for testing"""
-    app = Flask(__name__)
-    for decorator in DECORATORS:
-
-        decorated_view_func = decorator.decorator(view_func)
-        # rename to decorator name, as flask does not allow duplicate view_func names
-        decorated_view_func.__name__ = f"{decorator.name}-view_func"
-
-        app.route(f"/{decorator.name}")(decorated_view_func)
-
-    return app
-
-
-@pytest.fixture
-def client(app: Flask):
-    return app.test_client()
-
-
-@pytest.mark.parametrize("status,kwargs", get_status_kwargs_list())
-@pytest.mark.parametrize("decorator", DECORATORS)
-def test_decorator(client, decorator, status, kwargs):
-    resp = client.get(f"/{decorator.name}", **kwargs)
-    expected = decorator.get_expected_status_code(status)
-    assert resp.status_code == expected
+@parametrize_with_cases("path, headers", cases=cases.Unauthorized)
+def test_unauthorized(client, path, headers):
+    response = client.get(path, headers=headers)
+    assert response.status_code == 401

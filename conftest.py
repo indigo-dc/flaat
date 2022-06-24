@@ -28,6 +28,7 @@ _jwt_user_infos = UserInfos(
     {
         "iss": _jwt_issuer,
         "sub": "mock_sub",
+        "email": "dev@foo.org",
         "mock_groups": ["foo", "bar"],
         "mock_entitlements": [
             "urn:mace:egi.eu:group:test:foo",
@@ -43,6 +44,7 @@ _non_jwt_user_infos = UserInfos(
         "iss": _non_jwt_issuer,
         "sub": "non_jwt_mock_sub",
         "mock_groups": ["foo", "bar"],
+        "email": "dev@foo.org",
         "mock_entitlements": [
             "urn:mace:egi.eu:group:test:foo",
             "urn:mace:egi.eu:group:test:bar",

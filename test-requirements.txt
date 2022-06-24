@@ -2,6 +2,7 @@ python-dotenv
 pytest
 pytest-aiohttp
 pytest-cov
+pytest-cases
 pylint-pytest
 
 aiohttp

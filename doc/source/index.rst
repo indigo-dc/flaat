@@ -19,6 +19,7 @@ currently supported:
 
    flaat/installation
    flaat/examples/aio
+   flaat/examples/flask
    flaat/flaat-userinfo
    flaat/development
 
