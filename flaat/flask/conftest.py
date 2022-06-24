@@ -46,7 +46,8 @@ def replace_email(func):
     """Replaces the original email by a mock"""
     @ functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if user_info := func(*args, **kwargs):
+        user_info = func(*args, **kwargs)
+        if user_info:
             user_info['email'] = "dev@foo.org"
         return user_info
 
@@ -57,7 +58,8 @@ def add_entitlements(func):
     """Replaces the original entitlements by a mock"""
     @ functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if user_info := func(*args, **kwargs):
+        user_info = func(*args, **kwargs)
+        if user_info:
             user_info['mock_entitlements'] = [
                 "urn:mace:egi.eu:group:test:foo",
                 "urn:mace:egi.eu:group:test:bar",
