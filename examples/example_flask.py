@@ -2,23 +2,33 @@
 from flaat import AuthWorkflow
 from flaat.config import AccessLevel
 from flaat.flask import Flaat
-from flaat.requirements import CheckResult, HasSubIss, Satisfied
+from flaat.requirements import CheckResult, HasSubIss, IsTrue
 from flaat.requirements import get_claim_requirement
 from flaat.requirements import get_vo_requirement
 
-from flask import Blueprint, Flask, abort
+from flask import Blueprint, Flask, abort, current_app
 from werkzeug import Response
 
 from examples import logsetup
 
-## ------------------------------------------------------------------
+# ------------------------------------------------------------------
 # Basic configuration example ---------------------------------------
 logger = logsetup.setup_logging()
-flaat = Flaat()
 
 # Standard flask blueprint snippet, source:
 # https://flask.palletsprojects.com/en/2.1.x/blueprints
 frontend = Blueprint("frontend", "frontend")
+
+
+# Set a list of access levels to use
+def is_admin(user_infos):
+    return user_infos.user_info['email'] in current_app.config['ADMIN_EMAILS']
+
+
+flaat = Flaat([
+    AccessLevel("user", HasSubIss()),
+    AccessLevel("admin", IsTrue(is_admin)),
+])
 
 
 class Config(object):
@@ -47,14 +57,11 @@ class Config(object):
         "https://wlcg.cloud.cnaf.infn.it/",
     ]
 
-    # Set a list of access levels for use with BaseFlaat.access_level
-    FLAAT_ACCESS_LEVELS = [
-        AccessLevel("user", HasSubIss()),
-        AccessLevel("admin", Satisfied()),
-    ]
+    # Additional example configuration:
+    ADMIN_EMAILS = ["admin@foo.org", "dev@foo.org"]
 
 
-## ------------------------------------------------------------------
+# ------------------------------------------------------------------
 # Production configuration example ----------------------------------
 class ProductionConfig(Config):
 
@@ -66,11 +73,11 @@ class ProductionConfig(Config):
     FLAAT_REQUEST_TIMEOUT = 1.2
 
     # Required for using token introspection endpoint:
-    FLAAT_CLIENT_ID = "your_production_client_id"
-    FLAAT_CLIENT_SECRET = "your_production_oidc_secret"
+    FLAAT_CLIENT_ID = "oidc-agent"
+    FLAAT_CLIENT_SECRET = ""
 
 
-## ------------------------------------------------------------------
+# ------------------------------------------------------------------
 # Development configuration example ---------------------------------
 class DevelopmentConfig(Config):
 
@@ -82,7 +89,7 @@ class DevelopmentConfig(Config):
     FLAAT_VERIFY_JWT = False
 
 
-## ------------------------------------------------------------------
+# ------------------------------------------------------------------
 # Testing configuration example -------------------------------------
 class TestingConfig(Config):
 
@@ -93,19 +100,19 @@ class TestingConfig(Config):
     FLAAT_REQUEST_TIMEOUT = 1.2
 
 
-## ------------------------------------------------------------------
+# ------------------------------------------------------------------
 # Standard flask Application Factories snippet, source --------------
 # https://flask.palletsprojects.com/en/2.1.x/patterns/appfactories
 def create_app(config="ProductionConfig"):
     app = Flask(__name__)
     app.config.from_object(f"{__name__}.{config}")
 
-    ### Init application pluggins
+    # Init application plugins
     flaat.init_app(app)
     # db.init_app(app)
     # mail.init_app(app)
 
-    ### Register blueprints
+    # Register blueprints
     app.register_blueprint(frontend)
     # app.register_blueprint(admin)
     # app.register_blueprint(other)
@@ -113,11 +120,11 @@ def create_app(config="ProductionConfig"):
     return app
 
 
-## ------------------------------------------------------------------
+# ------------------------------------------------------------------
 # Routes definition -------------------------------------------------
 @frontend.route("/", methods=["GET"])
 def root():
-    text = """This is an example for useing flaat with Flask.
+    text = """This is an example for using flaat with Flask.
     The following endpoints are available:
         /info                       General info about the access_token
         /info_no_strict             General info without token validation
@@ -130,8 +137,8 @@ def root():
     return Response(text, mimetype="text/plain")
 
 
-## ------------------------------------------------------------------
-# Call with user inforation -----------------------------------------
+# -------------------------------------------------------------------
+# Call with user information ----------------------------------------
 @frontend.route("/info", methods=["GET"])
 @flaat.inject_user_infos()  # Fail if no valid authentication is provided
 def info_strict_mode(user_infos):
@@ -144,7 +151,7 @@ def info(user_infos=None):
     return user_infos.toJSON() if user_infos else "No userinfo"
 
 
-## ------------------------------------------------------------------
+# -------------------------------------------------------------------
 # Endpoint which requires of an authenticated user ------------------
 @frontend.route("/authenticated", methods=["GET"])
 @flaat.is_authenticated()
@@ -152,7 +159,7 @@ def authenticated():
     return "This worked: there was a valid login"
 
 
-## ------------------------------------------------------------------
+# -------------------------------------------------------------------
 # Instead of giving an error this will return the custom error
 # response from `my_on_failure` -------------------------------------
 def my_on_failure(exception, user_infos=None):
@@ -169,7 +176,15 @@ def authenticated_callback():
     return "This worked: there was a valid login"
 
 
-## ------------------------------------------------------------------
+# -------------------------------------------------------------------
+# Endpoint which requires an access level ---------------------------
+@frontend.route("/authorized_level", methods=["GET"])
+@flaat.access_level("admin")
+def authorized_level():
+    return "This worked: user has the required rights"
+
+
+# -------------------------------------------------------------------
 # The user needs to satisfy a certain requirement -------------------
 email_requirement = get_claim_requirement(
     ["admin@foo.org", "dev@foo.org"],
@@ -184,7 +199,7 @@ def authorized_claim():
     return "This worked: User has the claim"
 
 
-## ------------------------------------------------------------------
+# -------------------------------------------------------------------
 # The user needs belong to a certain virtual organization -----------
 vo_requirement = get_vo_requirement(
     [
@@ -202,7 +217,7 @@ def authorized_vo():
     return "This worked: user has the required entitlement"
 
 
-## ------------------------------------------------------------------
+# -------------------------------------------------------------------
 # For maximum customization use AuthWorkflow ------------------------
 def my_request_check(user_infos, *args, **kwargs):
     if len(args) != 1:
@@ -238,7 +253,7 @@ def full_custom(email=""):
     return Response(text, mimetype="text/plain")
 
 
-## ------------------------------------------------------------------
+# -------------------------------------------------------------------
 # Main function -----------------------------------------------------
 if __name__ == "__main__":
     app = create_app("ProductionConfig")
