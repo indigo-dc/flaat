@@ -34,7 +34,7 @@ flaat = Flaat([
 class Config(object):
 
     # Defines the list of Flaat trusted OIDC providers
-    FLAAT_TRUSTED_OP_LIST = [
+    TRUSTED_OP_LIST = [
         "https://aai-demo.egi.eu/oidc",
         "https://aai-dev.egi.eu/oidc",
         "https://aai.egi.eu/oidc/",
@@ -130,6 +130,7 @@ def root():
         /info_no_strict             General info without token validation
         /authenticated              Requires a valid user
         /authenticated_callback     Requires a valid user, uses a custom callback on error
+        /authorized_level           Requires user to fit the specified access level
         /authorized_claim           Requires user to have one of two claims
         /authorized_vo              Requires user to have an entitlement
         /full_custom                Fully custom auth handling
