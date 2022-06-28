@@ -7,6 +7,7 @@ example_paths = {
     "/info_no_strict",
     "/authenticated",
     "/authenticated_callback",
+    "/authorized_level",
     "/authorized_claim",
     "/authorized_vo",
 }

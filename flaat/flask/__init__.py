@@ -2,8 +2,7 @@ import json
 import logging
 from typing import List
 
-import flaat.config as flaat_config
-from flaat import BaseFlaat
+from flaat import BaseFlaat, config
 
 from flask import current_app, request
 from flask.wrappers import Response
@@ -14,8 +13,9 @@ logger = logging.getLogger(__name__)
 # Standard Flask Extension, see:
 # https://flask.palletsprojects.com/en/2.1.x/extensiondev/
 class Flaat(BaseFlaat):
-    def __init__(self, app=None):
+    def __init__(self, access_levels=config.DEFAULT_ACCESS_LEVELS, app=None):
         self.app = app
+        self.access_levels = access_levels
         if app is not None:
             self.init_app(app)
 
@@ -27,7 +27,6 @@ class Flaat(BaseFlaat):
         app.config.setdefault("FLAAT_REQUEST_TIMEOUT", 1.2)  # seconds
         app.config.setdefault("FLAAT_VERIFY_TLS", True)
         app.config.setdefault("FLAAT_VERIFY_JWT", True)
-        app.config.setdefault("FLAAT_ACCESS_LEVELS", flaat_config.DEFAULT_ACCESS_LEVELS)
 
     # Now here comes the dirty code to make the think possible, so
     # ATTENTION! This overrides FlaatConfig attr with properties
@@ -39,14 +38,14 @@ class Flaat(BaseFlaat):
         """
         return current_app.config["TRUSTED_OP_LIST"]
 
-    def set_trusted_OP_list(self, trusted_op_list: List[str]):
+    def set_trusted_OP_list(self, trusted_ops: List[str]):
         """Sets a list of OIDC providers that you trust. This means that
         users of these OPs will be able to use your services.
-        :param trusted_op_list: A list of the issuer URLs that you trust.
+        :param trusted_ops: A list of the issuer URLs that you trust.
             An example issuer is: 'https://iam.deep-hybrid-datacloud.eu/'.
         """
-        trusted_op_list = list(map(lambda iss: iss.rstrip("/"), trusted_op_list))
-        current_app.config["TRUSTED_OP_LIST"] = trusted_op_list
+        trusted_ops = list(map(lambda iss: iss.rstrip("/"), trusted_ops))
+        current_app.config["TRUSTED_OP_LIST"] = trusted_ops
 
     @property
     def iss(self):
@@ -115,7 +114,7 @@ class Flaat(BaseFlaat):
     def set_verify_tls(self, verify_tls=True):
         """*Only* use for development and debugging. Set to `False` to
         skip TLS certificate verification while processing requests.
-        :param verify_tls: Boolean, false disabales verification TLS
+        :param verify_tls: Boolean, false disables verification TLS
         """
         current_app.config["FLAAT_VERIFY_TLS"] = verify_tls
 
@@ -128,24 +127,9 @@ class Flaat(BaseFlaat):
 
     def set_verify_jwt(self, verify_jwt=True):
         """Set to `False` to skip JWT verification while processing requests.
-        :param verify_jwt: Boolean, false disabales JWT verification
+        :param verify_jwt: Boolean, false disables JWT verification
         """
         current_app.config["FLAAT_VERIFY_JWT"] = verify_jwt
-
-    @property
-    def access_levels(self):
-        """List of access levels for use with :meth:`flaat.BaseFlaat.access_level`.
-        :return: List of :class:`AccessLevel` instances.
-        """
-        return current_app.config["FLAAT_ACCESS_LEVELS"]
-
-    def set_access_levels(self, access_levels: List[flaat_config.AccessLevel]):
-        """Set the list of access levels for use with
-        :meth:`flaat.BaseFlaat.access_level`. This list will overwrite
-        the default access levels.
-        :param access_level: List of :class:`AccessLevel` instances.
-        """
-        current_app.config["FLAAT_ACCESS_LEVELS"] = access_levels
 
     # End of dirty code
     # Specific Flask methods to run flaat
