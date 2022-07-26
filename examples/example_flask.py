@@ -36,6 +36,7 @@ class Config(object):
     # Defines the list of Flaat trusted OIDC providers
     TRUSTED_OP_LIST = [
         "https://aai-demo.egi.eu/oidc",
+        "https://aai-demo.egi.eu/auth/realms/egi",
         "https://aai-dev.egi.eu/oidc",
         "https://aai.egi.eu/oidc/",
         "https://aai.egi.eu/auth/realms/egi",
