@@ -27,6 +27,7 @@ TRUSTED_OP_LIST = [
     "https://services.humanbrainproject.eu/oidc/",
     "https://accounts.google.com/",
     "https://aai.egi.eu/oidc/",
+    "https://aai.egi.eu/auth/realms/egi",
     "https://aai-demo.egi.eu/oidc/",
     "https://aai-dev.egi.eu/oidc/",
     "https://aai-dev.egi.eu/auth/realms/egi",
