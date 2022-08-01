@@ -23,13 +23,15 @@ flaat = Flaat()
 
 # Set a list of access levels to use
 def is_admin(user_infos):
-    return user_infos.user_info['email'] in ADMIN_EMAILS
+    return user_infos.user_info["email"] in ADMIN_EMAILS
 
 
-flaat.set_access_levels([
-    AccessLevel("user", HasSubIss()),
-    AccessLevel("admin", IsTrue(is_admin)),
-])
+flaat.set_access_levels(
+    [
+        AccessLevel("user", HasSubIss()),
+        AccessLevel("admin", IsTrue(is_admin)),
+    ]
+)
 
 flaat.set_trusted_OP_list(
     [
