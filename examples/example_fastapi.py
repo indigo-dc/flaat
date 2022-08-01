@@ -198,5 +198,6 @@ def full_custom(email=""):
 # -------------------------------------------------------------------
 # Main function -----------------------------------------------------
 if __name__ == "__main__":
-    app = create_app("ProductionConfig")
-    app.run(host="0.0.0.0", port=8081)
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8081)
