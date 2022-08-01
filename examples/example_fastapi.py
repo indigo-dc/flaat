@@ -1,5 +1,5 @@
 # Flaat example with FastAPI
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, Request
 from flaat import AuthWorkflow
 from flaat.config import AccessLevel
 from flaat.fastapi import Flaat
@@ -8,6 +8,7 @@ from flaat.requirements import get_claim_requirement
 from flaat.requirements import get_vo_requirement
 
 from examples import logsetup
+
 
 # ------------------------------------------------------------------
 # Basic configuration example ---------------------------------------
@@ -83,7 +84,7 @@ def root():
 # Call with user information ----------------------------------------
 @app.get("/info")
 @flaat.inject_user_infos()  # Fail if no valid authentication is provided
-def info_strict_mode(user_infos=None):
+def info_strict_mode(request: Request, user_infos=None):
     return user_infos.toJSON()
 
 
