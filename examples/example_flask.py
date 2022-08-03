@@ -1,4 +1,5 @@
 # Flaat example with Flask
+import logging
 from flaat import AuthWorkflow
 from flaat.config import AccessLevel
 from flaat.flask import Flaat
@@ -9,11 +10,12 @@ from flaat.requirements import get_vo_requirement
 from flask import Blueprint, Flask, abort, current_app
 from werkzeug import Response
 
-from examples import logsetup
 
 # ------------------------------------------------------------------
 # Basic configuration example ---------------------------------------
-logger = logsetup.setup_logging()
+logging.basicConfig(level="WARNING")
+logging.getLogger("flaat").setLevel("DEBUG")
+logging.getLogger("werkzeug").setLevel("DEBUG")
 
 # Standard flask blueprint snippet, source:
 # https://flask.palletsprojects.com/en/2.1.x/blueprints
