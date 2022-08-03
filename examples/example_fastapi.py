@@ -1,4 +1,5 @@
 # Flaat example with FastAPI
+import logging
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.security import HTTPBasicCredentials, HTTPBearer
 from flaat import AuthWorkflow
@@ -8,11 +9,14 @@ from flaat.requirements import CheckResult, HasSubIss, IsTrue
 from flaat.requirements import get_claim_requirement
 from flaat.requirements import get_vo_requirement
 
-from examples import logsetup
 
 # ------------------------------------------------------------------
 # Basic configuration example ---------------------------------------
-logger = logsetup.setup_logging()
+logging.basicConfig(level="WARNING")
+logging.getLogger("flaat").setLevel("DEBUG")
+logging.getLogger("urllib3").setLevel("DEBUG")
+
+# logging.basicConfig(level="DEBUG")
 ADMIN_EMAILS = ["admin@foo.org", "dev@foo.org"]
 
 
