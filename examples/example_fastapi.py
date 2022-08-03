@@ -1,5 +1,6 @@
 # Flaat example with FastAPI
-from fastapi import FastAPI, Response, Request, Depends
+from fastapi import Depends, FastAPI, Request, Response
+from fastapi.security import HTTPBasicCredentials, HTTPBearer
 from flaat import AuthWorkflow
 from flaat.config import AccessLevel
 from flaat.fastapi import Flaat
@@ -8,7 +9,6 @@ from flaat.requirements import get_claim_requirement
 from flaat.requirements import get_vo_requirement
 
 from examples import logsetup
-from fastapi.security import HTTPBearer, HTTPBasicCredentials
 
 # ------------------------------------------------------------------
 # Basic configuration example ---------------------------------------
