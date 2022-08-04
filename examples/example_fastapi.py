@@ -15,8 +15,6 @@ from flaat.requirements import get_vo_requirement
 logging.basicConfig(level="WARNING")
 logging.getLogger("flaat").setLevel("DEBUG")
 logging.getLogger("urllib3").setLevel("DEBUG")
-
-# logging.basicConfig(level="DEBUG")
 ADMIN_EMAILS = ["admin@foo.org", "dev@foo.org"]
 
 
