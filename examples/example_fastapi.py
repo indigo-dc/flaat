@@ -87,6 +87,7 @@ def authenticated(
     request: Request,
     credentials: HTTPBasicCredentials = Depends(security),
 ):
+    user_infos = flaat.get_user_infos_from_request(request)
     return "This worked: there was a valid login"
 
 
@@ -103,6 +104,7 @@ def authenticated_callback(
     request: Request,
     credentials: HTTPBasicCredentials = Depends(security),
 ):
+    user_infos = flaat.get_user_infos_from_request(request)
     return "This worked: there was a valid login"
 
 
@@ -114,6 +116,7 @@ def authorized_level(
     request: Request,
     credentials: HTTPBasicCredentials = Depends(security),
 ):
+    user_infos = flaat.get_user_infos_from_request(request)
     return "This worked: user has the required rights"
 
 
@@ -132,6 +135,7 @@ def authorized_claim(
     request: Request,
     credentials: HTTPBasicCredentials = Depends(security),
 ):
+    user_infos = flaat.get_user_infos_from_request(request)
     return "This worked: User has the claim"
 
 
@@ -153,6 +157,7 @@ def authorized_vo(
     request: Request,
     credentials: HTTPBasicCredentials = Depends(security),
 ):
+    user_infos = flaat.get_user_infos_from_request(request)
     return "This worked: user has the required entitlement"
 
 
@@ -188,12 +193,9 @@ custom = AuthWorkflow(
 def full_custom(
     request: Request,
     credentials: HTTPBasicCredentials = Depends(security),
-    email="",
 ):
-    text = f"""This worked: The custom workflow did succeed:
-        The users email is: {email}
-    """
-    return Response(text, media_type="text/plain")
+    user_infos = flaat.get_user_infos_from_request(request)
+    return "This worked: user has the required entitlement"
 
 
 # -------------------------------------------------------------------
