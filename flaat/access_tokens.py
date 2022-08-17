@@ -45,7 +45,7 @@ class AccessTokenInfo:
     """ Infos about the verification of the JWT.
     If set to `None`, then the JWT data is unverified."""
 
-    def __init__(self, complete_decode, verification=Optional[dict]):
+    def __init__(self, complete_decode, verification):
         self.header = complete_decode.get("header", {})
         self.body = complete_decode.get("payload", {})
         self.signature = _base64_url_encode(complete_decode.get("signature", b""))
