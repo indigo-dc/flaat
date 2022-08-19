@@ -319,7 +319,7 @@ class HasAARCEntitlement(HasClaim):
     def _matches(
         self, required: aarc_entitlement.Base, available: aarc_entitlement.Base
     ) -> bool:
-        return available.satisfies(required)
+        return available is not None and available.satisfies(required)
 
 
 def _get_claim_requirement(
