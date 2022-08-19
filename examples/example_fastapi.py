@@ -1,223 +1,206 @@
-# type: ignore
-import uvicorn
-from fastapi import Depends, FastAPI, Request
-from fastapi.security import HTTPBearer
-from starlette.responses import PlainTextResponse
+# Flaat example with FastAPI
+from fastapi import Depends, FastAPI, Request, Response
+from fastapi.security import HTTPBasicCredentials, HTTPBearer
+from flaat import AuthWorkflow
+from flaat.config import AccessLevel
+from flaat.fastapi import Flaat
+from flaat.requirements import CheckResult, HasSubIss, IsTrue
+from flaat.requirements import get_claim_requirement
+from flaat.requirements import get_vo_requirement
 
 from examples import logsetup
-from flaat.fastapi import Flaat
-from flaat.requirements import HasAARCEntitlement, HasGroup, OneOf, ValidLogin
-from flaat.user_infos import UserInfos
 
+# ------------------------------------------------------------------
+# Basic configuration example ---------------------------------------
 logger = logsetup.setup_logging()
+ADMIN_EMAILS = ["admin@foo.org", "dev@foo.org"]
 
 
-##########
-## Basic config
-# FastAPI
+# Standard fastapi blueprint snippet, source:
+# https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/
 app = FastAPI()
-# default_response_class=HTMLResponse
+flaat = Flaat()
 security = HTTPBearer()
 
-# FLAAT
-flaat = Flaat()
-flaat.set_cache_lifetime(120)  # seconds; default is 300
+
+# Set a list of access levels to use
+def is_admin(user_infos):
+    return user_infos.user_info["email"] in ADMIN_EMAILS
+
+
+flaat.set_access_levels(
+    [
+        AccessLevel("user", HasSubIss()),
+        AccessLevel("admin", IsTrue(is_admin)),
+    ]
+)
+
 flaat.set_trusted_OP_list(
     [
-        "https://b2access.eudat.eu/oauth2/",
-        "https://b2access-integration.fz-juelich.de/oauth2",
-        "https://unity.helmholtz-data-federation.de/oauth2/",
-        "https://login.helmholtz-data-federation.de/oauth2/",
-        "https://login-dev.helmholtz.de/oauth2/",
-        "https://login.helmholtz.de/oauth2/",
-        "https://unity.eudat-aai.fz-juelich.de/oauth2/",
-        "https://services.humanbrainproject.eu/oidc/",
+        "https://aai-demo.egi.eu/oidc",
+        "https://aai-demo.egi.eu/auth/realms/egi",
+        "https://aai-dev.egi.eu/oidc",
+        "https://aai.egi.eu/oidc/",
+        "https://aai.egi.eu/auth/realms/egi",
         "https://accounts.google.com/",
-        "https://login.elixir-czech.org/oidc/",
+        "https://b2access-integration.fz-juelich.de/oauth2",
+        "https://b2access.eudat.eu/oauth2/",
         "https://iam-test.indigo-datacloud.eu/",
         "https://iam.deep-hybrid-datacloud.eu/",
         "https://iam.extreme-datacloud.eu/",
-        "https://aai.egi.eu/oidc/",
-        "https://aai.egi.eu/auth/realms/egi",
-        "https://aai-demo.egi.eu/auth/realms/egi",
-        "https://aai-demo.egi.eu/oidc",
-        "https://aai-dev.egi.eu/oidc",
+        "https://login-dev.helmholtz.de/oauth2/",
+        "https://login.elixir-czech.org/oidc/",
+        "https://login.helmholtz-data-federation.de/oauth2/",
+        "https://login.helmholtz.de/oauth2/",
         "https://oidc.scc.kit.edu/auth/realms/kit/",
+        "https://orcid.org/",
         "https://proxy.demo.eduteams.org",
+        "https://services.humanbrainproject.eu/oidc/",
+        "https://unity.eudat-aai.fz-juelich.de/oauth2/",
+        "https://unity.helmholtz-data-federation.de/oauth2/",
         "https://wlcg.cloud.cnaf.infn.it/",
     ]
 )
-# flaat.set_trusted_OP_file('/etc/oidc-agent/issuer.config')
-# flaat.set_OP_hint("helmholtz")
-# flaat.set_OP_hint("google")
-
-# verbosity:
-#     0: No output
-#     1: Errors
-#     2: More info, including token info
-#     3: Max
-# flaat.set_verbosity(0)
-# flaat.set_verify_tls(True)
 
 
-# # Required for using token introspection endpoint:
-# flaat.set_client_id('')
-# flaat.set_client_secret('')
-
-# flaat.raise_error_on_return = False
-
-
-def my_failure_callback(message=""):
-    return f"User define failure callback.\nError Message: {message}"
-
-
+# ------------------------------------------------------------------
+# Routes definition -------------------------------------------------
 @app.get("/")
-async def root(request: Request):
-    text = """This is an example for useing flaat with FastAPI. These endpoints are available:
-    /user_info          General info about the access_token (if provided)
-    /user               User built using method
-    /valid_user         Requires a valid user
-    /valid_user_2       Requires a valid user, uses a custom callback on error
-    /group_test_kit     Requires user to have two "eduperson_scoped_affiliation" of
-                            ['admins@kit.edu', 'employee@kit.edu', 'member@kit.edu'],
-    /group_test_iam     Requires user to be in the group "KIT-Cloud" transported in "groups"
-    /group_test_hdf     Requires user to be in all groups found in "eduperson_entitlement"
-                            ['urn:geant:h-df.de:group:aai-admin', 'urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de']
-
-    /group_test_hdf2     Requires user to be in all groups found in "eduperson_entitlement"
-                            ['urn:geant:h-df.de:group:myExampleColab#unity.helmholtz-data-federation.de'],
-    /group_test_hdf3     Requires user to be in all groups found in "eduperson_entitlement"
-                            ['urn:geant:h-df.de:group:aai-admin'],
-    /group_test_hack    A hack to use any other field for authorisation
-    /group_test_wlcg    Requires user to be in the '/wlcg' group
-        """
-    return PlainTextResponse(text)
+def root():
+    text = """This is an example for using flaat with Flask.
+    The following endpoints are available:
+        /authenticated              Requires a valid user
+        /authenticated_callback     Requires a valid user, uses a custom callback on error
+        /authorized_level           Requires user to fit the specified access level
+        /authorized_claim           Requires user to have one of two claims
+        /authorized_vo              Requires user to have an entitlement
+        /full_custom                Fully custom auth handling
+    """
+    return Response(text, media_type="text/plain")
 
 
-@app.get("/info")
-@flaat.inject_user_infos
-async def user_info(request: Request, user_infos=None):
-    if user_infos is not None:
-        return {"data": user_infos.__dict__}
-
-    return {"message": "no userinfo"}
-
-
-def get_user(user_infos: UserInfos):
-    return {"infos": user_infos}
-
-
-@app.get("/info")
-@flaat.inject_user_infos
-async def user(request: Request, user_infos=None):
-    if user_infos is not None:
-        return {"data": user_infos.__dict__}
-
-    return {"message": "no userinfo"}
+# -------------------------------------------------------------------
+# Endpoint which requires of an authenticated user ------------------
+@app.get("/authenticated")
+@flaat.is_authenticated()
+def authenticated(
+    request: Request,
+    credentials: HTTPBasicCredentials = Depends(security),
+):
+    user_infos = flaat.get_user_infos_from_request(request)
+    return "This worked: there was a valid login"
 
 
-@app.get("/valid_user", dependencies=[Depends(security)])
-@flaat.requires(ValidLogin())
-def valid_user(request: Request):
-    return {"message": "This worked: there was a valid login"}
+# -------------------------------------------------------------------
+# Instead of giving an error this will return the custom error
+# response from `my_on_failure` -------------------------------------
+def my_on_failure(exception, user_infos=None):
+    return "Custom callback 'my_on_failure' invoked"
 
 
-@app.get("/valid_user_2", dependencies=[Depends(security)])
-@flaat.requires(ValidLogin(), on_failure=my_failure_callback)
-async def valid_user_own_callback(request: Request):
-    return {"message": "This worked: there was a valid login"}
+@app.get("/authenticated_callback")
+@flaat.is_authenticated(on_failure=my_on_failure)
+def authenticated_callback(
+    request: Request,
+    credentials: HTTPBasicCredentials = Depends(security),
+):
+    user_infos = flaat.get_user_infos_from_request(request)
+    return "This worked: there was a valid login"
 
 
-@app.get("/group_test_kit", dependencies=[Depends(security)])
-@flaat.requires(
-    HasGroup(
-        required=["admins@kit.edu", "employee@kit.edu", "member@kit.edu"],
-        claim="eduperson_scoped_affiliation",
-        match=2,
-    ),
-    on_failure=my_failure_callback,
+# -------------------------------------------------------------------
+# Endpoint which requires an access level ---------------------------
+@app.get("/authorized_level")
+@flaat.access_level("admin")
+def authorized_level(
+    request: Request,
+    credentials: HTTPBasicCredentials = Depends(security),
+):
+    user_infos = flaat.get_user_infos_from_request(request)
+    return "This worked: user has the required rights"
+
+
+# -------------------------------------------------------------------
+# The user needs to satisfy a certain requirement -------------------
+email_requirement = get_claim_requirement(
+    ["admin@foo.org", "dev@foo.org"],
+    claim="email",
+    match=1,
 )
-async def demo_groups_kit(request: Request):
-    return {"message": "This worked: user is member of the requested group"}
 
 
-@app.get("/group_test_iam", dependencies=[Depends(security)])
-@flaat.requires(HasGroup("KIT-Cloud", "groups"))
-async def demo_groups_iam(request: Request):
-    return {"message": "This worked: user is member of the requested group"}
+@app.get("/authorized_claim")
+@flaat.requires(email_requirement)
+def authorized_claim(
+    request: Request,
+    credentials: HTTPBasicCredentials = Depends(security),
+):
+    user_infos = flaat.get_user_infos_from_request(request)
+    return "This worked: User has the claim"
 
 
-@app.get("/group_test_hdf", dependencies=[Depends(security)])
-@flaat.requires(
-    HasAARCEntitlement(
-        required=[
-            "urn:geant:h-df.de:group:m-team:feudal-developers",
-            "urn:geant:h-df.de:group:MyExampleColab#unity.helmholtz.de",
-        ],
-        claim="eduperson_entitlement",
-        match="all",
-    )
+# -------------------------------------------------------------------
+# The user needs belong to a certain virtual organization -----------
+vo_requirement = get_vo_requirement(
+    [
+        "urn:mace:egi.eu:group:test:foo",
+        "urn:mace:egi.eu:group:test:bar",
+    ],
+    "mock_entitlements",
+    match=2,
 )
-async def demo_groups_hdf(request: Request):
-    return {"message": "This worked: user has the required entitlement(s)"}
 
 
-@app.get("/group_test_hdf2", dependencies=[Depends(security)])
-@flaat.requires(
-    HasAARCEntitlement(
-        "urn:geant:h-df.de:group:MyExampleColab", "eduperson_entitlement"
-    )
+@app.get("/authorized_vo")
+@flaat.requires(vo_requirement)
+def authorized_vo(
+    request: Request,
+    credentials: HTTPBasicCredentials = Depends(security),
+):
+    user_infos = flaat.get_user_infos_from_request(request)
+    return "This worked: user has the required entitlement"
+
+
+# -------------------------------------------------------------------
+# For maximum customization use AuthWorkflow ------------------------
+def my_request_check(user_infos, *args, **kwargs):
+    if len(args) != 1:
+        return CheckResult(False, "Missing request object")
+    return CheckResult(True, "The request is allowed")
+
+
+def my_process_args(user_infos, *args, **kwargs):
+    """We can manipulate the view functions arguments here The user is
+    already authenticated at this point, therefore we have `user_infos`,
+    therefore we can base our manipulations on the users identity.
+    """
+    kwargs["email"] = user_infos.get("email", "")
+    return (args, kwargs)
+
+
+custom = AuthWorkflow(
+    flaat,  # needs the flaat instance
+    user_requirements=get_claim_requirement("bar", "foo"),
+    request_requirements=my_request_check,
+    process_arguments=my_process_args,
+    on_failure=my_on_failure,
+    ignore_no_authn=True,  # Don't fail if there is no authentication
 )
-async def demo_groups_hdf2(request: Request):
-    return {"message": "This worked: user has the required entitlement(s)"}
 
 
-@app.get("/group_test_hdf3", dependencies=[Depends(security)])
-@flaat.requires(
-    HasAARCEntitlement(
-        [
-            "urn:geant:h-df.de:group:MyExampleColab",
-            "urn:geant:h-df.de:group:m-team:feudal-developers",
-        ],
-        "eduperson_entitlement",
-    )
-)
-async def demo_groups_hdf3(request: Request):
-    return {"message": "This worked: user has the required entitlement(s)"}
+@app.get("/full_custom")
+@custom.decorate_view_func  # invoke the workflow here
+def full_custom(
+    request: Request,
+    credentials: HTTPBasicCredentials = Depends(security),
+):
+    user_infos = flaat.get_user_infos_from_request(request)
+    return "This worked: user has the required entitlement"
 
 
-@app.get("/group_test_hack", dependencies=[Depends(security)])
-@flaat.requires(
-    OneOf(
-        HasGroup("Hardt", "family_name"),
-        HasGroup("/wlcg", "wlcg.groups"),
-    )
-)
-@app.get("/group_test_wlcg", dependencies=[Depends(security)])
-async def demo_groups_wlcg(request: Request):
-    return {"message": "This worked: user has the required Group Membership"}
-
-
-@app.get("/role_test_egi", dependencies=[Depends(security)])
-@flaat.requires(
-    HasAARCEntitlement(
-        "urn:mace:egi.eu:group:mteam.data.kit.edu:role=member",
-        "eduperson_entitlement",
-    )
-)
-async def demo_role_egi(request: Request):
-    return {"message": "This worked: user is member of the requested group and role"}
-
-
-##########
-# Main
-
+# -------------------------------------------------------------------
+# Main function -----------------------------------------------------
 if __name__ == "__main__":
-    uvicorn.run(
-        "examples.example_fastapi:app", host="0.0.0.0", port=8082, log_level="info"
-    )
+    import uvicorn
 
-# start with:
-#   python3 example-fastapi.py
-# or
-#   uvicorn example-fastapi:app --host 0.0.0.0 --port 8082
+    uvicorn.run(app, host="0.0.0.0", port=8081)
