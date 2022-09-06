@@ -5,11 +5,10 @@ import functools
 import copy
 
 from flaat import issuers
-from flaat.test_env import FLAAT_TRUSTED_OPS_LIST
 from pytest_cases import fixture
 
 
-@fixture(scope="session", params=["ProductionConfig"])
+@fixture(scope="session", params=["flaat.test_env"])
 def configuration(request):
     return request.param
 
@@ -19,7 +18,7 @@ def app(configuration):
     from examples.example_flask import create_app
 
     app = create_app(configuration)
-    app.config["TRUSTED_OP_LIST"] = FLAAT_TRUSTED_OPS_LIST
+    app.config["ADMIN_EMAILS"] = ["admin@foo.org", "dev@foo.org"]
     app.config["TESTING"] = True
     # other setup can go here
     yield app

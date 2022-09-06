@@ -71,7 +71,7 @@ class ProductionConfig(Config):
 
     # In production you might want to reduce the number of OP
     TRUSTED_OP_LIST = ["https://aai.egi.eu/oidc/"]
-    FLAAT_ISSUER = "https://aai.egi.eu/oidc/"
+    FLAAT_ISS = "https://aai.egi.eu/oidc/"
 
     # Define your request timeout for production
     FLAAT_REQUEST_TIMEOUT = 1.2
@@ -107,9 +107,9 @@ class TestingConfig(Config):
 # ------------------------------------------------------------------
 # Standard flask Application Factories snippet, source --------------
 # https://flask.palletsprojects.com/en/2.1.x/patterns/appfactories
-def create_app(config="ProductionConfig"):
+def create_app(config=f"{__name__}.ProductionConfig"):
     app = Flask(__name__)
-    app.config.from_object(f"{__name__}.{config}")
+    app.config.from_object(config)
 
     # Init application plugins
     flaat.init_app(app)

@@ -21,7 +21,7 @@ class Flaat(BaseFlaat):
 
     def init_app(self, app):
         app.config.setdefault("TRUSTED_OP_LIST", [])
-        app.config.setdefault("FLAAT_ISSUER", "")
+        app.config.setdefault("FLAAT_ISS", "")
         app.config.setdefault("FLAAT_CLIENT_ID", "")
         app.config.setdefault("FLAAT_CLIENT_SECRET", "")
         app.config.setdefault("FLAAT_REQUEST_TIMEOUT", 1.2)  # seconds
@@ -52,14 +52,14 @@ class Flaat(BaseFlaat):
         """Returns the Flaat configured issuer URL.
         :return: Issuer URL of the pinned issuer
         """
-        return current_app.config["FLAAT_ISSUER"]
+        return current_app.config["FLAAT_ISS"]
 
     def set_issuer(self, issuer: str):
         """Pins the given issuer. Only users of this issuer will be able
         to use services.
         :param issuer: Issuer URL of the pinned issuer.
         """
-        current_app.config["FLAAT_ISSUER"] = issuer.rstrip("/")
+        current_app.config["FLAAT_ISS"] = issuer.rstrip("/")
 
     @property
     def client_id(self):
