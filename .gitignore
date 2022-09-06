@@ -70,6 +70,7 @@ target/
 
 # DotEnv configuration
 .env
+.env.back
 
 # Database
 *.db
