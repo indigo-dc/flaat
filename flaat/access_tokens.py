@@ -17,6 +17,18 @@ PERMITTED_SIGNATURE_ALGORITHMS = [
     "RS256",
     "RS384",
     "RS512",
+    "EdDSA",
+    "ES256",
+    "ES256K",
+    "ES384",
+    "ES512",
+    "ES521",
+    "HS256",
+    "HS384",
+    "HS512",
+    "PS256",
+    "PS384",
+    "PS512"
 ]
 
 
