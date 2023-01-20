@@ -6,6 +6,6 @@ pytest-cases
 pylint-pytest
 
 aiohttp
-fastapi>=0.61.2
+fastapi[all]>=0.61.2
 flask
 types-Flask
