@@ -61,6 +61,7 @@ flaat.set_trusted_OP_list(
         "https://unity.eudat-aai.fz-juelich.de/oauth2/",
         "https://unity.helmholtz-data-federation.de/oauth2/",
         "https://wlcg.cloud.cnaf.infn.it/",
+        "https://proxy.eduteams.org/",
     ]
 )
 
@@ -130,7 +131,6 @@ email_requirement = get_claim_requirement(
     match=1,
 )
 
-
 @app.get("/authorized_claim")
 @flaat.requires(email_requirement)
 def authorized_claim(
@@ -145,13 +145,12 @@ def authorized_claim(
 # The user needs belong to a certain virtual organization -----------
 vo_requirement = get_vo_requirement(
     [
-        "urn:mace:egi.eu:group:test:foo",
-        "urn:mace:egi.eu:group:test:bar",
+        "urn:mace:egi.eu:group:eosc-synergy.eu",
+        "urn:mace:egi.eu:group:mteam.data.kit.edu:perfmon.m.d.k.e",
     ],
-    "mock_entitlements",
+    "eduperson_entitlement",
     match=2,
 )
-
 
 @app.get("/authorized_vo")
 @flaat.requires(vo_requirement)
@@ -160,7 +159,7 @@ def authorized_vo(
     credentials: HTTPBasicCredentials = Depends(security),
 ):
     user_infos = flaat.get_user_infos_from_request(request)
-    return "This worked: user has the required entitlement"
+    return "This worked: user has the required entitlement(s)"
 
 
 # -------------------------------------------------------------------

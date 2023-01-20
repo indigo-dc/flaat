@@ -59,6 +59,7 @@ class Config(object):
         "https://unity.eudat-aai.fz-juelich.de/oauth2/",
         "https://unity.helmholtz-data-federation.de/oauth2/",
         "https://wlcg.cloud.cnaf.infn.it/",
+        "https://proxy.eduteams.org/",
     ]
 
     # Additional example configuration:

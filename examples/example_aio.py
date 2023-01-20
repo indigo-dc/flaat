@@ -46,6 +46,7 @@ flaat.set_trusted_OP_list(
         "https://oidc.scc.kit.edu/auth/realms/kit/",
         "https://proxy.demo.eduteams.org",
         "https://wlcg.cloud.cnaf.infn.it/",
+        "https://proxy.eduteams.org/",
     ]
 )
 

@@ -39,6 +39,7 @@ TRUSTED_OP_LIST = [
     "https://oidc.scc.kit.edu/auth/realms/kit/",
     "https://proxy.demo.eduteams.org",
     "https://wlcg.cloud.cnaf.infn.it/",
+    "https://proxy.eduteams.org/",
 ]
 
 
