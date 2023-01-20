@@ -28,7 +28,7 @@ PERMITTED_SIGNATURE_ALGORITHMS = [
     "HS512",
     "PS256",
     "PS384",
-    "PS512"
+    "PS512",
 ]
 
 
