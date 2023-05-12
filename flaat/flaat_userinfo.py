@@ -13,6 +13,7 @@ from humanfriendly import format_timespan
 from flaat import BaseFlaat
 from flaat.exceptions import FlaatException
 from flaat.user_infos import UserInfos
+from flaat.access_tokens import get_access_token_info
 
 logger = logging.getLogger(__name__)
 
@@ -173,6 +174,13 @@ def get_arg_parser():  # pragma: no cover
         default=None,
         nargs="*",
         help="An access token (without 'Bearer ')",
+    )
+    parser.add_argument(
+        "--trust-any",
+        "--any",
+        action="store_true",
+        dest="trust_any",
+        help="Trust any OP, usefule for displaying information about any access_token",
     )
     return parser
 
@@ -355,6 +363,10 @@ def main():
         if access_token is None:
             logger.error("No access token found")
             sys.exit(1)
+        if args.trust_any:
+            at_info=get_access_token_info(access_token)
+            if hasattr(at_info, 'body'):
+                flaat.set_trusted_OP_list([at_info.body['iss']])
         user_infos = flaat.get_user_infos_from_access_token(
             access_token, issuer_hint=args.issuer
         )
