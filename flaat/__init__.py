@@ -130,7 +130,6 @@ class BaseFlaat(FlaatConfig):
     def _find_issuer_config(
         self, access_token, access_token_info: Optional[AccessTokenInfo], issuer_hint=""
     ) -> Optional[IssuerConfig]:
-
         # Issuer hint provided by user
         if issuer_hint != "":
             iss_config = self._get_issuer_config(issuer_hint)
