@@ -38,6 +38,7 @@ class ArgsMock:
     verify_tls = False
     skip_jwt_verify = False
     audience = None
+    trust_any = True
 
     def parse_args(self):
         return self
