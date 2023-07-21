@@ -16,7 +16,7 @@ class UserInfoCache(LRUCache):
         if isinstance(item, UserInfos):
             if item.valid_for_secs is None:
                 _fail("Cache entry validity can not be determined")
-            if item.valid_for_secs <= 0:  # pragma: no cover
+            elif item.valid_for_secs <= 0:  # pragma: no cover
                 _fail("Cache entry has expired")
         return item
 

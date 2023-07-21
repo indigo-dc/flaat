@@ -364,9 +364,9 @@ def main():
             logger.error("No access token found")
             sys.exit(1)
         if args.trust_any:
-            at_info=get_access_token_info(access_token)
-            if hasattr(at_info, 'body'):
-                flaat.set_trusted_OP_list([at_info.body['iss']])
+            at_info = get_access_token_info(access_token)
+            if at_info and hasattr(at_info, "body"):
+                flaat.set_trusted_OP_list([at_info.body["iss"]])
         user_infos = flaat.get_user_infos_from_access_token(
             access_token, issuer_hint=args.issuer
         )
