@@ -5,4 +5,4 @@ humanfriendly==10.*
 liboidcagent==0.*
 requests==2.*
 pyjwt[crypto]==2.*
-cryptography>=37.*
+cryptography>=37
