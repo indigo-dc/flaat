@@ -64,26 +64,25 @@ def mocked_response(data):
         yield urlopen_mock
 
 
+MOCK_URL = "http://mock_url"
+
+
 class TestFlaatPyJWKClient:
     """Use RSA key from PyJWKClient tests,
     Only test new/overwritten methods and add new test cases.
     """
 
     def test_get_signing_keys(self):
-        url = "mock_url"
-
         with mocked_response(RESPONSE_DATA):
-            jwks_client = FlaatPyJWKClient(url)
+            jwks_client = FlaatPyJWKClient(MOCK_URL)
             signing_keys = jwks_client.get_signing_keys()
 
         assert len(signing_keys) == 1
         assert isinstance(signing_keys[0], jwt.api_jwk.PyJWK)
 
     def test_get_signing_key_by_alg(self):
-        url = "mock_url"
-
         with mocked_response(RESPONSE_DATA):
-            jwks_client = FlaatPyJWKClient(url)
+            jwks_client = FlaatPyJWKClient(MOCK_URL)
             signing_key = jwks_client.get_signing_key_by_alg("RS256")
 
         assert isinstance(signing_key, jwt.api_jwk.PyJWK)
@@ -91,10 +90,9 @@ class TestFlaatPyJWKClient:
 
     def test_get_signing_key_from_jwt_by_kid(self):
         token = "eyJhbGciOiJSUzI1NiIsImN0eSI6IkpXVCIsImtpZCI6ImJpbGJvLmJhZ2dpbnNAaG9iYml0b24uZXhhbXBsZSJ9.eyJpc3MiOiJodHRwczovL2Rldi04N2V2eDlydS5hdXRoMC5jb20vIiwic3ViIjoiYVc0Q2NhNzl4UmVMV1V6MGFFMkg2a0QwTzNjWEJWdENAY2xpZW50cyIsImF1ZCI6Imh0dHBzOi8vZXhwZW5zZXMtYXBpIiwiaWF0IjoxNTcyMDA2OTU0LCJleHAiOjE1NzIwMDY5NjQsImF6cCI6ImFXNENjYTc5eFJlTFdVejBhRTJINmtEME8zY1hCVnRDIiwiZ3R5IjoiY2xpZW50LWNyZWRlbnRpYWxzIn0.FY-57Y3K04hjK53P6t7XXnM_PLIYZbV0b596UOzmIBWkAznzga6Rqo-_uommL2hcsZMrzUtNpN0b9_11z7DDjaoPUYoJITyFDgJGLynMC538iLBWA-7x-3y-oKZkAK78yM5h5C3lIiRAlPKP_2UNyK-W40xyxoBW975fLqBVMChDUmQkyhH2GS4i16nZdbCYVMjGytxTHGH6810QneKVeoV0EStjxHjBKxTF26_1PRqeuMiYom6CRp7BdGQidDO_JxH7BqD6GPwnV3AzaFBnFsE5L9mrSTOymuvCELXLJwQYYGpT5i1ti4MP2jtSQYxvy3Zel56ybnSaaI1QTyRNAQ"
-        url = "mock_url"
 
         with mocked_response(RESPONSE_DATA):
-            jwks_client = FlaatPyJWKClient(url)
+            jwks_client = FlaatPyJWKClient(MOCK_URL)
             signing_key = jwks_client.get_signing_key_from_jwt(token)
 
         data = jwt.decode(
@@ -117,13 +115,12 @@ class TestFlaatPyJWKClient:
 
     def test_get_signing_key_from_jwt_by_alg(self):
         token = "eyJhbGciOiJSUzI1NiIsImN0eSI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2Rldi04N2V2eDlydS5hdXRoMC5jb20vIiwic3ViIjoiYVc0Q2NhNzl4UmVMV1V6MGFFMkg2a0QwTzNjWEJWdENAY2xpZW50cyIsImF1ZCI6Imh0dHBzOi8vZXhwZW5zZXMtYXBpIiwiaWF0IjoxNTcyMDA2OTU0LCJleHAiOjE1NzIwMDY5NjQsImF6cCI6ImFXNENjYTc5eFJlTFdVejBhRTJINmtEME8zY1hCVnRDIiwiZ3R5IjoiY2xpZW50LWNyZWRlbnRpYWxzIn0.gn8boXt4bGSpjuWYijwGE6A0NG1NtRnT07jBw6e2WxBb8KnwxO5BJr-GL0f-UJSRiWDwoSrrwOs5PP0I0XiQPnnmnD4J8OB3z3ETdI3pxa4EsceLaLto0F9SM7JxSHP8NzZJfRwD8GTwgrOs3PrG7nsukvXQYwsRejgYysjsaRCRMa46CfoJGRowYxSuNxtlTMLRlB2q7YNKpxwiCVw1UCrJ_CZybcO3HUFufyuRuWztaI2L8AIueO_oCchhi3X1bNErgzeIza1UsdXrf6Eqf788Easd1YO1RQYSuEejnwdrgh0BERCLMN8kO16vIxYvb2vcM95odRD-ge_lyp8_TA"
-        url = "mock_url"
 
         RESPONSE_DATA_NO_KID = RESPONSE_DATA.copy()
         del RESPONSE_DATA_NO_KID["keys"][0]["kid"]
 
         with mocked_response(RESPONSE_DATA_NO_KID):
-            jwks_client = FlaatPyJWKClient(url)
+            jwks_client = FlaatPyJWKClient(MOCK_URL)
             signing_key = jwks_client.get_signing_key_from_jwt(token)
 
         data = jwt.decode(

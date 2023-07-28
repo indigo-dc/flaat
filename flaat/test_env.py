@@ -68,6 +68,7 @@ NON_JWT_FLAAT_ISS = env_var("NON_JWT_FLAAT_ISS", mandatory=False)
 AUD_OIDC_AGENT_ACCOUNT = env_var("AUD_OIDC_AGENT_ACCOUNT", mandatory=False)
 AUD_FLAAT_ISS = env_var("AUD_FLAAT_ISS", mandatory=False)
 
+
 # List to parametrize framework tests
 def get_status_kwargs_list():
     return [
