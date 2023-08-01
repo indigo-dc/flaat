@@ -179,6 +179,7 @@ def get_arg_parser():  # pragma: no cover
         "--trust-any",
         "--any",
         action="store_true",
+        default=True,
         dest="trust_any",
         help="Trust any OP, usefule for displaying information about any access_token",
     )
