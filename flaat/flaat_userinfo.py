@@ -41,6 +41,8 @@ TRUSTED_OP_LIST = [
     "https://proxy.demo.eduteams.org",
     "https://wlcg.cloud.cnaf.infn.it/",
     "https://proxy.eduteams.org/",
+    "https://proxy.eduteams.org/",
+    "https://regapp.nfdi-aai.de/oidc/realms/nfdi_demo",
 ]
 
 
