@@ -26,6 +26,11 @@ class Authorized:
         headers = {"Authorization": f"Bearer fake_token"}
         return path, headers
 
+    @parametrize("path", {"/info_no_strict"})
+    def case_NoBearer(self, path):
+        headers = None
+        return path, headers
+
 
 class Unauthorized:
     """Request should not pass."""
@@ -35,7 +40,7 @@ class Unauthorized:
         headers = {"Authorization": f"Bearer fake_token"}
         return path, headers
 
-    @parametrize("path", example_paths)
+    @parametrize("path", example_paths - {"/info_no_strict"})
     def case_NoBearer(self, path):
         headers = None
         return path, headers
