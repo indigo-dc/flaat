@@ -96,13 +96,13 @@ def authenticated(
 
 # -------------------------------------------------------------------
 # Instead of giving an error this will return the custom error
-# response from `my_on_failure` -------------------------------------
-def my_on_failure(exception, user_infos=None):
-    return "Custom callback 'my_on_failure' invoked"
+# response from `my_own_failure` -------------------------------------
+def my_own_failure(exception, user_infos=None):
+    return "Custom callback 'my_own_failure' invoked"
 
 
 @app.get("/authenticated_callback")
-@flaat.is_authenticated(on_failure=my_on_failure)
+@flaat.is_authenticated(on_failure=my_own_failure)
 def authenticated_callback(
     request: Request,
     credentials: HTTPBasicCredentials = Depends(security),
@@ -184,7 +184,7 @@ custom = AuthWorkflow(
     user_requirements=get_claim_requirement("bar", "foo"),
     request_requirements=my_request_check,
     process_arguments=my_process_args,
-    on_failure=my_on_failure,
+    on_failure=my_own_failure,
     ignore_no_authn=True,  # Don't fail if there is no authentication
 )
 
