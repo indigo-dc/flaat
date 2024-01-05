@@ -62,6 +62,7 @@ flaat.set_trusted_OP_list(
         "https://unity.helmholtz-data-federation.de/oauth2/",
         "https://wlcg.cloud.cnaf.infn.it/",
         "https://proxy.eduteams.org/",
+        "https://cilogon.org/",
     ]
 )
 

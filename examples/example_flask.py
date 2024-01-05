@@ -60,6 +60,7 @@ class Config(object):
         "https://unity.helmholtz-data-federation.de/oauth2/",
         "https://wlcg.cloud.cnaf.infn.it/",
         "https://proxy.eduteams.org/",
+        "https://cilogon.org/",
     ]
 
     # Additional example configuration:

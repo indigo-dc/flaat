@@ -44,6 +44,7 @@ TRUSTED_OP_LIST = [
     "https://proxy.eduteams.org/",
     "https://regapp.nfdi-aai.de/oidc/realms/nfdi_demo",
     "https://auth.didmos.nfdi-aai.de",
+    "https://cilogon.org/",
 ]
 
 
