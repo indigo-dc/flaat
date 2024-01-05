@@ -61,6 +61,7 @@ class Config(object):
         "https://wlcg.cloud.cnaf.infn.it/",
         "https://proxy.eduteams.org/",
         "https://cilogon.org/",
+        "https://keycloak.sso.gwdg.de/auth/realms/academiccloud",
     ]
 
     # Additional example configuration:

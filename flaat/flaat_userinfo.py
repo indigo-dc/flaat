@@ -45,6 +45,7 @@ TRUSTED_OP_LIST = [
     "https://regapp.nfdi-aai.de/oidc/realms/nfdi_demo",
     "https://auth.didmos.nfdi-aai.de",
     "https://cilogon.org/",
+    "https://keycloak.sso.gwdg.de/auth/realms/academiccloud",
 ]
 
 
