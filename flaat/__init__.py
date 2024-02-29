@@ -2,6 +2,7 @@
 Python support for OIDC Access Tokens -- FLAAT.
 Use decorators for authorising access to OIDC authenticated REST APIs.
 """
+
 # This code is distributed under the MIT License
 
 from __future__ import annotations

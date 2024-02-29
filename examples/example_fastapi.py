@@ -133,6 +133,7 @@ email_requirement = get_claim_requirement(
     match=1,
 )
 
+
 @app.get("/authorized_claim")
 @flaat.requires(email_requirement)
 def authorized_claim(
@@ -153,6 +154,7 @@ vo_requirement = get_vo_requirement(
     "eduperson_entitlement",
     match=2,
 )
+
 
 @app.get("/authorized_vo")
 @flaat.requires(vo_requirement)

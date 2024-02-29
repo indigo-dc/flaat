@@ -25,6 +25,7 @@ class TestURLs:
 
     def test_valid_url_https_port_path(self):
         assert is_url("https://heise.de:9000/thi_s&is=difficult")
+
     def test_short_url(self):
         assert is_url("https://keycloak")
 

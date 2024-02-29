@@ -354,9 +354,11 @@ class UserInfosPrinter:
 
         if self.user_infos.valid_for_secs is not None:
             logger.info(
-                "Your token is valid for %s."
-                if self.user_infos.valid_for_secs > 0
-                else "Your token has EXPIRED for %s!",
+                (
+                    "Your token is valid for %s."
+                    if self.user_infos.valid_for_secs > 0
+                    else "Your token has EXPIRED for %s!"
+                ),
                 format_timespan(self.user_infos.valid_for_secs),
             )
 
