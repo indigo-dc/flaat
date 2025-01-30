@@ -1,5 +1,5 @@
 python-dotenv
-pytest
+pytest<8
 pytest-aiohttp
 pytest-cov
 pytest-cases

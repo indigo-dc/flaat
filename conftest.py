@@ -3,6 +3,7 @@ Setup for all tests.
 
 If the tests are run by CI, we mock user infos here.
 """
+
 import logging
 from typing import Optional
 
@@ -87,7 +88,7 @@ def mock_user_for_ci():
         "get_user_infos_from_access_token",
         _mock_get_user_infos_from_access_token,
     )
-    for (key, value) in [
+    for key, value in [
         ("FLAAT_ISS", _jwt_issuer),
         ("NON_JWT_FLAAT_ISS", _non_jwt_issuer),
         ("FLAAT_TRUSTED_OPS_LIST", [_jwt_issuer, _non_jwt_issuer]),

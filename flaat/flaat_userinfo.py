@@ -41,6 +41,11 @@ TRUSTED_OP_LIST = [
     "https://proxy.demo.eduteams.org",
     "https://wlcg.cloud.cnaf.infn.it/",
     "https://proxy.eduteams.org/",
+    "https://proxy.eduteams.org/",
+    "https://regapp.nfdi-aai.de/oidc/realms/nfdi_demo",
+    "https://auth.didmos.nfdi-aai.de",
+    "https://cilogon.org/",
+    "https://keycloak.sso.gwdg.de/auth/realms/academiccloud",
 ]
 
 
@@ -179,6 +184,7 @@ def get_arg_parser():  # pragma: no cover
         "--trust-any",
         "--any",
         action="store_true",
+        default=True,
         dest="trust_any",
         help="Trust any OP, usefule for displaying information about any access_token",
     )
@@ -348,9 +354,11 @@ class UserInfosPrinter:
 
         if self.user_infos.valid_for_secs is not None:
             logger.info(
-                "Your token is valid for %s."
-                if self.user_infos.valid_for_secs > 0
-                else "Your token has EXPIRED for %s!",
+                (
+                    "Your token is valid for %s."
+                    if self.user_infos.valid_for_secs > 0
+                    else "Your token has EXPIRED for %s!"
+                ),
                 format_timespan(self.user_infos.valid_for_secs),
             )
 

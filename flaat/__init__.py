@@ -2,6 +2,7 @@
 Python support for OIDC Access Tokens -- FLAAT.
 Use decorators for authorising access to OIDC authenticated REST APIs.
 """
+
 # This code is distributed under the MIT License
 
 from __future__ import annotations
@@ -479,7 +480,14 @@ class AuthWorkflow:
             # No error, but also do nothing else
             return (args, kwargs)
 
-        user_infos = self.authenticate_user(*args, **kwargs)
+        if self.ignore_no_authn:
+            try:
+                user_infos = self.authenticate_user(*args, **kwargs)
+            except FlaatException:
+                user_infos = None
+        else:
+            user_infos = self.authenticate_user(*args, **kwargs)
+
         if user_infos is None:
             if self.ignore_no_authn:
                 # No error, but also do nothing else

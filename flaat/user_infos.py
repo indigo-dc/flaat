@@ -1,5 +1,5 @@
-import logging
 from json import JSONEncoder
+import logging
 from time import time
 from typing import Any, Optional
 
@@ -82,12 +82,12 @@ class UserInfos:
     @property
     def issuer(self) -> str:
         """The issuer of the access token"""
-        return self.get("iss", "")
+        return str(self.get("iss", ""))
 
     @property
     def subject(self) -> str:
         """The users subject at the issuer"""
-        return self.get("sub", "")
+        return str(self.get("sub", ""))
 
     # make the UserInfos act like a dictionary with regard to claims
     def __getitem__(self, key):

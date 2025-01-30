@@ -47,6 +47,8 @@ flaat.set_trusted_OP_list(
         "https://proxy.demo.eduteams.org",
         "https://wlcg.cloud.cnaf.infn.it/",
         "https://proxy.eduteams.org/",
+        "https://cilogon.org/",
+        "https://keycloak.sso.gwdg.de/auth/realms/academiccloud",
     ]
 )
 

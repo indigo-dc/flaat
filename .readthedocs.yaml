@@ -26,7 +26,6 @@ python:
       path: .
     - requirements: doc/source/requirements.txt
     - requirements: requirements.txt
-  system_packages: true
 
 formats:
   - pdf

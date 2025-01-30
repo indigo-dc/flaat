@@ -11,6 +11,9 @@ class TestURLs:
     def test_valid_url_http(self):
         assert is_url("http://heise.de")
 
+    def test_valid_url_http_port(self):
+        assert is_url("http://heise.de:999")
+
     def test_valid_url_https(self):
         assert is_url("http://heise.de")
 
@@ -20,8 +23,26 @@ class TestURLs:
     def test_valid_url_https_path(self):
         assert is_url("https://heise.de/thi_s&is=difficult")
 
+    def test_valid_url_https_port_path(self):
+        assert is_url("https://heise.de:9000/thi_s&is=difficult")
+
+    def test_short_url(self):
+        assert is_url("https://keycloak")
+
     def test_invalid_url(self):
         assert not is_url("htp://heise.de")
+
+    def test_valid_ip(self):
+        assert is_url("https://127.0.0.1")
+
+    def test_valid_ip_port(self):
+        assert is_url("https://127.0.0.1:8080")
+
+    def test_valid_ip_path(self):
+        assert is_url("https://127.0.0.1/thi_s&is=diffcult")
+
+    def test_valid_ip_port_path(self):
+        assert is_url("https://127.0.0.1:8080/thi_s&is=diffcult")
 
 
 def test_token_introspection():
