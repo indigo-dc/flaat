@@ -46,30 +46,6 @@ DEFAULT_ACCESS_LEVELS = [
     Identified,
 ]
 
-# No leading slash ('/') in ops_that_support_jwt !!!
-OPS_THAT_SUPPORT_JWT = [
-    "https://aai-dev.egi.eu/oidc",
-    "https://aai.egi.eu/oidc",
-    "https://aai-dev.egi.eu/auth/realms/egi",
-    "https://aai-demo.egi.eu/auth/realms/egi",
-    "https://aai.egi.eu/auth/realms/egi",
-    "https://aai-dev.egi.eu/auth/realms/egi",
-    "https://b2access-integration.fz-juelich.de/oauth2",
-    "https://b2access.eudat.eu/oauth2",
-    "https://iam-test.indigo-datacloud.eu",
-    "https://iam.deep-hybrid-datacloud.eu",
-    "https://iam.extreme-datacloud.eu",
-    "https://login-dev.helmholtz.de/oauth2",
-    "https://login.elixir-czech.org/oidc",
-    "https://login.helmholtz-data-federation.de/oauth2",
-    "https://login.helmholtz.de/oauth2",
-    "https://oidc.scc.kit.edu/auth/realms/kit",
-    "https://services.humanbrainproject.eu/oidc",
-    "https://unity.helmholtz-data-federation.de/oauth2",
-    "https://wlcg.cloud.cnaf.infn.it",
-]
-
-
 class FlaatConfig:
     """
     The configuration for Flaat instances.

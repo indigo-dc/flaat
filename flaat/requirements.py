@@ -14,17 +14,9 @@ import aarc_entitlement
 
 from flaat.exceptions import FlaatException
 from flaat.user_infos import UserInfos
+from flaat.opconfig import CONFIG
 
 logger = logging.getLogger(__name__)
-
-
-# No leading slash ('/') in ops_that_support_audience !!!
-OPS_THAT_SUPPORT_AUDIENCE = [
-    "https://iam-test.indigo-datacloud.eu",
-    "https://iam.deep-hybrid-datacloud.eu",
-    "https://iam.extreme-datacloud.eu",
-    "https://wlcg.cloud.cnaf.infn.it",
-]
 
 
 @dataclass
@@ -292,7 +284,7 @@ class HasAudience(HasClaim):
     def is_satisfied_by(self, user_infos: UserInfos) -> CheckResult:
         if (
             user_infos is not None
-            and user_infos.issuer.rstrip("/") not in OPS_THAT_SUPPORT_AUDIENCE
+            and user_infos.issuer.rstrip("/") not in CONFIG.OPS_THAT_SUPPORT_AUDIENCE
         ):
             logger.warning(
                 "Issuer %s does not support audience setting, ignoring audience requirement.",
