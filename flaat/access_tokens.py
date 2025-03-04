@@ -81,7 +81,7 @@ class FlaatPyJWKClient(jwt.PyJWKClient):
     * an additional method get_signing_key_by_alg
     """
 
-    def get_signing_keys(self) -> List[jwt.api_jwk.PyJWK]:
+    def get_signing_keys(self, refresh: bool = False) -> List[jwt.api_jwk.PyJWK]:
         data = self.fetch_data()
         # filter for signing keys, i.e. "use" in ["sig", None]
         keys = [

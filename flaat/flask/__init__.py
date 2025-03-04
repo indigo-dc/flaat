@@ -1,3 +1,5 @@
+# type: ignore
+# ignore all pyright errors in this file
 import json
 import logging
 from typing import List

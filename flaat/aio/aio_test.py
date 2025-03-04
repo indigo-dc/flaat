@@ -38,6 +38,7 @@ def cli(event_loop, aiohttp_client, app):
     return event_loop.run_until_complete(aiohttp_client(app))
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("status,kwargs", get_status_kwargs_list())
 @pytest.mark.parametrize("decorator", DECORATORS)
 async def test_decorator(cli, decorator, status, kwargs):

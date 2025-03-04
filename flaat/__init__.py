@@ -21,7 +21,8 @@ from flaat.caches import (
     issuer_config_cache,
     user_infos_cache,
 )
-from flaat.config import OPS_THAT_SUPPORT_JWT, FlaatConfig
+from flaat.opconfig import CONFIG
+from flaat.config import FlaatConfig
 from flaat.exceptions import FlaatException, FlaatForbidden, FlaatUnauthenticated
 from flaat.issuers import IssuerConfig
 from flaat.requirements import (
@@ -180,7 +181,7 @@ class BaseFlaat(FlaatConfig):
         # Nice to have: parallel would speed up things here
         for issuer in self.trusted_op_list:
             # skip OPs that would have provided a JWT
-            if issuer in OPS_THAT_SUPPORT_JWT:
+            if issuer in CONFIG.OPS_THAT_SUPPORT_JWT:
                 continue
 
             logger.debug("Trying issuer: %s", issuer)
@@ -403,7 +404,7 @@ class AuthWorkflow:
         else:
             req = self.user_requirements
 
-        check_result = req.is_satisfied_by(user_infos)
+        check_result = req.is_satisfied_by(user_infos)  # pyright: ignore
         if check_result.is_satisfied:
             return
 
