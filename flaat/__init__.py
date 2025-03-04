@@ -404,7 +404,7 @@ class AuthWorkflow:
         else:
             req = self.user_requirements
 
-        check_result = req.is_satisfied_by(user_infos)
+        check_result = req.is_satisfied_by(user_infos)  # pyright: ignore
         if check_result.is_satisfied:
             return
 

@@ -60,14 +60,14 @@ REQUEST_REQUIREMENT = Callable[[UserInfos, tuple, dict], CheckResult]
 class Satisfied(Requirement):
     """Satisfied is always satisfied"""
 
-    def is_satisfied_by(self, _):
+    def is_satisfied_by(self, user_infos: UserInfos):
         return CheckResult(True, "Requirement is always satisfied")
 
 
 class Unsatisfiable(Requirement):
     """Unsatisfiable is never satisfied"""
 
-    def is_satisfied_by(self, _):
+    def is_satisfied_by(self, user_infos: UserInfos):
         return CheckResult(False, "Requirement is unsatisfiable")
 
 

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class Flaat(BaseFlaat):
-    def _get_request(self, *args, **kwargs):
+    def _get_request(self, *args, **kwargs):  # pyright: ignore
         for arg in list(args) + list(kwargs.values()):
             if isinstance(arg, Request):
                 return arg
