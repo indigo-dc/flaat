@@ -1,4 +1,4 @@
-""" These tests are nothing AIO specific, but we can only test them with a framework.
+"""These tests are nothing AIO specific, but we can only test them with a framework.
 We therefore picked AIO as an example.
 
 FIXME The environment overrides in here are crude and will not work if run concurrently!

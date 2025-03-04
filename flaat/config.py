@@ -46,6 +46,7 @@ DEFAULT_ACCESS_LEVELS = [
     Identified,
 ]
 
+
 class FlaatConfig:
     """
     The configuration for Flaat instances.

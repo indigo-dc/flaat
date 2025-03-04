@@ -1,4 +1,3 @@
-
 import logging
 import os
 import json
@@ -38,23 +37,28 @@ DEFAULT_OPS_THAT_SUPPORT_AUDIENCE = [
     "https://wlcg.cloud.cnaf.infn.it",
 ]
 
+
 class Config:
     """
     The configuration for OPs and what they support.
     """
 
     def __init__(self, ops_that_support_jwt: list, ops_that_support_audience: list):
-        self.ops_that_support_jwt = list(set(DEFAULT_OPS_THAT_SUPPORT_JWT + ops_that_support_jwt))
-        self.ops_that_support_audience = list(set(DEFAULT_OPS_THAT_SUPPORT_AUDIENCE + ops_that_support_audience))
+        self.ops_that_support_jwt = list(
+            set(DEFAULT_OPS_THAT_SUPPORT_JWT + ops_that_support_jwt)
+        )
+        self.ops_that_support_audience = list(
+            set(DEFAULT_OPS_THAT_SUPPORT_AUDIENCE + ops_that_support_audience)
+        )
 
     @property
     def OPS_THAT_SUPPORT_JWT(self):
         return self.ops_that_support_jwt
-    
+
     @property
     def OPS_THAT_SUPPORT_AUDIENCE(self):
         return self.ops_that_support_audience
-    
+
     @staticmethod
     def load():
         """
@@ -82,23 +86,39 @@ class Config:
                     files_read = config_parser.read(fpath)
                     logging.getLogger(__name__).debug("Read config from %s", files_read)
                 except Exception as e:
-                    logging.getLogger(__name__).warning("Invalid OP config file: %s. Trying next file of falling back to default values.", e)
+                    logging.getLogger(__name__).warning(
+                        "Invalid OP config file: %s. Trying next file of falling back to default values.",
+                        e,
+                    )
                     continue
                 try:
-                    ops_that_support_jwt = json.loads(config_parser.get("ops", "ops_that_support_jwt"))
+                    ops_that_support_jwt = json.loads(
+                        config_parser.get("ops", "ops_that_support_jwt")
+                    )
                 except Exception as e:
-                    logging.getLogger(__name__).warning("Failed to load OPs that support JWT from config file: %s. Using default values.", e)
+                    logging.getLogger(__name__).warning(
+                        "Failed to load OPs that support JWT from config file: %s. Using default values.",
+                        e,
+                    )
                     ops_that_support_jwt = []
                 try:
-                    ops_that_support_audience = json.loads(config_parser.get("ops", "ops_that_support_audience"))
+                    ops_that_support_audience = json.loads(
+                        config_parser.get("ops", "ops_that_support_audience")
+                    )
                 except Exception as e:
-                    logging.getLogger(__name__).warning("Failed to load OPs that support audience from config file: %s. Using default values.", e)
+                    logging.getLogger(__name__).warning(
+                        "Failed to load OPs that support audience from config file: %s. Using default values.",
+                        e,
+                    )
                     ops_that_support_audience = []
-                logging.getLogger(__name__).debug("loaded OPs that support JWT %s", ops_that_support_jwt)
-                logging.getLogger(__name__).debug("loaded OPs that support audience %s", ops_that_support_audience)
+                logging.getLogger(__name__).debug(
+                    "loaded OPs that support JWT %s", ops_that_support_jwt
+                )
+                logging.getLogger(__name__).debug(
+                    "loaded OPs that support audience %s", ops_that_support_audience
+                )
                 return Config(ops_that_support_jwt, ops_that_support_audience)
         return Config([], [])
 
+
 CONFIG = Config.load()
-
-
