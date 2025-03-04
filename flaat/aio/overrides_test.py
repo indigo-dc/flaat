@@ -49,6 +49,7 @@ def _mock_auth_user(monkeypatch, user_infos: Optional[UserInfos]):
     monkeypatch.setattr(Flaat, "authenticate_user", _mock_authenticate_user)
 
 
+@pytest.mark.asyncio
 async def test_env_override_authentication(monkeypatch, cli):
     _mock_auth_user(monkeypatch, user_infos=None)
 
@@ -63,6 +64,7 @@ async def test_env_override_authentication(monkeypatch, cli):
     del os.environ[ENV_VAR_AUTHN_OVERRIDE]
 
 
+@pytest.mark.asyncio
 async def test_env_override_authorization(monkeypatch, cli):
     # this user does not meet the requirments from the workflow in this module
     forbidden_user = UserInfos(
@@ -83,6 +85,7 @@ async def test_env_override_authorization(monkeypatch, cli):
     del os.environ[ENV_VAR_AUTHN_OVERRIDE]
 
 
+@pytest.mark.asyncio
 async def test_env_override_authorization_without_user(monkeypatch, cli):
     _mock_auth_user(monkeypatch, user_infos=None)
 
