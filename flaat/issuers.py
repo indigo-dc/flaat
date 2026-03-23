@@ -6,6 +6,7 @@ import json
 import logging
 import re
 from typing import Optional
+from urllib.parse import urlparse
 
 import requests
 from requests.models import HTTPBasicAuth
@@ -19,21 +20,12 @@ _VERIFY_TLS = True
 _TIMEOUT = 1.2  # (seconds)
 
 
-def is_url(string):
-    """Return True if parameter is a URL, otherwise False"""
-    regex = re.compile(
-        r"^(?:http|ftp)s?://"  # http:// or https://
-        r"(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)(?:\.[A-Z]{2,6}|[A-Z0-9-]{2,})*\.?|\d{1,3}\."  # domain...
-        r"localhost|"  # localhost...
-        r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})"  # ...or ipv4
-        r"(?::\d+)?"  # optional port
-        r"(?:/?|[/?]\S+)$",
-        re.IGNORECASE,
-    )
-    if re.match(regex, string):
-        return True
-    return False
-
+def is_url(url):
+    try:
+        result = urlparse(url)
+        return result.netloc and result.scheme in ['http', 'https', 'ftp', 'ftps']
+    except:
+        return False
 
 def _make_json_request(
     url, timeout: float, verify_tls: bool, **kwargs
