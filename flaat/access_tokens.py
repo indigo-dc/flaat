@@ -125,7 +125,7 @@ class FlaatPyJWKClient(jwt.PyJWKClient):
 
         return signing_key
 
-    def get_signing_key_from_jwt(self, token: str) -> jwt.api_jwk.PyJWK:
+    def get_signing_key_from_jwt(self, token: str | bytes) -> jwt.api_jwk.PyJWK:
         unverified = jwt.api_jwt.decode_complete(
             token, options={"verify_signature": False}
         )
