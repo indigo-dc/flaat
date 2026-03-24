@@ -3,7 +3,6 @@ import logging
 from time import time
 from typing import Any, Optional
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -104,10 +103,7 @@ class UserInfos:
     def has_key(self, key):
         return (
             key in self.user_info
-            or (
-                self.access_token_info is not None
-                and key in self.access_token_info.body
-            )
+            or (self.access_token_info is not None and key in self.access_token_info.body)
             or (self.introspection_info is not None and key in self.introspection_info)
         )
 

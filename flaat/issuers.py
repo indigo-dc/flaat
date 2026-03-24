@@ -23,9 +23,10 @@ _TIMEOUT = 1.2  # (seconds)
 def is_url(url):
     try:
         result = urlparse(url)
-        return result.netloc and result.scheme in ['http', 'https', 'ftp', 'ftps']
+        return result.netloc and result.scheme in ["http", "https", "ftp", "ftps"]
     except:
         return False
+
 
 def _make_json_request(
     url, timeout: float, verify_tls: bool, **kwargs

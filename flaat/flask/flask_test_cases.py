@@ -1,7 +1,6 @@
 from pytest_cases import parametrize
 from flaat.test_env import FLAAT_AT
 
-
 example_paths = {
     "/info",
     "/info_no_strict",

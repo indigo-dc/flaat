@@ -524,14 +524,14 @@ class AuthWorkflow:
 
         @wraps(view_func)
         def wrapper(*args, **kwargs):
-            ((args, kwargs), error_response) = self._run_work_flow_safe(*args, **kwargs)
+            (args, kwargs), error_response = self._run_work_flow_safe(*args, **kwargs)
             if error_response is not None:
                 return error_response
             return view_func(*args, **kwargs)
 
         @wraps(view_func)
         async def async_wrapper(*args, **kwargs):
-            ((args, kwargs), error_response) = self._run_work_flow_safe(*args, **kwargs)
+            (args, kwargs), error_response = self._run_work_flow_safe(*args, **kwargs)
             if error_response is not None:
                 return error_response
             return await view_func(*args, **kwargs)
