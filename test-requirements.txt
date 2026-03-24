@@ -4,6 +4,7 @@ pytest-aiohttp
 pytest-cov
 pytest-cases
 pylint-pytest
+pytest-asyncio
 
 aiohttp
 fastapi[all]>=0.61.2
