@@ -23,7 +23,7 @@ git clone https://github.com/indigo-dc/flaat
 pip install -e ./flaat
 ```
 
-!Note
+## Note
 Please note that there may be conflicts with the pip package `jwt`,
 because its installation can mask `python-jwt`. In case of this error:
 ```
