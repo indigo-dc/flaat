@@ -23,6 +23,17 @@ git clone https://github.com/indigo-dc/flaat
 pip install -e ./flaat
 ```
 
+!!!Note
+Please note that there may be conflicts with the pip package `jwt`,
+because its installation can mask `python-jwt`. In case of this error:
+```
+    class FlaatPyJWKClient(jwt.PyJWKClient):
+                           ^^^^^^^^^^^^^^^
+AttributeError: module 'jwt' has no attribute 'PyJWKClient'
+```
+the `jwt package is in the way, and you need to uninstall it, so
+python-jwt can be used.
+
 ## Documentation
 
 The documentation is available at [readthedocs](https://flaat.readthedocs.io/en/latest/).
